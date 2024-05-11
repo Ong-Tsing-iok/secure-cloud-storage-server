@@ -1,0 +1,19 @@
+{"level":"info","message":"Server is running on port 3001","service":"user-service"}
+{"level":"info","message":"Server is running on port 3001","service":"user-service"}
+{"level":"info","message":"A client connected","service":"user-service"}
+{"level":"info","message":"A client disconnected","service":"user-service"}
+{"level":"info","message":"A client connected","service":"user-service"}
+{"level":"info","message":"A client disconnected","service":"user-service"}
+{"level":"info","message":"Server is running on port 3001","service":"user-service"}
+{"level":"info","message":"A client connected","service":"user-service"}
+{"level":"info","message":"A client connected","service":"user-service"}
+{"level":"info","message":"A client disconnected","service":"user-service"}
+{"level":"info","message":"A client disconnected","service":"user-service"}
+{"level":"info","message":"A client connected","service":"user-service"}
+{"level":"info","message":"A client connected","service":"user-service"}
+{"level":"info","message":"Received message:","service":"user-service"}
+{"level":"info","message":"A client connected","service":"user-service"}
+{"level":"info","message":"Received message:","service":"user-service"}
+{"level":"info","message":"A client disconnected","service":"user-service"}
+{"level":"info","message":"A client disconnected","service":"user-service"}
+{"level":"info","message":"A client disconnected","service":"user-service"}
