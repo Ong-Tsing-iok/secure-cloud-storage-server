@@ -131,3 +131,4 @@ dist
 
 *.crt
 *.key
+*.db
