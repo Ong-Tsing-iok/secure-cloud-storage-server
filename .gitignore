@@ -132,3 +132,4 @@ dist
 *.crt
 *.key
 *.db
+uploads/

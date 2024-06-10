@@ -51,27 +51,43 @@ const DBHandler = new DatabaseHandler('database.db')
  * @param {string} p - The public key p.
  * @param {string} g - The public key g.
  * @param {string} y - The public key y.
- * @return {boolean} Returns true if the user was added to the database, false otherwise.
+ * @return {number|undefined} The id of the added user or undefined if an error occurred.
  */
-const checkAndAddUser = (p, g, y) => {
+const AddUserAndGetId = (p, g, y) => {
+  // Initialize the id with undefined
+  let id = undefined
+
+  // Query the database for a user with the given public keys
   DBHandler.db.get('SELECT * FROM users WHERE y = ? AND g = ? AND p = ?', [y, g, p], (err, row) => {
     if (err) {
+      // Log the error if there was an issue with the database query
       logger.error(`Error checking and adding user: ${err}`)
-      return false
-    }
-    if (row === undefined) {
-      DBHandler.db.run('INSERT INTO users (y, g, p) VALUES (?, ?, ?)', [y, g, p])
-      logger.verbose(`Added user with y = ${y}, g = ${g}, p = ${p}`)
-      return true
     } else {
-      logger.debug(`User already existed`)
-      return false
+      if (row === undefined) {
+        // If the user does not exist, add them to the database
+        DBHandler.db.run('INSERT INTO users (y, g, p) VALUES (?, ?, ?)', [y, g, p], function (err) {
+          if (err) {
+            // Log the error if there was an issue with adding the user to the database
+            logger.error(`Error adding user: ${err}`)
+          } else {
+            // Set the id to the id of the newly added user
+            id = this.lastID
+            logger.verbose(`Added user with y = ${y}, g = ${g}, p = ${p}`)
+          }
+        })
+      } else {
+        // If the user already exists, set the id to the id of the existing user
+        id = row.id
+        logger.debug(`User already existed`)
+      }
     }
   })
-  return false
+
+  // Return the id of the added user or undefined if an error occurred
+  return id
 }
 
-export { checkAndAddUser }
+export { AddUserAndGetId }
 
 // Handle graceful shutdown
 process.on('SIGINT', () => {
