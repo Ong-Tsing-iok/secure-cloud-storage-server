@@ -21,6 +21,7 @@ const sessionDb = new sqlite('session.db', {
   verbose: process.env.NODE_ENV !== 'production' ? console.log : null
 })
 
+sessionDb.pragma('journal_mode = WAL')
 // Create the session middleware
 const sessionMiddleware = session({
   store: new SqliteStore({

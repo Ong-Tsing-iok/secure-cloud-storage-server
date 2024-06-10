@@ -13,7 +13,7 @@ import ElGamal from 'basic_simple_elgamal'
 import bigInt from 'big-integer'
 import { getInRange } from 'basic_simple_elgamal/bigIntManager.js'
 // Database
-import { AddUserAndGetId } from './DatabaseHandler.js'
+import { AddUserAndGetId } from './StorageDatabase.js'
 
 const __filename = fileURLToPath(import.meta.url) // get the resolved path to the file
 const __dirname = dirname(__filename) // get the name of the directory
@@ -79,6 +79,7 @@ io.on('connection', (socket) => {
       socket.authed = true
       const id = AddUserAndGetId(socket.p, socket.g, socket.y)
       socket.request.session.userId = id
+      logger.debug(`User id: ${id}`)
       socket.emit('login-auth-res', 'OK')
     } else {
       logger.info(`Client with socket id ${socket.id} respond with incorrect authentication`)

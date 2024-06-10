@@ -131,5 +131,5 @@ dist
 
 *.crt
 *.key
-*.db
+*.db*
 uploads/
