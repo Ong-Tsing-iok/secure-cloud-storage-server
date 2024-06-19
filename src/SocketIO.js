@@ -15,6 +15,7 @@ import bigInt from 'big-integer'
 import { getInRange } from 'basic_simple_elgamal/bigIntManager.js'
 // Database
 import { AddUserAndGetId } from './StorageDatabase.js'
+import { userDbLogin } from './LoginDatabase.js'
 
 const __filename = fileURLToPath(import.meta.url) // get the resolved path to the file
 const __dirname = dirname(__filename) // get the name of the directory
@@ -45,6 +46,7 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     logger.log('info', `Client with socket id ${socket.id} is disconnected`)
+    userDbLogout(socket.id)
   })
 
   /**
@@ -85,6 +87,7 @@ io.on('connection', (socket) => {
       const id = AddUserAndGetId(socket.p, socket.g, socket.y)
       socket.handshake.session.userId = id
       socket.handshake.session.save()
+      userDbLogin(socket.id, id)
       logger.debug(`User id: ${id}`)
       socket.emit('login-auth-res', 'OK')
     } else {
