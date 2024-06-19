@@ -6,7 +6,7 @@ import sessionMiddleware from './SessionMiddleware.js'
 import { mkdir } from 'fs/promises'
 import multer from 'multer'
 import { selectUserBySocketId } from './LoginDatabase.js'
-import { addFileToDatabase } from './StorageDatabase.js'
+import { addFileToDatabase, getFileInfo } from './StorageDatabase.js'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 
@@ -80,6 +80,27 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
     res.sendStatus(500)
   }
 })
+app.get('/download', auth, (req, res) => {
+  try {
+    const uuid = req.headers.uuid
+    logger.info(`User with socket id ${req.headers.socketid} is downloading file with UUID ${uuid}`)
+    const fileInfo = getFileInfo(uuid)
+    if (!fileInfo) {
+      logger.info(`File with UUID ${uuid} not found`)
+      res.status(404).send('File not found')
+    } else if (fileInfo.owner !== req.userId) {
+      logger.info(`User with socket id ${req.headers.socketid} does not have permission to download file with UUID ${uuid}`)
+      res.status(403).send('File not permitted')
+    } else {
+      logger.info(`User with socket id ${req.headers.socketid} is downloading file with UUID ${uuid}`)
+      res.download(join(/*__dirname, */ 'uploads', String(req.userId), fileInfo.uuid), fileInfo.name)
+    }
+  } catch (error) {
+    logger.error(`Error downloading file with UUID ${req.headers.uuid} for user with socket id ${req.headers.socketid}: ${error}`)
+    res.sendStatus(500)
+  }
+})
+
 const options = {
   key: readFileSync('server.key'),
   cert: readFileSync('server.crt'),

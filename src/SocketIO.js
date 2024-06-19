@@ -14,7 +14,7 @@ import ElGamal from 'basic_simple_elgamal'
 import bigInt from 'big-integer'
 import { getInRange } from 'basic_simple_elgamal/bigIntManager.js'
 // Database
-import { AddUserAndGetId } from './StorageDatabase.js'
+import { AddUserAndGetId, getAllFilesByUserId } from './StorageDatabase.js'
 import { userDbLogin, userDbLogout } from './LoginDatabase.js'
 
 const __filename = fileURLToPath(import.meta.url) // get the resolved path to the file
@@ -29,9 +29,11 @@ const io = new Server(server, {
 //   sessionMiddleware(socket.request, socket.request.res || {}, next)
 // })
 
-io.use(sharedSession(sessionMiddleware, {
-  autoSave: true
-}))
+io.use(
+  sharedSession(sessionMiddleware, {
+    autoSave: true
+  })
+)
 
 // server.use(cors())
 
@@ -55,6 +57,10 @@ io.on('connection', (socket) => {
    */
   socket.on('login-ask', async (p, g, y) => {
     logger.info(`Client with socket id ${socket.id} asked to login`)
+    if (socket.authed) {
+      socket.emit('message', 'already logged in')
+      return
+    }
     try {
       socket.p = String(p)
       socket.g = String(g)
@@ -87,6 +93,7 @@ io.on('connection', (socket) => {
       const id = AddUserAndGetId(socket.p, socket.g, socket.y)
       socket.handshake.session.userId = id
       socket.handshake.session.save()
+      socket.userId = id
       userDbLogin(socket.id, id)
       logger.debug(`User id: ${id}`)
       socket.emit('login-auth-res', 'OK')
@@ -115,6 +122,21 @@ io.on('connection', (socket) => {
       logger.info(`Client with socket id ${socket.id} uploaded a file as ${fileName}`)
       ack('file upload success')
     })
+  })
+
+  socket.on('get-file-list', () => {
+    logger.info(`Client with socket id ${socket.id} requested file list`)
+    if (!socket.authed) {
+      socket.emit('message', 'not logged in')
+      return
+    }
+    try {
+      const files = getAllFilesByUserId(socket.userId)
+      socket.emit('file-list-res', JSON.stringify(files))
+    } catch (error) {
+      logger.error(`Error getting file list for user with socket id ${socket.id}: ${error}`)
+      socket.emit('message', 'error when get-file-list')
+    }
   })
 })
 

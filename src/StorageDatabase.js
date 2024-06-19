@@ -35,7 +35,7 @@ const selectUserByKeys = storageDb.prepare('SELECT * FROM users WHERE y = ? AND 
 const insertUserWithKeys = storageDb.prepare('INSERT INTO users (y, g, p) VALUES (?, ?, ?)')
 const insertFile = storageDb.prepare('INSERT INTO files (name, uuid, owner) VALUES (?, ?, ?)')
 const selectFileByUuid = storageDb.prepare('SELECT * FROM files WHERE uuid = ?')
-const selectAllFilesByUserId = storageDb.prepare('SELECT * FROM files WHERE owner = ?')
+const selectAllFilesByUserId = storageDb.prepare('SELECT name, uuid FROM files WHERE owner = ?')
 
 logger.info(`Database initialized`)
 
