@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url'
 import { Server } from 'socket.io'
 import server from './HttpsServer.js'
 import sessionMiddleware from './SessionMiddleware.js'
+import sharedSession from 'express-socket.io-session'
 // Logger
 import { logger } from './Logger.js'
 // ElGamal
@@ -23,9 +24,13 @@ const io = new Server(server, {
   }
 })
 
-io.use((socket, next) => {
-  sessionMiddleware(socket.request, socket.request.res || {}, next)
-})
+// io.use((socket, next) => {
+//   sessionMiddleware(socket.request, socket.request.res || {}, next)
+// })
+
+io.use(sharedSession(sessionMiddleware, {
+  autoSave: true
+}))
 
 // server.use(cors())
 
@@ -78,7 +83,8 @@ io.on('connection', (socket) => {
       )
       socket.authed = true
       const id = AddUserAndGetId(socket.p, socket.g, socket.y)
-      socket.request.session.userId = id
+      socket.handshake.session.userId = id
+      socket.handshake.session.save()
       logger.debug(`User id: ${id}`)
       socket.emit('login-auth-res', 'OK')
     } else {
