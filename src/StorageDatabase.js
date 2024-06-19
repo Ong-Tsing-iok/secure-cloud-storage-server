@@ -23,7 +23,7 @@ const createFileTable = storageDb.prepare(
   owner INTEGER,
   FOREIGN KEY(owner) REFERENCES users(id)
   )`
-)
+)// TODO: add time to storage?
 try {
   createUserTable.run()
   createFileTable.run()
@@ -33,6 +33,9 @@ try {
 
 const selectUserByKeys = storageDb.prepare('SELECT * FROM users WHERE y = ? AND g = ? AND p = ?')
 const insertUserWithKeys = storageDb.prepare('INSERT INTO users (y, g, p) VALUES (?, ?, ?)')
+const insertFile = storageDb.prepare('INSERT INTO files (name, uuid, owner) VALUES (?, ?, ?)')
+const selectFileByUuid = storageDb.prepare('SELECT * FROM files WHERE uuid = ?')
+const selectAllFilesByUserId = storageDb.prepare('SELECT * FROM files WHERE owner = ?')
 
 logger.info(`Database initialized`)
 
@@ -69,7 +72,39 @@ const AddUserAndGetId = (p, g, y) => {
   return id
 }
 
-export { AddUserAndGetId }
+/**
+ * Adds a file to the database with the given name, UUID, and user ID.
+ *
+ * @param {string} name - The name of the file.
+ * @param {string} uuid - The UUID of the file.
+ * @param {number} userId - The ID of the user who owns the file.
+ * @return {void} This function does not return a value.
+ */
+const addFileToDatabase = (name, uuid, userId) => {
+  insertFile.run(name, uuid, userId)
+}
+
+/**
+ * Retrieves file information from the database based on the given UUID.
+ *
+ * @param {string} uuid - The UUID of the file.
+ * @return {Object|null} An object of the file information if found, or null if not found.
+ */
+const getFileInfo = (uuid) => {
+  return selectFileByUuid.get(uuid)
+}
+
+/**
+ * Retrieves all files associated with a specific user ID.
+ *
+ * @param {number} userId - The ID of the user.
+ * @return {Array} An array of files associated with the user.
+ */
+const getAllFilesByUserId = (userId) => {
+  return selectAllFilesByUserId.all(userId)
+}
+
+export { AddUserAndGetId, addFileToDatabase, getFileInfo, getAllFilesByUserId }
 
 // Handle graceful shutdown
 process.on('exit', () => storageDb.close())
