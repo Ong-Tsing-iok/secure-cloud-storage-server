@@ -3,20 +3,37 @@ import express from 'express'
 import { createServer } from 'https'
 import { logger } from './Logger.js'
 import sessionMiddleware from './SessionMiddleware.js'
-import { writeFileSync } from 'fs'
+import { mkdir } from 'fs/promises'
 import multer from 'multer'
 import { selectUserBySocketId } from './LoginDatabase.js'
+import { join } from 'path'
+import { randomUUID } from 'crypto'
 
 const app = express()
 app.get('/', (req, res) => {
   res.send('Hello World!')
 })
 
-
 app.set('trust proxy', true)
 app.use(sessionMiddleware)
 
-const upload = multer({ dest: 'uploads/' })
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const folderPath = join(/*__dirname, */ 'uploads', String(req.userId))
+    try {
+      await mkdir(folderPath, { recursive: true })
+      cb(null, folderPath)
+    } catch (error) {
+      logger.error(`Error creating folder ${folderPath}: ${error}`)
+      cb(error)
+    }
+  },
+  filename: (req, file, cb) => {
+    cb(null, randomUUID())
+  }
+})
+const upload = multer({ storage: storage })
+
 /**
  * Check authentication of the user based on the provided socket ID.
  *
@@ -59,7 +76,6 @@ const options = {
  * @todo Redirect http to https?
  */
 const server = createServer(options, app)
-
 
 export default server
 
