@@ -43,13 +43,14 @@ const userDbLogin = (socketId, userId) => {
   insertUserStmt.run(socketId, userId)
 }
 
+
 /**
  * Retrieves a user from the database based on their socket ID.
  *
  * @param {string} socketId - The socket ID of the user.
- * @return {Object|null} The user object if found, or null if not found.
+ * @return {{userId: number}|undefined} The userId in a object if found, or undefined if not found.
  */
-const selectUserBySocketId = (socketId) => {
+const checkUserLoggedIn = (socketId) => {
   return selectUserStmt.get(socketId)
 }
 
@@ -63,4 +64,4 @@ const userDbLogout = (socketId) => {
   removeUserStmt.run(socketId)
 }
 
-export { userDbLogin, selectUserBySocketId, userDbLogout }
+export { userDbLogin, checkUserLoggedIn, userDbLogout }

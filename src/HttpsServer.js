@@ -5,7 +5,7 @@ import { logger } from './Logger.js'
 import sessionMiddleware from './SessionMiddleware.js'
 import { mkdir } from 'fs/promises'
 import multer from 'multer'
-import { selectUserBySocketId } from './LoginDatabase.js'
+import { checkUserLoggedIn } from './LoginDatabase.js'
 import { addFileToDatabase, getFileInfo } from './StorageDatabase.js'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
@@ -45,9 +45,9 @@ const upload = multer({ storage: storage })
  */
 const auth = (req, res, next) => {
   try {
-    const user = selectUserBySocketId(req.headers.socketid)
+    const user = checkUserLoggedIn(req.headers.socketid)
     logger.debug(`User with socket id ${req.headers.socketid} is authenticating`)
-    if (user && user.userId) {
+    if (user !== undefined) {
       logger.info(`User with socket id ${req.headers.socketid} is authenticated`)
       req.userId = user.userId
       next()
