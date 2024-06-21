@@ -1,5 +1,8 @@
 import fs from 'fs'
 import { logger } from './Logger.js'
+import { addFileToDatabase } from './StorageDatabase.js'
+import { randomUUID } from 'crypto'
+import { basename, dirname, join } from 'path'
 
 const unlink = (path, callback) => {
   // currently shouldn't be called
@@ -47,6 +50,12 @@ const stat = (path, callback) => {
 
 const createWriteStream = (path, options) => {
   // Need to store into database first and change name to uuid
+  const uuid = randomUUID()
+  const filename = basename(path)
+  const dir_name = dirname(path) // Should be the userId at end of path
+  const userId = Number(basename(dir_name))
+  logger.info(`Creating write stream for ${path}`)
+  addFileToDatabase(filename, uuid, userId)
   return fs.createWriteStream(path, options)
 }
 

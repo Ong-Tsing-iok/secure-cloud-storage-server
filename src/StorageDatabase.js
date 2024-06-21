@@ -39,6 +39,7 @@ const selectAllFilesByUserId = storageDb.prepare('SELECT name, uuid FROM files W
 
 logger.info(`Database initialized`)
 
+
 /**
  * Checks if a user with the given public keys (p, g, y) exists in the database,
  * and if not, adds the user to the database.
@@ -46,11 +47,13 @@ logger.info(`Database initialized`)
  * @param {string} p - The public key p.
  * @param {string} g - The public key g.
  * @param {string} y - The public key y.
- * @return {number|undefined} The id of the added user or undefined if an error occurred.
+ * @return {{id: number|undefined, exists: boolean}} An object containing the id of the added user and a boolean indicating if the user already existed.
+ *                  If an error occurred, the id is undefined and the boolean is false.
  */
 const AddUserAndGetId = (p, g, y) => {
   // Initialize the id with undefined
   let id = undefined
+  let exists = false
   try {
     const info = selectUserByKeys.get(y, g, p)
     if (info === undefined) {
@@ -63,13 +66,14 @@ const AddUserAndGetId = (p, g, y) => {
     } else {
       // Set the id to the id of the existing user
       id = info.id
+      exists = true
     }
   } catch (error) {
     logger.error(`Error checking and adding user: ${error}`)
   }
 
   // Return the id of the added user or undefined if an error occurred
-  return id
+  return { id, exists }
 }
 
 /**

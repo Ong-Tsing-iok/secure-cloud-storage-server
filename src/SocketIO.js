@@ -1,5 +1,6 @@
 // Node.js
 import { writeFile, existsSync, mkdirSync } from 'node:fs'
+import { mkdir } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'url'
 // Servers
@@ -16,9 +17,8 @@ import { getInRange } from 'basic_simple_elgamal/bigIntManager.js'
 // Database
 import { AddUserAndGetId, getAllFilesByUserId } from './StorageDatabase.js'
 import { userDbLogin, userDbLogout } from './LoginDatabase.js'
+import { __dirname, __upload_dir } from './Constants.js'
 
-const __filename = fileURLToPath(import.meta.url) // get the resolved path to the file
-const __dirname = dirname(__filename) // get the name of the directory
 const io = new Server(server, {
   cors: {
     origin: '*'
@@ -83,14 +83,26 @@ io.on('connection', (socket) => {
    * Also check if publickey exist. If not, add to database
    * (combine register with login)
    */
-  socket.on('login-auth', (decodeValue) => {
+  socket.on('login-auth', async (decodeValue) => {
     decodeValue = bigInt(decodeValue)
     if (socket.randKey.compare(decodeValue) == 0) {
       logger.info(
         `Client with socket id ${socket.id} respond with correct auth key and is authenticated`
       )
       socket.authed = true
-      const id = AddUserAndGetId(socket.p, socket.g, socket.y)
+      const { id, exists } = AddUserAndGetId(socket.p, socket.g, socket.y)
+      if (!exists) {
+        logger.info(
+          `User ${id} with socket id ${socket.id} added to database. Creating folder for user ${id}.`
+        )
+        try {
+          await mkdir(join(__dirname, __upload_dir, id.toString()))
+        } catch (error) {
+          if (error !== 'EEXIST') {
+            logger.error(`Error creating folder for user ${id}: ${error}`)
+          }
+        }
+      }
       socket.handshake.session.userId = id
       socket.handshake.session.save()
       socket.userId = id
