@@ -15,7 +15,7 @@ import ElGamal from 'basic_simple_elgamal'
 import bigInt from 'big-integer'
 import { getInRange } from 'basic_simple_elgamal/bigIntManager.js'
 // Database
-import { AddUserAndGetId, getAllFilesByUserId } from './StorageDatabase.js'
+import { AddUserAndGetId, getAllFilesByUserId, getFileInfo } from './StorageDatabase.js'
 import { userDbLogin, userDbLogout } from './LoginDatabase.js'
 import { __dirname, __upload_dir } from './Constants.js'
 
@@ -98,7 +98,7 @@ io.on('connection', (socket) => {
         try {
           await mkdir(join(__dirname, __upload_dir, id.toString()))
         } catch (error) {
-          if (error !== 'EEXIST') {
+          if (error.code !== 'EEXIST') {
             logger.error(`Error creating folder for user ${id}: ${error}`)
           }
         }
@@ -117,23 +117,50 @@ io.on('connection', (socket) => {
   })
 
   // File Management
-  socket.on('file-upload', ({ fileName, fileData }, ack) => {
-    logger.info(`Client with socket id ${socket.id} is uploading a file`)
-    const folderPath = join(__dirname, 'uploads')
-    if (!existsSync(folderPath)) {
-      mkdirSync(folderPath)
-    }
-    const filePath = join(folderPath, fileName)
-    writeFile(filePath, fileData, (err) => {
-      if (err) {
-        logger.error(`Error saving file: ${err}`)
-        ack('file upload failed')
-        return
-      }
+  // socket.on('file-upload', ({ fileName, fileData }, ack) => {
+  //   logger.info(`Client with socket id ${socket.id} is uploading a file`)
+  //   const folderPath = join(__dirname, 'uploads')
+  //   if (!existsSync(folderPath)) {
+  //     mkdirSync(folderPath)
+  //   }
+  //   const filePath = join(folderPath, fileName)
+  //   writeFile(filePath, fileData, (err) => {
+  //     if (err) {
+  //       logger.error(`Error saving file: ${err}`)
+  //       ack('file upload failed')
+  //       return
+  //     }
 
-      logger.info(`Client with socket id ${socket.id} uploaded a file as ${fileName}`)
-      ack('file upload success')
-    })
+  //     logger.info(`Client with socket id ${socket.id} uploaded a file as ${fileName}`)
+  //     ack('file upload success')
+  //   })
+  // })
+
+  socket.on('download-file-pre', (uuid) => {
+    logger.info(
+      `Client with socket id ${socket.id} ask to prepare to download file with UUID ${uuid}`
+    )
+    if (!socket.authed) {
+      socket.emit('message', 'not logged in')
+      return
+    }
+    try {
+      const fileInfo = getFileInfo(uuid)
+      if (fileInfo !== undefined) {
+        if (fileInfo.owner !== socket.userId) {
+          socket.emit('message', 'permission denied')
+        } else {
+          socket.emit('download-file-res', uuid, fileInfo.name)
+        }
+      } else {
+        socket.emit('message', 'file not found')
+      }
+    } catch (error) {
+      logger.error(
+        `Error in download-file-pre with UUID ${uuid} for user with socket id ${socket.id}: ${error}`
+      )
+      socket.emit('message', 'error when download-file-pre')
+    }
   })
 
   socket.on('get-file-list', () => {

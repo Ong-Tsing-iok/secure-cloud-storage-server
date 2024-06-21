@@ -23,7 +23,7 @@ const createFileTable = storageDb.prepare(
   owner INTEGER,
   FOREIGN KEY(owner) REFERENCES users(id)
   )`
-)// TODO: add time to storage?
+) // TODO: add time to storage?
 try {
   createUserTable.run()
   createFileTable.run()
@@ -38,7 +38,6 @@ const selectFileByUuid = storageDb.prepare('SELECT * FROM files WHERE uuid = ?')
 const selectAllFilesByUserId = storageDb.prepare('SELECT name, uuid FROM files WHERE owner = ?')
 
 logger.info(`Database initialized`)
-
 
 /**
  * Checks if a user with the given public keys (p, g, y) exists in the database,
@@ -92,7 +91,8 @@ const addFileToDatabase = (name, uuid, userId) => {
  * Retrieves file information from the database based on the given UUID.
  *
  * @param {string} uuid - The UUID of the file.
- * @return {Object|null} An object of the file information if found, or null if not found.
+ * @return {{id: number, name: string, uuid: string, owner: number}|undefined} 
+ * An object of the file information if found, or undefined if not found.
  */
 const getFileInfo = (uuid) => {
   return selectFileByUuid.get(uuid)

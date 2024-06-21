@@ -66,7 +66,7 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
   // }
   // console.log(req.body)
   // console.log(req.headers)
-  // console.log(req.file)
+  console.log(req.file)
   try {
     if (req.file) {
       logger.info(`User with socket id ${req.headers.socketid} uploaded a file`)
