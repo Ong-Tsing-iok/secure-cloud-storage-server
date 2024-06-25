@@ -2,7 +2,6 @@ import { readFileSync } from 'fs'
 import express from 'express'
 import { createServer } from 'https'
 import { logger } from './Logger.js'
-import sessionMiddleware from './SessionMiddleware.js'
 import { mkdir } from 'fs/promises'
 import multer from 'multer'
 import { checkUserLoggedIn } from './LoginDatabase.js'
@@ -16,7 +15,6 @@ app.get('/', (req, res) => {
 })
 
 app.set('trust proxy', true)
-app.use(sessionMiddleware)
 
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
@@ -31,7 +29,10 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     cb(null, randomUUID())
-  }
+  },
+  limits: {
+    fileSize: 1024 * 1024 * 1024
+  } // 1GB
 })
 const upload = multer({ storage: storage })
 
@@ -83,7 +84,7 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
 app.get('/download', auth, (req, res) => {
   try {
     const uuid = req.headers.uuid
-    logger.info(`User with socket id ${req.headers.socketid} is downloading file with UUID ${uuid}`)
+    logger.info(`User with socket id ${req.headers.socketid} is asking for file with UUID ${uuid}`)
     const fileInfo = getFileInfo(uuid)
     if (!fileInfo) {
       logger.info(`File with UUID ${uuid} not found`)

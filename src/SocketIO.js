@@ -1,13 +1,9 @@
 // Node.js
-import { writeFile, existsSync, mkdirSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'url'
+import { join } from 'node:path'
 // Servers
 import { Server } from 'socket.io'
 import server from './HttpsServer.js'
-import sessionMiddleware from './SessionMiddleware.js'
-import sharedSession from 'express-socket.io-session'
 // Logger
 import { logger } from './Logger.js'
 // ElGamal
@@ -28,13 +24,6 @@ const io = new Server(server, {
 // io.use((socket, next) => {
 //   sessionMiddleware(socket.request, socket.request.res || {}, next)
 // })
-
-io.use(
-  sharedSession(sessionMiddleware, {
-    autoSave: true
-  })
-)
-
 // server.use(cors())
 
 io.on('connection', (socket) => {
@@ -43,7 +32,7 @@ io.on('connection', (socket) => {
   socket.on('message', (message) => {
     logger.log('info', `Received message as server: ${message}`)
     // Broadcast the message to all connected clients
-    io.emit('message', message)
+    io.emit('message', message + ' from server')
   })
 
   socket.on('disconnect', () => {

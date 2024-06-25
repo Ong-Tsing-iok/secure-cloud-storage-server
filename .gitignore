@@ -133,3 +133,5 @@ dist
 *.key
 *.db*
 uploads/
+.scannerwork
+node-ip
