@@ -21,31 +21,25 @@ const io = new Server(server, {
   }
 })
 
-// io.use((socket, next) => {
-//   sessionMiddleware(socket.request, socket.request.res || {}, next)
-// })
-// server.use(cors())
-
 io.on('connection', (socket) => {
-  logger.log('info', `Client connected with socket id ${socket.id}`)
+  socket.ip = socket.handshake.address
+  // TODO: need to get address from header if server is behind a proxy
+  // See https://socket.io/how-to/get-the-ip-address-of-the-client
+  logger.info('Client connected', { socketId: socket.id, ip: socket.ip })
 
   socket.on('message', (message) => {
-    logger.log('info', `Received message as server: ${message}`)
+    logger.info(`Received message: ${message}`, { socketId: socket.id, ip: socket.ip })
     // Broadcast the message to all connected clients
     io.emit('message', message + ' from server')
   })
 
   socket.on('disconnect', () => {
-    logger.log('info', `Client with socket id ${socket.id} is disconnected`)
+    logger.info('Client disconnected', { socketId: socket.id, ip: socket.ip })
     userDbLogout(socket.id)
   })
 
-  /**
-   * @todo Generate a random authentication content, encode it with publicKey,
-   * and send back to client for it to decode and send back.
-   */
   socket.on('login-ask', async (p, g, y) => {
-    logger.info(`Client with socket id ${socket.id} asked to login`)
+    logger.info(`Client asked to login`, { socketId: socket.id, ip: socket.ip })
     if (socket.authed) {
       socket.emit('message', 'already logged in')
       return
@@ -56,79 +50,64 @@ io.on('connection', (socket) => {
       socket.y = String(y)
       socket.elgamal = new ElGamal(p, g, y, '2') // 2 for private key is filler value (won't use)
       logger.debug(`p: ${socket.elgamal.modulus}, q: ${socket.elgamal.groupOrder}`)
-      socket.elgamal.checkSecurity() // TODO: handle errors when p, q, y have problems
+      socket.elgamal.checkSecurity()
       socket.randKey = await getInRange(bigInt(p).prev(), 1)
       const cipherPair = await socket.elgamal.encrypt(socket.randKey)
-      logger.info(`Asking client with socket id ${socket.id} to respond with correct auth key`)
+      logger.info(`Asking client to respond with correct auth key`, {
+        socketId: socket.id,
+        ip: socket.ip
+      })
       socket.emit('login-res', cipherPair.c1, cipherPair.c2)
     } catch (error) {
-      logger.error(`Error occured when ${socket.id} asked to login: ${error}`)
+      logger.error(error, { socketId: socket.id, ip: socket.ip })
       socket.emit('message', 'error when login-ask')
     }
   })
-  /**
-   * @todo Compare this decode value with the value above.
-   * If is same, then this session is authenticated as this user.
-   * Also check if publickey exist. If not, add to database
-   * (combine register with login)
-   */
+
   socket.on('login-auth', async (decodeValue) => {
     decodeValue = bigInt(decodeValue)
     if (socket.randKey.compare(decodeValue) == 0) {
-      logger.info(
-        `Client with socket id ${socket.id} respond with correct auth key and is authenticated`
-      )
+      logger.info(`Client respond with correct auth key and is authenticated`, {
+        socketId: socket.id,
+        ip: socket.ip
+      })
       socket.authed = true
       const { id, exists } = AddUserAndGetId(socket.p, socket.g, socket.y)
       if (!exists) {
-        logger.info(
-          `User ${id} with socket id ${socket.id} added to database. Creating folder for user ${id}.`
-        )
+        logger.info(`User ${id} added to database. Creating folder for user ${id}`, {
+          socketId: socket.id,
+          ip: socket.ip,
+          userId: id
+        })
         try {
           await mkdir(join(__dirname, __upload_dir, id.toString()))
         } catch (error) {
           if (error.code !== 'EEXIST') {
-            logger.error(`Error creating folder for user ${id}: ${error}`)
+            logger.error(error, { socketId: socket.id, ip: socket.ip, userId: id })
           }
         }
       }
-      socket.handshake.session.userId = id
-      socket.handshake.session.save()
+
       socket.userId = id
       userDbLogin(socket.id, id)
       logger.debug(`User id: ${id}`)
       socket.emit('login-auth-res', 'OK')
     } else {
-      logger.info(`Client with socket id ${socket.id} respond with incorrect authentication`)
+      logger.info(`Client respond with incorrect auth key`, {
+        socketId: socket.id,
+        ip: socket.ip
+      })
       logger.debug(`respond with ${decodeValue} instead of ${socket.randKey}`)
       socket.emit('login-auth-res', 'incorrect')
     }
   })
 
-  // File Management
-  // socket.on('file-upload', ({ fileName, fileData }, ack) => {
-  //   logger.info(`Client with socket id ${socket.id} is uploading a file`)
-  //   const folderPath = join(__dirname, 'uploads')
-  //   if (!existsSync(folderPath)) {
-  //     mkdirSync(folderPath)
-  //   }
-  //   const filePath = join(folderPath, fileName)
-  //   writeFile(filePath, fileData, (err) => {
-  //     if (err) {
-  //       logger.error(`Error saving file: ${err}`)
-  //       ack('file upload failed')
-  //       return
-  //     }
-
-  //     logger.info(`Client with socket id ${socket.id} uploaded a file as ${fileName}`)
-  //     ack('file upload success')
-  //   })
-  // })
-
   socket.on('download-file-pre', (uuid) => {
-    logger.info(
-      `Client with socket id ${socket.id} ask to prepare to download file with UUID ${uuid}`
-    )
+    logger.info(`Client ask to prepare download file`, {
+      socketId: socket.id,
+      ip: socket.ip,
+      uuid: uuid
+    })
     if (!socket.authed) {
       socket.emit('message', 'not logged in')
       return
@@ -145,15 +124,18 @@ io.on('connection', (socket) => {
         socket.emit('message', 'file not found')
       }
     } catch (error) {
-      logger.error(
-        `Error in download-file-pre with UUID ${uuid} for user with socket id ${socket.id}: ${error}`
-      )
+      logger.error(error, {
+        socketId: socket.id,
+        ip: socket.ip,
+        userId: socket.userId,
+        uuid
+      })
       socket.emit('message', 'error when download-file-pre')
     }
   })
 
   socket.on('get-file-list', () => {
-    logger.info(`Client with socket id ${socket.id} requested file list`)
+    logger.info(`Client requested file list`, { socketId: socket.id, ip: socket.ip })
     if (!socket.authed) {
       socket.emit('message', 'not logged in')
       return
@@ -162,7 +144,7 @@ io.on('connection', (socket) => {
       const files = getAllFilesByUserId(socket.userId)
       socket.emit('file-list-res', JSON.stringify(files))
     } catch (error) {
-      logger.error(`Error getting file list for user with socket id ${socket.id}: ${error}`)
+      logger.error(error, { socketId: socket.id })
       socket.emit('message', 'error when get-file-list')
     }
   })

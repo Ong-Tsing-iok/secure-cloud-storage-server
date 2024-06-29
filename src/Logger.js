@@ -1,8 +1,8 @@
-import winston from 'winston'
+import winston, { format } from 'winston'
 
 export const logger = winston.createLogger({
   level: 'info',
-  format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
+  format: winston.format.combine(format.errors({ stack: true }), format.timestamp(), format.json()),
   // defaultMeta: { service: "user-service" },
   transports: [
     //

@@ -28,7 +28,7 @@ try {
   createUserTable.run()
   createFileTable.run()
 } catch (error) {
-  logger.error(`Error creating tables: ${error}`)
+  logger.error(error)
 }
 
 const selectUserByKeys = storageDb.prepare('SELECT * FROM users WHERE y = ? AND g = ? AND p = ?')
@@ -53,24 +53,20 @@ const AddUserAndGetId = (p, g, y) => {
   // Initialize the id with undefined
   let id = undefined
   let exists = false
-  try {
-    const info = selectUserByKeys.get(y, g, p)
-    if (info === undefined) {
-      // If the user does not exist, add them to the database
-      const insertResult = insertUserWithKeys.run(y, g, p)
-      if (insertResult.changes === 1) {
-        // Set the id to the id of the newly added user
-        id = insertResult.lastInsertRowid
-      }
-    } else {
-      // Set the id to the id of the existing user
-      id = info.id
-      exists = true
-    }
-  } catch (error) {
-    logger.error(`Error checking and adding user: ${error}`)
-  }
 
+  const info = selectUserByKeys.get(y, g, p)
+  if (info === undefined) {
+    // If the user does not exist, add them to the database
+    const insertResult = insertUserWithKeys.run(y, g, p)
+    if (insertResult.changes === 1) {
+      // Set the id to the id of the newly added user
+      id = insertResult.lastInsertRowid
+    }
+  } else {
+    // Set the id to the id of the existing user
+    id = info.id
+    exists = true
+  }
   // Return the id of the added user or undefined if an error occurred
   return { id, exists }
 }
@@ -91,7 +87,7 @@ const addFileToDatabase = (name, uuid, userId) => {
  * Retrieves file information from the database based on the given UUID.
  *
  * @param {string} uuid - The UUID of the file.
- * @return {{id: number, name: string, uuid: string, owner: number}|undefined} 
+ * @return {{id: number, name: string, uuid: string, owner: number}|undefined}
  * An object of the file information if found, or undefined if not found.
  */
 const getFileInfo = (uuid) => {

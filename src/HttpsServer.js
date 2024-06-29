@@ -8,6 +8,7 @@ import { checkUserLoggedIn } from './LoginDatabase.js'
 import { addFileToDatabase, getFileInfo } from './StorageDatabase.js'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
+import { __dirname, __upload_dir } from './Constants.js'
 
 const app = express()
 app.get('/', (req, res) => {
@@ -18,12 +19,17 @@ app.set('trust proxy', true)
 
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
-    const folderPath = join(/*__dirname, */ 'uploads', String(req.userId))
+    const folderPath = join(__dirname, __upload_dir, String(req.userId))
     try {
       await mkdir(folderPath, { recursive: true })
       cb(null, folderPath)
     } catch (error) {
-      logger.error(`Error creating folder ${folderPath}: ${error}`)
+      logger.error(error, {
+        userId: req.userId,
+        socketId: req.headers.socketid,
+        ip: req.ip,
+        protocol: 'https'
+      })
       cb(error)
     }
   },
@@ -45,59 +51,123 @@ const upload = multer({ storage: storage })
  * @return {void} This function does not return a value.
  */
 const auth = (req, res, next) => {
+  if (!req.headers.socketid || !(req.headers.socketid instanceof String)) {
+    logger.info('Socket ID not found in request headers', {
+      ip: req.ip,
+      protocol: 'https'
+    })
+    res.status(400).send('Socket ID not found or invalid')
+  }
   try {
     const user = checkUserLoggedIn(req.headers.socketid)
     logger.debug(`User with socket id ${req.headers.socketid} is authenticating`)
     if (user !== undefined) {
-      logger.info(`User with socket id ${req.headers.socketid} is authenticated`)
+      logger.info(`User is authenticated`, {
+        socketId: req.headers.socketid,
+        ip: req.ip,
+        userId: user.userId,
+        protocol: 'https'
+      })
       req.userId = user.userId
       next()
     } else {
-      logger.info(`User with socket id ${req.headers.socketid} is not authenticated`)
+      logger.info(`User is not authenticated`, {
+        socketId: req.headers.socketid,
+        ip: req.ip,
+        protocol: 'https'
+      })
       res.sendStatus(401)
     }
   } catch (error) {
-    logger.error(`Error checking user authentication with socket id ${req.headers.socketid}: ${error}`)
+    logger.error(error, {
+      socketId: req.headers.socketid,
+      ip: req.ip,
+      protocol: 'https'
+    })
     res.sendStatus(500)
   }
 }
 app.post('/upload', auth, upload.single('file'), (req, res) => {
-  // if (req.filename && req.fileData) {
-  //   writeFileSync('uploads/' + req.filename, req.fileData)
-  // }
-  // console.log(req.body)
-  // console.log(req.headers)
-  console.log(req.file)
+  // console.log(req.file)
   try {
     if (req.file) {
-      logger.info(`User with socket id ${req.headers.socketid} uploaded a file`)
+      logger.info(`User uploaded a file`, {
+        socketId: req.headers.socketid,
+        ip: req.ip,
+        userId: req.userId,
+        filename: req.file.originalname,
+        uuid: req.file.filename,
+        protocol: 'https'
+      })
       addFileToDatabase(req.file.originalname, req.file.filename, req.userId)
       res.send('File uploaded successfully')
     } else {
       res.status(400).send('No file uploaded')
     }
   } catch (error) {
-    logger.error(`Error uploading file for user with socket id ${req.headers.socketid}: ${error}`)
+    logger.error(error, {
+      socketId: req.headers.socketid,
+      ip: req.ip,
+      userId: req.userId,
+      protocol: 'https'
+    })
     res.sendStatus(500)
   }
 })
 app.get('/download', auth, (req, res) => {
+  if (!req.headers.uuid || !(req.headers.uuid instanceof String)) {
+    logger.info(`UUID not found in request headers`, {
+      socketId: req.headers.socketid,
+      ip: req.ip,
+      protocol: 'https'
+    })
+    res.status(400).send('UUID not found or invalid')
+  }
   try {
     const uuid = req.headers.uuid
-    logger.info(`User with socket id ${req.headers.socketid} is asking for file with UUID ${uuid}`)
+    logger.info(`User is asking for file`, {
+      socketId: req.headers.socketid,
+      ip: req.ip,
+      userId: req.userId,
+      uuid: uuid,
+      protocol: 'https'
+    })
     const fileInfo = getFileInfo(uuid)
     if (!fileInfo) {
-      logger.info(`File with UUID ${uuid} not found`)
+      logger.info(`File not found`, {
+        socketId: req.headers.socketid,
+        ip: req.ip,
+        userId: req.userId,
+        uuid: uuid,
+        protocol: 'https'
+      })
       res.status(404).send('File not found')
     } else if (fileInfo.owner !== req.userId) {
-      logger.info(`User with socket id ${req.headers.socketid} does not have permission to download file with UUID ${uuid}`)
+      logger.info(`User don't have permission to download file`, {
+        socketId: req.headers.socketid,
+        ip: req.ip,
+        userId: req.userId,
+        uuid: uuid,
+        protocol: 'https'
+      })
       res.status(403).send('File not permitted')
     } else {
-      logger.info(`User with socket id ${req.headers.socketid} is downloading file with UUID ${uuid}`)
-      res.download(join(/*__dirname, */ 'uploads', String(req.userId), fileInfo.uuid), fileInfo.name)
+      logger.info(`User downloading file`, {
+        socketId: req.headers.socketid,
+        ip: req.ip,
+        userId: req.userId,
+        uuid: uuid,
+        protocol: 'https'
+      })
+      res.download(join(__dirname, __upload_dir, String(req.userId), fileInfo.uuid), fileInfo.name)
     }
   } catch (error) {
-    logger.error(`Error downloading file with UUID ${req.headers.uuid} for user with socket id ${req.headers.socketid}: ${error}`)
+    logger.error(error, {
+      socketId: req.headers.socketid,
+      ip: req.ip,
+      uuid: req.headers.uuid,
+      protocol: 'https'
+    })
     res.sendStatus(500)
   }
 })

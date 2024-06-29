@@ -14,17 +14,10 @@ class CustomFileSystem extends FileSystem {
     super(connection, { root, cwd })
   }
   write(fileName, { append, start }) {
-    logger.info(`writing file ${fileName}`)
-    // Need to store into database first and change name to uuid
     const uuid = randomUUID()
     const userId = Number(basename(this.root))
     addFileToDatabase(fileName, uuid, userId)
     return super.write(uuid, { append, start })
-  }
-
-  read(fileName, { start }) {
-    logger.info(`reading file ${fileName}`)
-    return super.read(fileName, { start })
   }
 }
 
@@ -39,17 +32,67 @@ const ftpServer = new FtpSrv({
 })
 
 ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
-  logger.info(`User ${username} logged in`)
+  logger.info('User trying to authenticate', {
+    socketId: username,
+    ip: connection.ip,
+    protocol: 'ftps'
+  })
   const userInfo = checkUserLoggedIn(username)
   if (userInfo !== undefined) {
     const rootPath = join(__dirname, __upload_dir, userInfo.userId.toString())
+    logger.info('User logged in', {
+      socketId: username,
+      ip: connection.ip,
+      userId: userInfo.userId,
+      protocol: 'ftps'
+    })
     resolve({
       root: rootPath,
       fs: new CustomFileSystem(connection, { root: rootPath, cwd: '/' })
     })
   } else {
+    logger.info('User not logged in', { socketId: username, ip: connection.ip, protocol: 'ftps' })
     reject(new Error('User not logged in'))
   }
+
+  connection.on('RETR', (error, filePath) => {
+    if (error) {
+      logger.error(error, {
+        socketId: username,
+        ip: connection.ip,
+        userId: userInfo.userId,
+        filePath,
+        protocol: 'ftps'
+      })
+      return
+    }
+    logger.info('User downloaded file', {
+      socketId: username,
+      ip: connection.ip,
+      userId: userInfo.userId,
+      filePath,
+      protocol: 'ftps'
+    })
+  })
+  connection.on('STOR', (error, fileName) => {
+    if (error) {
+      logger.error(error, {
+        socketId: username,
+        ip: connection.ip,
+        userId: userInfo.userId,
+        fileName,
+        protocol: 'ftps'
+      })
+      return
+    }
+    logger.info('User uploaded file', {
+      socketId: username,
+      ip: connection.ip,
+      userId: userInfo.userId,
+      fileName,
+      protocol: 'ftps'
+    })
+  })
 })
 
 export default ftpServer
