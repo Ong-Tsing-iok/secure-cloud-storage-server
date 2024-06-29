@@ -1,5 +1,5 @@
 // Node.js
-import { mkdir } from 'node:fs/promises'
+import { mkdir, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 // Servers
 import { Server } from 'socket.io'
@@ -11,7 +11,7 @@ import ElGamal from 'basic_simple_elgamal'
 import bigInt from 'big-integer'
 import { getInRange } from 'basic_simple_elgamal/bigIntManager.js'
 // Database
-import { AddUserAndGetId, getAllFilesByUserId, getFileInfo } from './StorageDatabase.js'
+import { AddUserAndGetId, deleteFile, getAllFilesByUserId, getFileInfo } from './StorageDatabase.js'
 import { userDbLogin, userDbLogout } from './LoginDatabase.js'
 import { __dirname, __upload_dir } from './Constants.js'
 
@@ -38,6 +38,15 @@ io.on('connection', (socket) => {
     userDbLogout(socket.id)
   })
 
+  /**
+   * Handles the 'login-ask' event from a client.
+   * If the client is already logged in, it sends a message to the client.
+   * Otherwise, it generates a random key, encrypts it, and sends the encrypted key to the client.
+   *
+   * @param {string} p - The prime number used in the ElGamal cryptosystem.
+   * @param {string} g - The generator used in the ElGamal cryptosystem.
+   * @param {string} y - The public key used in the ElGamal cryptosystem.
+   */
   socket.on('login-ask', async (p, g, y) => {
     logger.info(`Client asked to login`, { socketId: socket.id, ip: socket.ip })
     if (socket.authed) {
@@ -146,6 +155,42 @@ io.on('connection', (socket) => {
     } catch (error) {
       logger.error(error, { socketId: socket.id })
       socket.emit('message', 'error when get-file-list')
+    }
+  })
+
+  socket.on('delete-file', async (uuid) => {
+    logger.info(`Client requested to delete file`, { socketId: socket.id, ip: socket.ip })
+    if (!socket.authed) {
+      socket.emit('message', 'not logged in')
+      return
+    }
+    try {
+      const fileInfo = getFileInfo(uuid)
+      if (fileInfo !== undefined) {
+        if (fileInfo.owner !== socket.userId) {
+          socket.emit('message', 'permission denied')
+        } else {
+          await unlink(join(__dirname, __upload_dir, String(socket.userId), uuid))
+          deleteFile(uuid)
+          logger.info(`File deleted`, {
+            socketId: socket.id,
+            ip: socket.ip,
+            userId: socket.userId,
+            uuid
+          })
+          socket.emit('message', `file ${fileInfo.name} (${uuid}) deleted`)
+        }
+      } else {
+        socket.emit('message', 'file not found')
+      }
+    } catch (error) {
+      logger.error(error, {
+        socketId: socket.id,
+        ip: socket.ip,
+        userId: socket.userId,
+        uuid
+      })
+      socket.emit('message', 'error when delete-file')
     }
   })
 })

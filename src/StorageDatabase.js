@@ -36,6 +36,7 @@ const insertUserWithKeys = storageDb.prepare('INSERT INTO users (y, g, p) VALUES
 const insertFile = storageDb.prepare('INSERT INTO files (name, uuid, owner) VALUES (?, ?, ?)')
 const selectFileByUuid = storageDb.prepare('SELECT * FROM files WHERE uuid = ?')
 const selectAllFilesByUserId = storageDb.prepare('SELECT name, uuid FROM files WHERE owner = ?')
+const deleteFileByUuid = storageDb.prepare('DELETE FROM files WHERE uuid = ?')
 
 logger.info(`Database initialized`)
 
@@ -104,7 +105,11 @@ const getAllFilesByUserId = (userId) => {
   return selectAllFilesByUserId.all(userId)
 }
 
-export { AddUserAndGetId, addFileToDatabase, getFileInfo, getAllFilesByUserId }
+const deleteFile = (uuid) => {
+  return deleteFileByUuid.run(uuid)
+}
+
+export { AddUserAndGetId, addFileToDatabase, getFileInfo, getAllFilesByUserId, deleteFile }
 
 // Handle graceful shutdown
 process.on('exit', () => storageDb.close())
