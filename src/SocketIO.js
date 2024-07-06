@@ -1,19 +1,10 @@
-// Node.js
-import { mkdir, unlink } from 'node:fs/promises'
-import { join } from 'node:path'
 // Servers
 import { Server } from 'socket.io'
 import server from './HttpsServer.js'
 // Logger
 import { logger } from './Logger.js'
-// ElGamal
-import ElGamal from 'basic_simple_elgamal'
-import bigInt from 'big-integer'
-import { getInRange } from 'basic_simple_elgamal/bigIntManager.js'
 // Database
-import { AddUserAndGetId, deleteFile, getAllFilesByUserId, getFileInfo } from './StorageDatabase.js'
-import { userDbLogin, userDbLogout } from './LoginDatabase.js'
-import { __dirname, __upload_dir } from './Constants.js'
+import { userDbLogout } from './LoginDatabase.js'
 // File operation binders
 import * as fileManager from './FileManager.js'
 import authenticationBinder from './Authentication.js'
@@ -32,12 +23,12 @@ io.on('connection', (socket) => {
 
   socket.on('message', (message) => {
     logger.info(`Received message: ${message}`, { socketId: socket.id, ip: socket.ip })
-    // Broadcast the message to all connected clients
-    io.emit('message', message + ' from server')
+    socket.emit('message', message + ' from server')
   })
 
   socket.on('disconnect', () => {
     logger.info('Client disconnected', { socketId: socket.id, ip: socket.ip })
+    // TODO: maybe move to Authentication.js?
     userDbLogout(socket.id)
   })
 

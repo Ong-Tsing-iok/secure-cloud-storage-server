@@ -51,12 +51,13 @@ const upload = multer({ storage: storage })
  * @return {void} This function does not return a value.
  */
 const auth = (req, res, next) => {
-  if (!req.headers.socketid || !(req.headers.socketid instanceof String)) {
+  if (!req.headers.socketid || !((typeof req.headers.socketid) === 'string')) {
     logger.info('Socket ID not found in request headers', {
       ip: req.ip,
       protocol: 'https'
     })
     res.status(400).send('Socket ID not found or invalid')
+    return
   }
   try {
     const user = checkUserLoggedIn(req.headers.socketid)
@@ -88,7 +89,6 @@ const auth = (req, res, next) => {
   }
 }
 app.post('/upload', auth, upload.single('file'), (req, res) => {
-  // console.log(req.file)
   try {
     if (req.file) {
       logger.info(`User uploaded a file`, {
@@ -115,7 +115,7 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
   }
 })
 app.get('/download', auth, (req, res) => {
-  if (!req.headers.uuid || !(req.headers.uuid instanceof String)) {
+  if (!req.headers.uuid || !((typeof req.headers.socketid) === 'string')) {
     logger.info(`UUID not found in request headers`, {
       socketId: req.headers.socketid,
       ip: req.ip,
