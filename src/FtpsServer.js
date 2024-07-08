@@ -1,11 +1,11 @@
 import { FtpSrv, FileSystem } from 'ftp-srv'
 import { __dirname, __upload_dir } from './Constants.js'
 import { logger } from './Logger.js'
-import { readFileSync } from 'fs'
-import { checkUserLoggedIn } from './LoginDatabase.js'
+import { readFileSync, unlink } from 'fs'
+import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
 import { join, basename, dirname } from 'path'
 import { randomUUID } from 'crypto'
-import { addFileToDatabase } from './StorageDatabase.js'
+import { addFileToDatabase, deleteFile, updateFileInDatabase } from './StorageDatabase.js'
 
 const port = process.env.FTP_PORT || 7002
 
@@ -85,6 +85,21 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       })
       return
     }
+    const uploadInfo = getUpload(password) // use password as upload id
+    if (uploadInfo === undefined) {
+      logger.info('Upload ID not found in database', {
+        socketId: username,
+        ip: connection.ip,
+        userId: userInfo.userId,
+        fileName,
+        protocol: 'ftps'
+      })
+      deleteFile(basename(fileName))
+      unlink(fileName)
+      // TODO: send error message to client
+      return
+    }
+    updateFileInDatabase(basename(fileName), uploadInfo.key, uploadInfo.iv, null)
     logger.info('User uploaded file', {
       socketId: username,
       ip: connection.ip,

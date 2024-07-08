@@ -1,10 +1,10 @@
-import { readFileSync } from 'fs'
+import { readFileSync, unlink } from 'fs'
 import express from 'express'
 import { createServer } from 'https'
 import { logger } from './Logger.js'
 import { mkdir } from 'fs/promises'
 import multer from 'multer'
-import { checkUserLoggedIn } from './LoginDatabase.js'
+import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
 import { addFileToDatabase, getFileInfo } from './StorageDatabase.js'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
@@ -91,6 +91,27 @@ const auth = (req, res, next) => {
 app.post('/upload', auth, upload.single('file'), (req, res) => {
   try {
     if (req.file) {
+      if (!req.headers.uploadid || !((typeof req.headers.uploadid) === 'string')) {
+        logger.info(`Upload ID not found in request headers`, {
+          socketId: req.headers.socketid,
+          ip: req.ip,
+          protocol: 'https'
+        })
+        res.status(400).send('Upload ID not found or invalid')
+        unlink(req.file.path)
+        return
+      }
+      const uploadInfo = getUpload(req.headers.uploadid)
+      if (uploadInfo === undefined) {
+        logger.info(`Upload ID not found in database`, {
+          socketId: req.headers.socketid,
+          ip: req.ip,
+          protocol: 'https'
+        })
+        res.status(400).send('Upload ID not found or invalid')
+        unlink(req.file.path)
+        return
+      }
       logger.info(`User uploaded a file`, {
         socketId: req.headers.socketid,
         ip: req.ip,
@@ -99,7 +120,7 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
         uuid: req.file.filename,
         protocol: 'https'
       })
-      addFileToDatabase(req.file.originalname, req.file.filename, req.userId)
+      addFileToDatabase(req.file.originalname, req.file.filename, req.userId, uploadInfo.key, uploadInfo.iv, null)
       res.send('File uploaded successfully')
     } else {
       res.status(400).send('No file uploaded')

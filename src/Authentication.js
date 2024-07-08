@@ -6,6 +6,7 @@ import { userDbLogin } from './LoginDatabase.js'
 import { __dirname, __upload_dir } from './Constants.js'
 import { logger } from './Logger.js'
 import { mkdir } from 'node:fs/promises'
+import { join } from 'node:path'
 
 const authenticationBinder = (socket) => {
   /**

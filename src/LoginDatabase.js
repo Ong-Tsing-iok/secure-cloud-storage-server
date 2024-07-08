@@ -1,6 +1,8 @@
 import sqlite from 'better-sqlite3'
 import { logger } from './Logger.js'
 
+const interval = 5 * 60 * 1000 // 5 minutes
+
 const loginDb = new sqlite(':memory:', {
   verbose: process.env.NODE_ENV !== 'production' ? console.log : null
 })
@@ -13,11 +15,20 @@ const createLoginTable = loginDb.prepare(
   userId INTEGER not null
   )`
 )
+const createUploadsTable = loginDb.prepare(
+  `CREATE TABLE IF NOT EXISTS uploads (
+  id TEXT PRIMARY KEY not null, 
+  key TEXT not null,
+  iv TEXT not null,
+  expires INTEGER not null
+  )`
+)
 
 try {
   createLoginTable.run()
+  createUploadsTable.run()
 } catch (error) {
-  logger.error(`Error creating login table: ${error}`)
+  logger.error(`Error creating login database: ${error}`)
 }
 
 const insertUserStmt = loginDb.prepare(
@@ -30,6 +41,22 @@ const selectUserStmt = loginDb.prepare(
 
 const removeUserStmt = loginDb.prepare(
   `DELETE FROM users WHERE socketId = ?`
+)
+
+const insertUploadStmt = loginDb.prepare(
+  `INSERT INTO uploads (id, key, iv, expires) VALUES (?, ?, ?, ?)`
+)
+
+const selectUploadStmt = loginDb.prepare(
+  `SELECT * FROM uploads WHERE id = ?`
+)
+
+const removeUploadStmt = loginDb.prepare(
+  `DELETE FROM uploads WHERE id = ?`
+)
+
+const removeUploadExpiredStmt = loginDb.prepare(
+  `DELETE FROM uploads WHERE expires < ?`
 )
 
 /**
@@ -64,4 +91,20 @@ const userDbLogout = (socketId) => {
   removeUserStmt.run(socketId)
 }
 
-export { userDbLogin, checkUserLoggedIn, userDbLogout }
+const insertUpload = (id, key, iv, expires) => {
+  insertUploadStmt.run(id, key, iv, expires)
+}
+
+const getUpload = (id) => {
+  const uploadInfo = selectUploadStmt.get(id)
+  removeUploadStmt.run(id)
+  return uploadInfo
+}
+
+setInterval(() => {
+  removeUploadExpiredStmt.run(Date.now())
+}, interval);
+
+export { userDbLogin, checkUserLoggedIn, userDbLogout, insertUpload, getUpload }
+
+process.on('exit', () => loginDb.close())

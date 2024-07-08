@@ -3,6 +3,10 @@ import { getFileInfo, deleteFile, getAllFilesByUserId } from './StorageDatabase.
 import { unlink } from 'fs/promises'
 import { join } from 'path'
 import { __dirname, __upload_dir } from './Constants.js'
+import { randomUUID } from 'crypto'
+import { insertUpload } from './LoginDatabase.js'
+
+const uploadExpireTime = 1000 * 60 * 10 // 10 minutes
 
 const downloadFileBinder = (socket) => {
   socket.on('download-file-pre', (uuid) => {
@@ -21,7 +25,7 @@ const downloadFileBinder = (socket) => {
         if (fileInfo.owner !== socket.userId) {
           socket.emit('message', 'permission denied')
         } else {
-          socket.emit('download-file-res', uuid, fileInfo.name)
+          socket.emit('download-file-res', uuid, fileInfo.name, fileInfo.key, fileInfo.iv)
         }
       } else {
         socket.emit('message', 'file not found')
@@ -34,6 +38,32 @@ const downloadFileBinder = (socket) => {
         uuid
       })
       socket.emit('message', 'error when download-file-pre')
+    }
+  })
+}
+const uploadFileBinder = (socket) => {
+  socket.on('upload-file-pre', (key, iv, cb) => {
+    logger.info(`Client ask to prepare upload file`, {
+      socketId: socket.id,
+      ip: socket.ip,
+    })
+    if (!socket.authed) {
+      socket.emit('message', 'not logged in')
+      return
+    }
+    try {
+      // create random id
+      const id = randomUUID()
+      // store with key and iv in database with expires time
+      insertUpload(id, key, iv, Date.now() + uploadExpireTime)
+      cb(null, id)
+    } catch (error) {
+      logger.error(error, {
+        socketId: socket.id,
+        ip: socket.ip,
+        userId: socket.userId,
+      })
+      cb('error when upload-file-pre')
     }
   })
 }
@@ -93,4 +123,4 @@ const getFileListBinder = (socket) => {
   })
 }
 
-export { downloadFileBinder, deleteFileBinder, getFileListBinder }
+export { downloadFileBinder, deleteFileBinder, getFileListBinder, uploadFileBinder }

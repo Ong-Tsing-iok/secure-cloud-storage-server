@@ -20,7 +20,11 @@ const createFileTable = storageDb.prepare(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT not null,
   uuid TEXT not null,
-  owner INTEGER,
+  owner INTEGER not null,
+  key TEXT,
+  iv TEXT,
+  description TEXT,
+  timestamp INTEGER default CURRENT_TIMESTAMP,
   FOREIGN KEY(owner) REFERENCES users(id)
   )`
 ) // TODO: add time to storage?
@@ -33,7 +37,12 @@ try {
 
 const selectUserByKeys = storageDb.prepare('SELECT * FROM users WHERE y = ? AND g = ? AND p = ?')
 const insertUserWithKeys = storageDb.prepare('INSERT INTO users (y, g, p) VALUES (?, ?, ?)')
-const insertFile = storageDb.prepare('INSERT INTO files (name, uuid, owner) VALUES (?, ?, ?)')
+const insertFile = storageDb.prepare(
+  'INSERT INTO files (name, uuid, owner, key, iv, description) VALUES (?, ?, ?, ?, ?, ?)'
+)
+const updateFile = storageDb.prepare(
+  'UPDATE files SET key = ?, iv = ?, description = ? WHERE uuid = ?'
+)
 const selectFileByUuid = storageDb.prepare('SELECT * FROM files WHERE uuid = ?')
 const selectAllFilesByUserId = storageDb.prepare('SELECT name, uuid FROM files WHERE owner = ?')
 const deleteFileByUuid = storageDb.prepare('DELETE FROM files WHERE uuid = ?')
@@ -73,22 +82,30 @@ const AddUserAndGetId = (p, g, y) => {
 }
 
 /**
- * Adds a file to the database with the given name, UUID, and user ID.
+ * Adds a file to the database with the given name, UUID, user ID, key, IV, and description.
  *
  * @param {string} name - The name of the file.
  * @param {string} uuid - The UUID of the file.
  * @param {number} userId - The ID of the user who owns the file.
+ * @param {string} key - The key associated with the file.
+ * @param {string} iv - The initialization vector associated with the file.
+ * @param {string} description - The description of the file.
  * @return {void} This function does not return a value.
  */
-const addFileToDatabase = (name, uuid, userId) => {
-  insertFile.run(name, uuid, userId)
+const addFileToDatabase = (name, uuid, userId, key, iv, description) => {
+  insertFile.run(name, uuid, userId, key, iv, description)
+}
+
+const updateFileInDatabase = (uuid, key, iv, description) => {
+  updateFile.run(key, iv, description, uuid)
 }
 
 /**
  * Retrieves file information from the database based on the given UUID.
  *
  * @param {string} uuid - The UUID of the file.
- * @return {{id: number, name: string, uuid: string, owner: number}|undefined}
+ * @return {{id: number, name: string, uuid: string, owner: number, 
+ * key: string, iv: string, description: string, timestamp: number}|undefined}
  * An object of the file information if found, or undefined if not found.
  */
 const getFileInfo = (uuid) => {
@@ -109,7 +126,7 @@ const deleteFile = (uuid) => {
   return deleteFileByUuid.run(uuid)
 }
 
-export { AddUserAndGetId, addFileToDatabase, getFileInfo, getAllFilesByUserId, deleteFile }
+export { AddUserAndGetId, addFileToDatabase, getFileInfo, getAllFilesByUserId, deleteFile, updateFileInDatabase }
 
 // Handle graceful shutdown
 process.on('exit', () => storageDb.close())
