@@ -18,8 +18,10 @@ const createLoginTable = loginDb.prepare(
 const createUploadsTable = loginDb.prepare(
   `CREATE TABLE IF NOT EXISTS uploads (
   id TEXT PRIMARY KEY not null, 
-  key TEXT not null,
-  iv TEXT not null,
+  keyC1 TEXT not null,
+  keyC2 TEXT not null,
+  ivC1 TEXT not null,
+  ivC2 TEXT not null,
   expires INTEGER not null
   )`
 )
@@ -31,33 +33,21 @@ try {
   logger.error(`Error creating login database: ${error}`)
 }
 
-const insertUserStmt = loginDb.prepare(
-  `INSERT INTO users (socketId, userId) VALUES (?, ?)`
-)
+const insertUserStmt = loginDb.prepare(`INSERT INTO users (socketId, userId) VALUES (?, ?)`)
 
-const selectUserStmt = loginDb.prepare(
-  `SELECT userId FROM users WHERE socketId = ?`
-)
+const selectUserStmt = loginDb.prepare(`SELECT userId FROM users WHERE socketId = ?`)
 
-const removeUserStmt = loginDb.prepare(
-  `DELETE FROM users WHERE socketId = ?`
-)
+const removeUserStmt = loginDb.prepare(`DELETE FROM users WHERE socketId = ?`)
 
 const insertUploadStmt = loginDb.prepare(
-  `INSERT INTO uploads (id, key, iv, expires) VALUES (?, ?, ?, ?)`
+  `INSERT INTO uploads (id, keyC1, keyC2, ivC1, ivC2, expires) VALUES (?, ?, ?, ?, ?, ?)`
 )
 
-const selectUploadStmt = loginDb.prepare(
-  `SELECT * FROM uploads WHERE id = ?`
-)
+const selectUploadStmt = loginDb.prepare(`SELECT * FROM uploads WHERE id = ?`)
 
-const removeUploadStmt = loginDb.prepare(
-  `DELETE FROM uploads WHERE id = ?`
-)
+const removeUploadStmt = loginDb.prepare(`DELETE FROM uploads WHERE id = ?`)
 
-const removeUploadExpiredStmt = loginDb.prepare(
-  `DELETE FROM uploads WHERE expires < ?`
-)
+const removeUploadExpiredStmt = loginDb.prepare(`DELETE FROM uploads WHERE expires < ?`)
 
 /**
  * Inserts a user into the database with the given socket ID and user ID.
@@ -69,7 +59,6 @@ const removeUploadExpiredStmt = loginDb.prepare(
 const userDbLogin = (socketId, userId) => {
   insertUserStmt.run(socketId, userId)
 }
-
 
 /**
  * Retrieves a user from the database based on their socket ID.
@@ -91,10 +80,17 @@ const userDbLogout = (socketId) => {
   removeUserStmt.run(socketId)
 }
 
-const insertUpload = (id, key, iv, expires) => {
-  insertUploadStmt.run(id, key, iv, expires)
+const insertUpload = (id, keyC1, keyC2, ivC1, ivC2, expires) => {
+  insertUploadStmt.run(id, keyC1, keyC2, ivC1, ivC2, expires)
 }
 
+/**
+ * Retrieves the upload information with the given ID from the database, removes it, and returns the upload information.
+ *
+ * @param {string} id - The ID of the upload.
+ * @return {{id: string, keyC1: string, keyC2: string, ivC1: string, ivC2: string, expires: number}
+ * |undefined} The upload information object if found, or undefined if not found.
+ */
 const getUpload = (id) => {
   const uploadInfo = selectUploadStmt.get(id)
   removeUploadStmt.run(id)
@@ -103,7 +99,7 @@ const getUpload = (id) => {
 
 setInterval(() => {
   removeUploadExpiredStmt.run(Date.now())
-}, interval);
+}, interval)
 
 export { userDbLogin, checkUserLoggedIn, userDbLogout, insertUpload, getUpload }
 

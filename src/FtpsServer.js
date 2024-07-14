@@ -99,7 +99,14 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       // TODO: send error message to client
       return
     }
-    updateFileInDatabase(basename(fileName), uploadInfo.key, uploadInfo.iv, null)
+    updateFileInDatabase(
+      basename(fileName),
+      uploadInfo.keyC1,
+      uploadInfo.keyC2,
+      uploadInfo.ivC1,
+      uploadInfo.ivC2,
+      null
+    )
     logger.info('User uploaded file', {
       socketId: username,
       ip: connection.ip,

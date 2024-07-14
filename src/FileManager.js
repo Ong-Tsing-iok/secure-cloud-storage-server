@@ -19,13 +19,20 @@ const downloadFileBinder = (socket) => {
       socket.emit('message', 'not logged in')
       return
     }
+
     try {
       const fileInfo = getFileInfo(uuid)
       if (fileInfo !== undefined) {
         if (fileInfo.owner !== socket.userId) {
           socket.emit('message', 'permission denied')
         } else {
-          socket.emit('download-file-res', uuid, fileInfo.name, fileInfo.key, fileInfo.iv)
+          socket.emit(
+            'download-file-res',
+            uuid,
+            fileInfo.name,
+            { c1: fileInfo.keyC1, c2: fileInfo.keyC2 },
+            { c1: fileInfo.ivC1, c2: fileInfo.ivC2 }
+          )
         }
       } else {
         socket.emit('message', 'file not found')
@@ -45,23 +52,23 @@ const uploadFileBinder = (socket) => {
   socket.on('upload-file-pre', (key, iv, cb) => {
     logger.info(`Client ask to prepare upload file`, {
       socketId: socket.id,
-      ip: socket.ip,
+      ip: socket.ip
     })
     if (!socket.authed) {
-      socket.emit('message', 'not logged in')
+      cb('not logged in')
       return
     }
     try {
       // create random id
       const id = randomUUID()
       // store with key and iv in database with expires time
-      insertUpload(id, key, iv, Date.now() + uploadExpireTime)
+      insertUpload(id, key.c1, key.c2, iv.c1, iv.c2, Date.now() + uploadExpireTime)
       cb(null, id)
     } catch (error) {
       logger.error(error, {
         socketId: socket.id,
         ip: socket.ip,
-        userId: socket.userId,
+        userId: socket.userId
       })
       cb('error when upload-file-pre')
     }

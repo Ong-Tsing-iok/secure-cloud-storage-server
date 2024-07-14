@@ -51,7 +51,7 @@ const upload = multer({ storage: storage })
  * @return {void} This function does not return a value.
  */
 const auth = (req, res, next) => {
-  if (!req.headers.socketid || !((typeof req.headers.socketid) === 'string')) {
+  if (!req.headers.socketid || !(typeof req.headers.socketid === 'string')) {
     logger.info('Socket ID not found in request headers', {
       ip: req.ip,
       protocol: 'https'
@@ -91,7 +91,7 @@ const auth = (req, res, next) => {
 app.post('/upload', auth, upload.single('file'), (req, res) => {
   try {
     if (req.file) {
-      if (!req.headers.uploadid || !((typeof req.headers.uploadid) === 'string')) {
+      if (!req.headers.uploadid || !(typeof req.headers.uploadid === 'string')) {
         logger.info(`Upload ID not found in request headers`, {
           socketId: req.headers.socketid,
           ip: req.ip,
@@ -120,7 +120,16 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
         uuid: req.file.filename,
         protocol: 'https'
       })
-      addFileToDatabase(req.file.originalname, req.file.filename, req.userId, uploadInfo.key, uploadInfo.iv, null)
+      addFileToDatabase(
+        req.file.originalname,
+        req.file.filename,
+        req.userId,
+        uploadInfo.keyC1,
+        uploadInfo.keyC2,
+        uploadInfo.ivC1,
+        uploadInfo.ivC2,
+        null
+      )
       res.send('File uploaded successfully')
     } else {
       res.status(400).send('No file uploaded')
@@ -136,7 +145,7 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
   }
 })
 app.get('/download', auth, (req, res) => {
-  if (!req.headers.uuid || !((typeof req.headers.socketid) === 'string')) {
+  if (!req.headers.uuid || !(typeof req.headers.socketid === 'string')) {
     logger.info(`UUID not found in request headers`, {
       socketId: req.headers.socketid,
       ip: req.ip,
