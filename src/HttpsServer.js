@@ -117,6 +117,7 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
         ip: req.ip,
         userId: req.userId,
         filename: req.file.originalname,
+        size: req.file.size,
         uuid: req.file.filename,
         protocol: 'https'
       })
@@ -128,6 +129,7 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
         uploadInfo.keyC2,
         uploadInfo.ivC1,
         uploadInfo.ivC2,
+        req.file.size,
         null
       )
       res.send('File uploaded successfully')

@@ -25,11 +25,12 @@ const createFileTable = storageDb.prepare(
   keyC2 TEXT,
   ivC1 TEXT,
   ivC2 TEXT,
+  size INTEGER,
   description TEXT,
   timestamp INTEGER default CURRENT_TIMESTAMP,
   FOREIGN KEY(owner) REFERENCES users(id)
   )`
-) // TODO: add time to storage?
+)
 try {
   createUserTable.run()
   createFileTable.run()
@@ -40,10 +41,10 @@ try {
 const selectUserByKeys = storageDb.prepare('SELECT * FROM users WHERE y = ? AND g = ? AND p = ?')
 const insertUserWithKeys = storageDb.prepare('INSERT INTO users (y, g, p) VALUES (?, ?, ?)')
 const insertFile = storageDb.prepare(
-  'INSERT INTO files (name, uuid, owner, keyC1, keyC2, ivC1, ivC2, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  'INSERT INTO files (name, uuid, owner, keyC1, keyC2, ivC1, ivC2, size, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
 )
 const updateFile = storageDb.prepare(
-  'UPDATE files SET keyC1 = ?, keyC2 = ?, ivC1 = ?, ivC2 = ?, description = ? WHERE uuid = ?'
+  'UPDATE files SET keyC1 = ?, keyC2 = ?, ivC1 = ?, ivC2 = ?, size = ?, description = ? WHERE uuid = ?'
 )
 const selectFileByUuid = storageDb.prepare('SELECT * FROM files WHERE uuid = ?')
 const selectAllFilesByUserId = storageDb.prepare('SELECT name, uuid FROM files WHERE owner = ?')
@@ -94,11 +95,12 @@ const AddUserAndGetId = (p, g, y) => {
  * @param {string} keyC2 - The second part of the key associated with the file.
  * @param {string} ivC1 - The first part of the IV associated with the file.
  * @param {string} ivC2 - The second part of the IV associated with the file.
+ * @param {number} size - The size of the file in bytes.
  * @param {string} description - The description of the file.
  * @return {void} This function does not return a value.
  */
-const addFileToDatabase = (name, uuid, userId, keyC1, keyC2, ivC1, ivC2, description) => {
-  insertFile.run(name, uuid, userId, keyC1, keyC2, ivC1, ivC2, description)
+const addFileToDatabase = (name, uuid, userId, keyC1, keyC2, ivC1, ivC2, size, description) => {
+  insertFile.run(name, uuid, userId, keyC1, keyC2, ivC1, ivC2, size, description)
 }
 
 /**
@@ -109,11 +111,12 @@ const addFileToDatabase = (name, uuid, userId, keyC1, keyC2, ivC1, ivC2, descrip
  * @param {string} keyC2 - The second part of the key associated with the file.
  * @param {string} ivC1 - The first part of the IV associated with the file.
  * @param {string} ivC2 - The second part of the IV associated with the file.
+ * @param {number} size - The size of the file in bytes.
  * @param {string} description - The new description of the file.
  * @return {void} This function does not return a value.
  */
-const updateFileInDatabase = (uuid, keyC1, keyC2, ivC1, ivC2, description) => {
-  updateFile.run(keyC1, keyC2, ivC1, ivC2, description, uuid)
+const updateFileInDatabase = (uuid, keyC1, keyC2, ivC1, ivC2, size, description) => {
+  updateFile.run(keyC1, keyC2, ivC1, ivC2, size, description, uuid)
 }
 
 /**
@@ -121,7 +124,7 @@ const updateFileInDatabase = (uuid, keyC1, keyC2, ivC1, ivC2, description) => {
  *
  * @param {string} uuid - The UUID of the file.
  * @return {{id: number, name: string, uuid: string, owner: number, 
- * keyC1: string, keyC2: string, ivC1: string, ivC2: string, description: string, timestamp: number}|undefined}
+ * keyC1: string, keyC2: string, ivC1: string, ivC2: string, size: number, description: string, timestamp: number}|undefined}
  * An object of the file information if found, or undefined if not found.
  */
 const getFileInfo = (uuid) => {

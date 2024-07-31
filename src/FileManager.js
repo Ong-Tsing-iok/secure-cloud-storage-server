@@ -1,6 +1,6 @@
 import { logger } from './Logger.js'
 import { getFileInfo, deleteFile, getAllFilesByUserId } from './StorageDatabase.js'
-import { unlink } from 'fs/promises'
+import { unlink, stat } from 'fs/promises'
 import { join } from 'path'
 import { __dirname, __upload_dir } from './Constants.js'
 import { randomUUID } from 'crypto'
@@ -31,7 +31,8 @@ const downloadFileBinder = (socket) => {
             uuid,
             fileInfo.name,
             { c1: fileInfo.keyC1, c2: fileInfo.keyC2 },
-            { c1: fileInfo.ivC1, c2: fileInfo.ivC2 }
+            { c1: fileInfo.ivC1, c2: fileInfo.ivC2 },
+            fileInfo.size
           )
         }
       } else {

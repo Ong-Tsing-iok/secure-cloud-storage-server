@@ -6,6 +6,7 @@ import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
 import { join, basename, dirname } from 'path'
 import { randomUUID } from 'crypto'
 import { addFileToDatabase, deleteFile, updateFileInDatabase } from './StorageDatabase.js'
+import { stat } from 'fs/promises'
 
 const port = process.env.FTP_PORT || 7002
 
@@ -74,7 +75,7 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       protocol: 'ftps'
     })
   })
-  connection.on('STOR', (error, fileName) => {
+  connection.on('STOR', async (error, fileName) => {
     if (error) {
       logger.error(error, {
         socketId: username,
@@ -99,12 +100,14 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       // TODO: send error message to client
       return
     }
+    const fileSize = (await stat(fileName)).size
     updateFileInDatabase(
       basename(fileName),
       uploadInfo.keyC1,
       uploadInfo.keyC2,
       uploadInfo.ivC1,
       uploadInfo.ivC2,
+      fileSize,
       null
     )
     logger.info('User uploaded file', {
@@ -112,6 +115,7 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       ip: connection.ip,
       userId: userInfo.userId,
       fileName,
+      size: fileSize,
       protocol: 'ftps'
     })
   })
