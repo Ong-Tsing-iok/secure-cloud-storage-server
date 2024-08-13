@@ -31,9 +31,25 @@ const createFileTable = storageDb.prepare(
   FOREIGN KEY(owner) REFERENCES users(id)
   )`
 )
+
+const createRequestTable = storageDb.prepare(
+  `CREATE TABLE IF NOT EXISTS requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  fileId INTEGER not null,
+  uuid TEXT not null,
+  owner INTEGER not null,
+  requester INTEGER not null,
+  agreed BOOLEAN default null,
+  timestamp INTEGER default CURRENT_TIMESTAMP,
+  FOREIGN KEY(fileId) REFERENCES files(id),
+  FOREIGN KEY(owner) REFERENCES users(id),
+  FOREIGN KEY(requester) REFERENCES users(id)
+  )`
+)
 try {
   createUserTable.run()
   createFileTable.run()
+  createRequestTable.run()
 } catch (error) {
   logger.error(error)
 }
@@ -49,6 +65,15 @@ const updateFile = storageDb.prepare(
 const selectFileByUuid = storageDb.prepare('SELECT * FROM files WHERE uuid = ?')
 const selectAllFilesByUserId = storageDb.prepare('SELECT name, uuid FROM files WHERE owner = ?')
 const deleteFileByUuid = storageDb.prepare('DELETE FROM files WHERE uuid = ?')
+const insertRequest = storageDb.prepare(
+  'INSERT INTO requests (fileId, uuid, owner, requester) VALUES (?, ?, ?, ?)'
+)
+const selectRequestsByOwner = storageDb.prepare('SELECT * FROM requests WHERE owner = ?')
+const selectRequestsByRequester = storageDb.prepare('SELECT * FROM requests WHERE requester = ?')
+const selectRequestByValues = storageDb.prepare(
+  'SELECT * FROM requests WHERE fileId = ? AND requester = ?'
+)
+const deleteRequestByUuid = storageDb.prepare('DELETE FROM requests WHERE uuid = ?')
 
 logger.info(`Database initialized`)
 
@@ -83,7 +108,6 @@ const AddUserAndGetId = (p, g, y) => {
   // Return the id of the added user or undefined if an error occurred
   return { id, exists }
 }
-
 
 /**
  * Adds a file to the database with the given name, UUID, user ID, key, IV, and description.
@@ -123,7 +147,7 @@ const updateFileInDatabase = (uuid, keyC1, keyC2, ivC1, ivC2, size, description)
  * Retrieves file information from the database based on the given UUID.
  *
  * @param {string} uuid - The UUID of the file.
- * @return {{id: number, name: string, uuid: string, owner: number, 
+ * @return {{id: number, name: string, uuid: string, owner: number,
  * keyC1: string, keyC2: string, ivC1: string, ivC2: string, size: number, description: string, timestamp: number}|undefined}
  * An object of the file information if found, or undefined if not found.
  */
@@ -141,11 +165,58 @@ const getAllFilesByUserId = (userId) => {
   return selectAllFilesByUserId.all(userId)
 }
 
+const getAllRequestFilesByOwner = (userId) => {
+  return selectRequestsByOwner.all(userId)
+}
+
+const getAllRequestFilesByRequester = (userId) => {
+  return selectRequestsByRequester.all(userId)
+}
+
 const deleteFile = (uuid) => {
   return deleteFileByUuid.run(uuid)
 }
 
-export { AddUserAndGetId, addFileToDatabase, getFileInfo, getAllFilesByUserId, deleteFile, updateFileInDatabase }
+/**
+ * Deletes a request from the database based on the given UUID.
+ *
+ * @param {string} uuid - The UUID of the request to be deleted.
+ * @return {{changes: number}} The info of the query. Changes is the total number of rows effected.
+ */
+const deleteRequest = (uuid) => {
+  return deleteRequestByUuid.run(uuid)
+}
+
+/**
+ * Adds a unique request to the database with the given file ID, UUID, owner, and requester.
+ *
+ * @param {number} fileId - The ID of the file in the database.
+ * @param {string} uuid - The UUID of the file.
+ * @param {number} owner - The ID of the owner.
+ * @param {number} requester - The ID of the requester.
+ * @return {boolean} Returns true if the request was added successfully, false otherwise.
+ */
+const addUniqueRequest = (fileId, uuid, owner, requester) => {
+  const requestInfo = selectRequestByValues.get(fileId, requester)
+  if (requestInfo === undefined) {
+    insertRequest.run(fileId, uuid, owner, requester)
+    return true
+  }
+  return false
+}
+
+export {
+  AddUserAndGetId,
+  addFileToDatabase,
+  getFileInfo,
+  getAllFilesByUserId,
+  deleteFile,
+  deleteRequest,
+  updateFileInDatabase,
+  addUniqueRequest,
+  getAllRequestFilesByOwner,
+  getAllRequestFilesByRequester
+}
 
 // Handle graceful shutdown
 process.on('exit', () => storageDb.close())

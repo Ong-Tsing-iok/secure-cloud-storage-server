@@ -1,16 +1,25 @@
 import { logger } from './Logger.js'
-import { getFileInfo, deleteFile, getAllFilesByUserId } from './StorageDatabase.js'
+import {
+  getFileInfo,
+  deleteFile,
+  getAllFilesByUserId,
+  addUniqueRequest,
+  getAllRequestFilesByRequester,
+  getAllRequestFilesByOwner,
+  deleteRequest
+} from './StorageDatabase.js'
 import { unlink, stat } from 'fs/promises'
 import { join } from 'path'
 import { __dirname, __upload_dir } from './Constants.js'
 import { randomUUID } from 'crypto'
 import { insertUpload } from './LoginDatabase.js'
+import { timeStamp } from 'console'
 
 const uploadExpireTime = 1000 * 60 * 10 // 10 minutes
 
 const downloadFileBinder = (socket) => {
   socket.on('download-file-pre', (uuid) => {
-    logger.info(`Client ask to prepare download file`, {
+    logger.info(`Client asked for file`, {
       socketId: socket.id,
       ip: socket.ip,
       uuid: uuid
@@ -24,7 +33,20 @@ const downloadFileBinder = (socket) => {
       const fileInfo = getFileInfo(uuid)
       if (fileInfo !== undefined) {
         if (fileInfo.owner !== socket.userId) {
-          socket.emit('message', 'permission denied')
+          logger.info('Client requested for file permission', {
+            socketId: socket.id,
+            ip: socket.ip,
+            userId: socket.userId,
+            uuid
+          })
+          if (addUniqueRequest(fileInfo.id, uuid, fileInfo.owner, socket.userId)) {
+            socket.emit(
+              'message',
+              'Requested file permission. You will have to wait for the owner to respond.'
+            )
+          } else {
+            socket.emit('message', 'File already requested.')
+          }
         } else {
           socket.emit(
             'download-file-res',
@@ -114,21 +136,93 @@ const deleteFileBinder = (socket) => {
   })
 }
 
-const getFileListBinder = (socket) => {
-  socket.on('get-file-list', () => {
-    logger.info(`Client requested file list`, { socketId: socket.id, ip: socket.ip })
+const deleteRequestBinder = (socket) => {
+  socket.on('delete-request', (uuid) => {
+    logger.info(`Client requested to delete request`, { socketId: socket.id, ip: socket.ip })
     if (!socket.authed) {
       socket.emit('message', 'not logged in')
       return
     }
     try {
-      const files = getAllFilesByUserId(socket.userId)
-      socket.emit('file-list-res', JSON.stringify(files))
+      if (deleteRequest(uuid).changes > 0) {
+        logger.info(`Client request deleted`, {
+          socketId: socket.id,
+          ip: socket.ip,
+          userId: socket.userId,
+          uuid
+        })
+        socket.emit('message', 'request deleted')
+      } else {
+        socket.emit('message', 'request not found')
+      }
     } catch (error) {
-      logger.error(error, { socketId: socket.id })
-      socket.emit('message', 'error when get-file-list')
+      logger.error(error, {
+        socketId: socket.id,
+        ip: socket.ip,
+        userId: socket.userId,
+        uuid
+      })
+      socket.emit('message', 'error when delete-request')
     }
   })
 }
 
-export { downloadFileBinder, deleteFileBinder, getFileListBinder, uploadFileBinder }
+const getFileListBinder = (socket) => {
+  /**
+   * Handles the request for a list of files of a specific type.
+   *
+   * @param {'file' | 'request' | 'requested'} getType - The type of files to retrieve.
+   * @param {(userId: number) => Array} getFilesFunc - The function to retrieve the files.
+   * Should return a list of objects with a 'uuid' property.
+   * @return {void} Emits the list of files as a JSON string or an error message.
+   */
+  const getListHandler = (getType, getFilesFunc) => {
+    if (getType !== 'file' && getType !== 'request' && getType !== 'requested') {
+      logger.error(`Invalid list type ${getType}`, { socketId: socket.id, ip: socket.ip })
+      socket.emit('message', 'invalid list type')
+      return
+    }
+    logger.info(`Client asked for ${getType} list`, { socketId: socket.id, ip: socket.ip })
+    if (!socket.authed) {
+      socket.emit('message', 'not logged in')
+      return
+    }
+    try {
+      const files = getFilesFunc(socket.userId)
+      socket.emit(`${getType}-list-res`, JSON.stringify(files))
+    } catch (error) {
+      logger.error(error, { socketId: socket.id })
+      socket.emit('message', `error when getting ${getType} list`)
+    }
+  }
+
+  socket.on('get-file-list', () => {
+    getListHandler('file', getAllFilesByUserId)
+  })
+  socket.on('get-request-list', () => {
+    getListHandler('request', (userId) => {
+      const fileList = getAllRequestFilesByRequester(userId)
+      return fileList.map((file) => {
+        return {
+          uuid: file.uuid,
+          name: file.name,
+          timestamp: file.timestamp
+        }
+      })
+    })
+  })
+  socket.on('get-requested-list', () => {
+    getListHandler('requested', (userId) => {
+      const fileList = getAllRequestFilesByOwner(userId)
+      return fileList.map((file) => {
+        return {
+          uuid: file.uuid,
+          name: file.name,
+          timestamp: file.timestamp
+        }
+      })
+    })
+  })
+}
+
+export { downloadFileBinder, deleteFileBinder, getFileListBinder, uploadFileBinder, deleteRequestBinder }

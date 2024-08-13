@@ -38,6 +38,7 @@ io.on('connection', (socket) => {
   fileManager.deleteFileBinder(socket)
   fileManager.getFileListBinder(socket)
   fileManager.uploadFileBinder(socket)
+  fileManager.deleteRequestBinder(socket)
 })
 
 export default io
