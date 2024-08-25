@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import sqlite from 'better-sqlite3'
 import { logger } from './Logger.js'
 

@@ -8,6 +8,7 @@ import { userDbLogout } from './LoginDatabase.js'
 // File operation binders
 import * as fileManager from './FileManager.js'
 import authenticationBinder from './Authentication.js'
+import { requestBinder } from './RequestManager.js'
 
 const io = new Server(server, {
   cors: {
@@ -39,6 +40,7 @@ io.on('connection', (socket) => {
   fileManager.getFileListBinder(socket)
   fileManager.uploadFileBinder(socket)
   fileManager.deleteRequestBinder(socket)
+  requestBinder(socket)
 })
 
 export default io
