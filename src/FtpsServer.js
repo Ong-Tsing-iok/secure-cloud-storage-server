@@ -34,7 +34,6 @@ const ftpServer = new FtpSrv({
 
 ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
   logger.info('User trying to authenticate', {
-    socketId: username,
     ip: connection.ip,
     protocol: 'ftps'
   })
@@ -42,7 +41,6 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
   if (userInfo !== undefined) {
     const rootPath = join(__dirname, __upload_dir, userInfo.userId.toString())
     logger.info('User logged in', {
-      socketId: username,
       ip: connection.ip,
       userId: userInfo.userId,
       protocol: 'ftps'
@@ -52,14 +50,13 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       fs: new CustomFileSystem(connection, { root: rootPath, cwd: '/' })
     })
   } else {
-    logger.info('User not logged in', { socketId: username, ip: connection.ip, protocol: 'ftps' })
+    logger.info('User not logged in', { ip: connection.ip, protocol: 'ftps' })
     reject(new Error('User not logged in'))
   }
 
   connection.on('RETR', (error, filePath) => {
     if (error) {
       logger.error(error, {
-        socketId: username,
         ip: connection.ip,
         userId: userInfo.userId,
         filePath,
@@ -68,7 +65,6 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       return
     }
     logger.info('User downloaded file', {
-      socketId: username,
       ip: connection.ip,
       userId: userInfo.userId,
       filePath,
@@ -78,7 +74,6 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
   connection.on('STOR', async (error, fileName) => {
     if (error) {
       logger.error(error, {
-        socketId: username,
         ip: connection.ip,
         userId: userInfo.userId,
         fileName,
@@ -89,7 +84,6 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
     const uploadInfo = getUpload(password) // use password as upload id
     if (uploadInfo === undefined) {
       logger.info('Upload ID not found in database', {
-        socketId: username,
         ip: connection.ip,
         userId: userInfo.userId,
         fileName,
@@ -103,15 +97,12 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
     const fileSize = (await stat(fileName)).size
     updateFileInDatabase(
       basename(fileName),
-      uploadInfo.keyC1,
-      uploadInfo.keyC2,
-      uploadInfo.ivC1,
-      uploadInfo.ivC2,
+      uploadInfo.keyCipher,
+      uploadInfo.ivCipher,
       fileSize,
       null
     )
     logger.info('User uploaded file', {
-      socketId: username,
       ip: connection.ip,
       userId: userInfo.userId,
       fileName,

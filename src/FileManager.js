@@ -20,7 +20,6 @@ const uploadExpireTime = 1000 * 60 * 10 // 10 minutes
 const downloadFileBinder = (socket) => {
   socket.on('download-file-pre', (uuid) => {
     logger.info(`Client asked for file`, {
-      socketId: socket.id,
       ip: socket.ip,
       uuid: uuid
     })
@@ -32,14 +31,13 @@ const downloadFileBinder = (socket) => {
     try {
       const fileInfo = getFileInfo(uuid)
       if (fileInfo !== undefined) {
-        if (fileInfo.owner !== socket.userId) {
+        if (fileInfo.ownerId !== socket.userId) {
           logger.info('Client requested for file permission', {
-            socketId: socket.id,
             ip: socket.ip,
             userId: socket.userId,
             uuid
           })
-          if (addUniqueRequest(fileInfo.id, uuid, fileInfo.owner, socket.userId)) {
+          if (addUniqueRequest(fileInfo.id, uuid, socket.userId)) {
             socket.emit(
               'message',
               'Requested file permission. You will have to wait for the owner to respond.'
@@ -52,8 +50,8 @@ const downloadFileBinder = (socket) => {
             'download-file-res',
             uuid,
             fileInfo.name,
-            { c1: fileInfo.keyC1, c2: fileInfo.keyC2 },
-            { c1: fileInfo.ivC1, c2: fileInfo.ivC2 },
+            fileInfo.keyCipher,
+            fileInfo.ivCipher,
             fileInfo.size
           )
         }
@@ -62,7 +60,6 @@ const downloadFileBinder = (socket) => {
       }
     } catch (error) {
       logger.error(error, {
-        socketId: socket.id,
         ip: socket.ip,
         userId: socket.userId,
         uuid
@@ -74,7 +71,6 @@ const downloadFileBinder = (socket) => {
 const uploadFileBinder = (socket) => {
   socket.on('upload-file-pre', (key, iv, cb) => {
     logger.info(`Client ask to prepare upload file`, {
-      socketId: socket.id,
       ip: socket.ip
     })
     if (!socket.authed) {
@@ -85,11 +81,10 @@ const uploadFileBinder = (socket) => {
       // create random id
       const id = randomUUID()
       // store with key and iv in database with expires time
-      insertUpload(id, key.c1, key.c2, iv.c1, iv.c2, Date.now() + uploadExpireTime)
+      insertUpload(id, key, iv, Date.now() + uploadExpireTime)
       cb(null, id)
     } catch (error) {
       logger.error(error, {
-        socketId: socket.id,
         ip: socket.ip,
         userId: socket.userId
       })
@@ -100,7 +95,7 @@ const uploadFileBinder = (socket) => {
 
 const deleteFileBinder = (socket) => {
   socket.on('delete-file', async (uuid) => {
-    logger.info(`Client requested to delete file`, { socketId: socket.id, ip: socket.ip })
+    logger.info(`Client requested to delete file`, {  ip: socket.ip })
     if (!socket.authed) {
       socket.emit('message', 'not logged in')
       return
@@ -108,13 +103,12 @@ const deleteFileBinder = (socket) => {
     try {
       const fileInfo = getFileInfo(uuid)
       if (fileInfo !== undefined) {
-        if (fileInfo.owner !== socket.userId) {
+        if (fileInfo.ownerId !== socket.userId) {
           socket.emit('message', 'permission denied')
         } else {
           await unlink(join(__dirname, __upload_dir, String(socket.userId), uuid))
           deleteFile(uuid)
           logger.info(`File deleted`, {
-            socketId: socket.id,
             ip: socket.ip,
             userId: socket.userId,
             uuid
@@ -126,7 +120,6 @@ const deleteFileBinder = (socket) => {
       }
     } catch (error) {
       logger.error(error, {
-        socketId: socket.id,
         ip: socket.ip,
         userId: socket.userId,
         uuid
@@ -138,15 +131,14 @@ const deleteFileBinder = (socket) => {
 
 const deleteRequestBinder = (socket) => {
   socket.on('delete-request', (uuid) => {
-    logger.info(`Client requested to delete request`, { socketId: socket.id, ip: socket.ip })
+    logger.info(`Client requested to delete request`, {  ip: socket.ip })
     if (!socket.authed) {
       socket.emit('message', 'not logged in')
       return
     }
     try {
-      if (deleteRequest(uuid).changes > 0) {
+      if (deleteRequest(uuid)) {
         logger.info(`Client request deleted`, {
-          socketId: socket.id,
           ip: socket.ip,
           userId: socket.userId,
           uuid
@@ -157,7 +149,6 @@ const deleteRequestBinder = (socket) => {
       }
     } catch (error) {
       logger.error(error, {
-        socketId: socket.id,
         ip: socket.ip,
         userId: socket.userId,
         uuid
@@ -178,11 +169,11 @@ const getFileListBinder = (socket) => {
    */
   const getListHandler = (getType, getFilesFunc) => {
     if (getType !== 'file' && getType !== 'request' && getType !== 'requested') {
-      logger.error(`Invalid list type ${getType}`, { socketId: socket.id, ip: socket.ip })
+      logger.error(`Invalid list type ${getType}`, {ip: socket.ip })
       socket.emit('message', 'invalid list type')
       return
     }
-    logger.info(`Client asked for ${getType} list`, { socketId: socket.id, ip: socket.ip })
+    logger.info(`Client asked for ${getType} list`, {ip: socket.ip })
     if (!socket.authed) {
       socket.emit('message', 'not logged in')
       return
@@ -191,7 +182,7 @@ const getFileListBinder = (socket) => {
       const files = getFilesFunc(socket.userId)
       socket.emit(`${getType}-list-res`, JSON.stringify(files))
     } catch (error) {
-      logger.error(error, { socketId: socket.id })
+      logger.error(error, { ip: socket.ip })
       socket.emit('message', `error when getting ${getType} list`)
     }
   }

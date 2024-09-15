@@ -54,7 +54,7 @@ const authenticationBinder = (socket) => {
     if (socket.randKey === decodeValue) {
       logger.info(`Client respond with correct auth key and is authenticated`, { ip: socket.ip })
       socket.authed = true
-      const { id, exists } = AddUserAndGetId(socket.p, socket.g, socket.y) // TODO
+      const { id, exists } = AddUserAndGetId(socket.pk)
       if (!exists) {
         logger.info(`User ${id} added to database. Creating folder for user ${id}`, {
           ip: socket.ip,

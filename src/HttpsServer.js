@@ -26,7 +26,6 @@ const storage = multer.diskStorage({
     } catch (error) {
       logger.error(error, {
         userId: req.userId,
-        socketId: req.headers.socketid,
         ip: req.ip,
         protocol: 'https'
       })
@@ -64,7 +63,6 @@ const auth = (req, res, next) => {
     logger.debug(`User with socket id ${req.headers.socketid} is authenticating`)
     if (user !== undefined) {
       logger.info(`User is authenticated`, {
-        socketId: req.headers.socketid,
         ip: req.ip,
         userId: user.userId,
         protocol: 'https'
@@ -73,7 +71,6 @@ const auth = (req, res, next) => {
       next()
     } else {
       logger.info(`User is not authenticated`, {
-        socketId: req.headers.socketid,
         ip: req.ip,
         protocol: 'https'
       })
@@ -81,7 +78,6 @@ const auth = (req, res, next) => {
     }
   } catch (error) {
     logger.error(error, {
-      socketId: req.headers.socketid,
       ip: req.ip,
       protocol: 'https'
     })
@@ -93,7 +89,6 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
     if (req.file) {
       if (!req.headers.uploadid || !(typeof req.headers.uploadid === 'string')) {
         logger.info(`Upload ID not found in request headers`, {
-          socketId: req.headers.socketid,
           ip: req.ip,
           protocol: 'https'
         })
@@ -104,7 +99,6 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
       const uploadInfo = getUpload(req.headers.uploadid)
       if (uploadInfo === undefined) {
         logger.info(`Upload ID not found in database`, {
-          socketId: req.headers.socketid,
           ip: req.ip,
           protocol: 'https'
         })
@@ -113,7 +107,6 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
         return
       }
       logger.info(`User uploaded a file`, {
-        socketId: req.headers.socketid,
         ip: req.ip,
         userId: req.userId,
         filename: req.file.originalname,
@@ -125,10 +118,8 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
         req.file.originalname,
         req.file.filename,
         req.userId,
-        uploadInfo.keyC1,
-        uploadInfo.keyC2,
-        uploadInfo.ivC1,
-        uploadInfo.ivC2,
+        uploadInfo.keyCipher,
+        uploadInfo.ivCipher,
         req.file.size,
         null
       )
@@ -138,7 +129,6 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
     }
   } catch (error) {
     logger.error(error, {
-      socketId: req.headers.socketid,
       ip: req.ip,
       userId: req.userId,
       protocol: 'https'
@@ -149,7 +139,6 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
 app.get('/download', auth, (req, res) => {
   if (!req.headers.uuid || !(typeof req.headers.socketid === 'string')) {
     logger.info(`UUID not found in request headers`, {
-      socketId: req.headers.socketid,
       ip: req.ip,
       protocol: 'https'
     })
@@ -158,7 +147,6 @@ app.get('/download', auth, (req, res) => {
   try {
     const uuid = req.headers.uuid
     logger.info(`User is asking for file`, {
-      socketId: req.headers.socketid,
       ip: req.ip,
       userId: req.userId,
       uuid: uuid,
@@ -167,16 +155,14 @@ app.get('/download', auth, (req, res) => {
     const fileInfo = getFileInfo(uuid)
     if (!fileInfo) {
       logger.info(`File not found`, {
-        socketId: req.headers.socketid,
         ip: req.ip,
         userId: req.userId,
         uuid: uuid,
         protocol: 'https'
       })
       res.status(404).send('File not found')
-    } else if (fileInfo.owner !== req.userId) {
+    } else if (fileInfo.ownerId !== req.userId) {
       logger.info(`User don't have permission to download file`, {
-        socketId: req.headers.socketid,
         ip: req.ip,
         userId: req.userId,
         uuid: uuid,
@@ -185,7 +171,6 @@ app.get('/download', auth, (req, res) => {
       res.status(403).send('File not permitted')
     } else {
       logger.info(`User downloading file`, {
-        socketId: req.headers.socketid,
         ip: req.ip,
         userId: req.userId,
         uuid: uuid,
@@ -195,7 +180,6 @@ app.get('/download', auth, (req, res) => {
     }
   } catch (error) {
     logger.error(error, {
-      socketId: req.headers.socketid,
       ip: req.ip,
       uuid: req.headers.uuid,
       protocol: 'https'
