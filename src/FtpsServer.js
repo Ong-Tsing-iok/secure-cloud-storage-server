@@ -1,5 +1,5 @@
 import { FtpSrv, FileSystem } from 'ftp-srv'
-import { __dirname, __upload_dir } from './Constants.js'
+import { __upload_dir, __dirname } from './Constants.js'
 import { logger } from './Logger.js'
 import { readFileSync, unlink } from 'fs'
 import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'

@@ -6,76 +6,86 @@ const storageDb = new sqlite('storage.db', {
 })
 
 storageDb.pragma('journal_mode = WAL')
-// Prepare the statements
-const createUserTable = storageDb.prepare(
-  `CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, 
-  pk TEXT not null
-  )`
-)
-const createFileTable = storageDb.prepare(
-  `CREATE TABLE IF NOT EXISTS files (
-  id TEXT PRIMARY KEY not null,
-  name TEXT not null,
-  ownerId INTEGER not null,
-  keyCipher TEXT,
-  ivCipher TEXT,
-  size INTEGER,
-  description TEXT,
-  timestamp INTEGER default CURRENT_TIMESTAMP,
-  FOREIGN KEY(ownerId) REFERENCES users(id)
-  )`
-)
-
-const createRequestTable = storageDb.prepare(
-  `CREATE TABLE IF NOT EXISTS requests (
-  id TEXT PRIMARY KEY not null,
-  fileId INTEGER not null,
-  requester INTEGER not null,
-  agreed BOOLEAN default null,
-  timestamp INTEGER default CURRENT_TIMESTAMP,
-  FOREIGN KEY(fileId) REFERENCES files(id),
-  FOREIGN KEY(requester) REFERENCES users(id)
-  )`
-)
+/**prepare tables */
 try {
-  createUserTable.run()
-  createFileTable.run()
-  createRequestTable.run()
+  // user table
+  storageDb
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY not null, 
+      pk TEXT not null
+      )`
+    )
+
+    .run()
+  // file table
+  // permissions: 0 = private, 1 = public, 2 = unlisted
+  storageDb
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS files (
+      id TEXT PRIMARY KEY not null,
+      name TEXT not null,
+      path TEXT not null,
+      ownerId TEXT not null,
+      permissions INTEGER not null,
+      keyCipher TEXT,
+      ivCipher TEXT,
+      size INTEGER,
+      description TEXT,
+      timestamp INTEGER default CURRENT_TIMESTAMP,
+      FOREIGN KEY(ownerId) REFERENCES users(id)
+      )`
+    )
+    .run()
+  // folder table
+  storageDb
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS folders (
+      name TEXT not null,
+      path TEXT not null,
+      ownerId TEXT not null,
+      permissions INTEGER not null,
+      timestamp INTEGER default CURRENT_TIMESTAMP,
+      PRIMARY KEY(ownerId, path, name),
+      FOREIGN KEY(ownerId) REFERENCES users(id)
+      )`
+    )
+    .run()
+  // request table
+  storageDb
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS requests (
+      id TEXT PRIMARY KEY not null,
+      fileId TEXT not null,
+      requester INTEGER not null,
+      agreed BOOLEAN default null,
+      timestamp INTEGER default CURRENT_TIMESTAMP,
+      FOREIGN KEY(fileId) REFERENCES files(id),
+      FOREIGN KEY(requester) REFERENCES users(id)
+      )`
+    )
+    .run()
 } catch (error) {
   logger.error(error)
 }
 
+/**
+ *! User Related Queries
+ */
+//* prepare queries
 const selectUserByKeys = storageDb.prepare('SELECT * FROM users WHERE pk = ?')
 const insertUserWithKeys = storageDb.prepare('INSERT INTO users (pk) VALUES (?)')
-const insertFile = storageDb.prepare(
-  'INSERT INTO files (id, name, ownerId, keyCipher, ivCipher, size, description) VALUES (?, ?, ?, ?, ?, ?, ?)'
-)
-const updateFile = storageDb.prepare(
-  'UPDATE files SET keyCipher = ?, ivCipher = ?, size = ?, description = ? WHERE id = ?'
-)
-const selectFileByUuid = storageDb.prepare('SELECT * FROM files WHERE id = ?')
-const selectAllFilesByUserId = storageDb.prepare('SELECT name, id FROM files WHERE ownerId = ?')
-const deleteFileByUuid = storageDb.prepare('DELETE FROM files WHERE id = ?')
 
-// const selectRequestsByOwner = storageDb.prepare('SELECT * FROM requests WHERE owner = ?') //TODO
-const selectRequestsByRequester = storageDb.prepare('SELECT * FROM requests WHERE requester = ?')
-const selectRequestByValues = storageDb.prepare(
-  'SELECT * FROM requests WHERE fileId = ? AND requester = ?'
-)
-
-
-logger.info(`Database initialized`)
-
+//* functions
 /**
  * Checks if a user with the given public keys (p, g, y) exists in the database,
  * and if not, adds the user to the database.
  *
  * @param {string} pk - The public key of the user.
- * @return {{id: number|undefined, exists: boolean}} An object containing the id of the added user and a boolean indicating if the user already existed.
+ * @return {{id: string|undefined, exists: boolean}} An object containing the id of the added user and a boolean indicating if the user already existed.
  *                  If an error occurred, the id is undefined and the boolean is false.
  */
-const AddUserAndGetId = (pk) => {
+export const AddUserAndGetId = (pk) => {
   // Initialize the id with undefined
   let id = undefined
   let exists = false
@@ -97,23 +107,51 @@ const AddUserAndGetId = (pk) => {
   return { id, exists }
 }
 
+/**
+ *! File Related Queries
+ */
+//* prepare queries
+const insertFile = storageDb.prepare(
+  'INSERT INTO files (id, name, ownerId, keyCipher, ivCipher, size, description) VALUES (?, ?, ?, ?, ?, ?, ?)'
+)
+const selectFileById = storageDb.prepare('SELECT * FROM files WHERE id = ?')
+const updateFileById = storageDb.prepare(
+  'UPDATE files SET keyCipher = ?, ivCipher = ?, size = ?, description = ? WHERE id = ?'
+)
+const deleteFileById = storageDb.prepare('DELETE FROM files WHERE id = ?')
+const selectFilesByOwnerId = storageDb.prepare('SELECT * FROM files WHERE ownerId = ?')
+const selectFilesByPathOwnerId = storageDb.prepare(
+  'SELECT * FROM files WHERE path = ? AND ownerId = ?'
+)
 
+//* functions
 /**
  * Adds a file to the database with the given name, ID, user ID, key cipher, IV cipher, size, and description.
  *
  * @param {string} name - The name of the file.
- * @param {number} id - The UUID of the file.
- * @param {number} userId - The ID of the user.
+ * @param {string} id - The UUID of the file.
+ * @param {string} userId - The ID of the user.
  * @param {string} keyCipher - The cipher for the key.
  * @param {string} ivCipher - The cipher for the initialization vector.
  * @param {number} size - The size of the file in bytes.
  * @param {string} description - The description of the file.
  * @return {void} This function does not return a value.
  */
-const addFileToDatabase = (name, id, userId, keyCipher, ivCipher, size, description) => {
+export const addFileToDatabase = (name, id, userId, keyCipher, ivCipher, size, description) => {
   insertFile.run(id, name, userId, keyCipher, ivCipher, size, description)
 }
 
+/**
+ * Retrieves file information from the database based on the given UUID.
+ *
+ * @param {string} uuid - The UUID of the file.
+ * @return {{id: string, name: string, uuid: string, ownerId: string,
+ * keyCipher: string, ivCipher: string, size: number, description: string, timestamp: number}|undefined}
+ * An object of the file information if found, or undefined if not found.
+ */
+export const getFileInfo = (uuid) => {
+  return selectFileById.get(uuid)
+}
 
 /**
  * Updates the information of a file in the database.
@@ -125,94 +163,168 @@ const addFileToDatabase = (name, id, userId, keyCipher, ivCipher, size, descript
  * @param {string} description - The description of the file.
  * @return {void} This function does not return a value.
  */
-const updateFileInDatabase = (uuid, keyCipher, ivCipher, size, description) => {
-  updateFile.run(keyCipher, ivCipher, size, description, uuid)
+export const updateFileInDatabase = (uuid, keyCipher, ivCipher, size, description) => {
+  updateFileById.run(keyCipher, ivCipher, size, description, uuid)
 }
 
-/**
- * Retrieves file information from the database based on the given UUID.
- *
- * @param {string} uuid - The UUID of the file.
- * @return {{id: number, name: string, uuid: string, ownerId: number,
- * keyCipher: string, ivCipher: string, size: number, description: string, timestamp: number}|undefined}
- * An object of the file information if found, or undefined if not found.
- */
-const getFileInfo = (uuid) => {
-  return selectFileByUuid.get(uuid)
+export const deleteFile = (uuid) => {
+  return deleteFileById.run(uuid)
 }
 
 /**
  * Retrieves all files associated with a specific user ID.
  *
- * @param {number} userId - The ID of the user.
+ * @param {string} userId - The ID of the user.
  * @return {Array} An array of files associated with the user.
  */
-const getAllFilesByUserId = (userId) => {
-  return selectAllFilesByUserId.all(userId)
+export const getAllFilesByUserId = (userId) => {
+  return selectFilesByOwnerId.all(userId)
 }
 
-const getAllRequestFilesByOwner = (userId) => {
-  return selectRequestsByOwner.all(userId)
+export const getAllFilesByPathAndUserId = (path, userId) => {
+  return selectFilesByPathOwnerId.all(path, userId)
 }
 
-const getAllRequestFilesByRequester = (userId) => {
-  return selectRequestsByRequester.all(userId)
-}
-
-const deleteFile = (uuid) => {
-  return deleteFileByUuid.run(uuid)
-}
-
-const deleteRequestByUuid = storageDb.prepare('DELETE FROM requests WHERE id = ?')
 /**
- * Deletes a request from the database based on the given UUID.
- *
- * @param {string} uuid - The UUID of the request to be deleted.
- * @return {boolean} Returns true if the request was deleted successfully, false otherwise.
+ *! Folder Related Queries
  */
-const deleteRequest = (uuid) => {
-  if (deleteRequestByUuid.run(uuid).changes > 0) {
-    return true
-  } else {
-    return false
-  }
+//* prepare queries
+const insertFolder = storageDb.prepare(
+  'INSERT INTO folders (name, path, ownerId, permissions) VALUES (?, ?, ?, ?)'
+)
+const selectFoldersByOwnerId = storageDb.prepare('SELECT * FROM folders WHERE ownerId = ?')
+const selectFoldersByPathOwnerId = storageDb.prepare(
+  'SELECT * FROM folders WHERE path = ? AND ownerId = ?'
+)
+
+//* functions
+export const insertFolderToDatabase = (name, path, userId, permissions = 0) => {
+  insertFolder.run(name, path, userId, permissions)
 }
 
+export const getAllFoldersByUserId = (userId) => {
+  return selectFoldersByOwnerId.all(userId)
+}
+
+export const getAllFoldersByPathAndUserId = (path, userId) => {
+  return selectFoldersByPathOwnerId.all(path, userId)
+}
+
+/**
+ *! Request Related Queries
+ */
+//* prepare queries
 const insertRequest = storageDb.prepare(
   'INSERT INTO requests (fileId, id, requester) VALUES (?, ?, ?)'
 )
+const selectRequestsByOwner = storageDb.prepare(
+  `SELECT requests.id, requests.fileId, requests.agreed, requests.timestamp, files.name
+  FROM requests 
+  JOIN files ON requests.fileId = files.id 
+  WHERE files.ownerId = ?`
+)
+const selectRequestsByRequester = storageDb.prepare(
+  'SELECT id, fileId, agreed, timestamp FROM requests WHERE requester = ?'
+)
+const selectRequesterPkFileId = storageDb.prepare(
+  `SELECT users.pk, requests.requester, requests.fileId FROM requests 
+  JOIN users ON requests.requester = users.id 
+  WHERE requests.id = ?`
+)
+const selectRequestByValues = storageDb.prepare(
+  'SELECT * FROM requests WHERE fileId = ? AND requester = ?'
+)
+const selectRequestById = storageDb.prepare('SELECT * FROM requests WHERE id = ?')
+const updateRequestAgreed = storageDb.prepare('UPDATE requests SET agreed = ? WHERE id = ?')
+const deleteRequestById = storageDb.prepare('DELETE FROM requests WHERE id = ?')
+
+//* functions
 /**
  * Adds a unique request to the database with the given file ID, UUID, owner, and requester.
  *
- * @param {number} fileId - The ID of the file in the database.
- * @param {string} uuid - The UUID of the file.
- * @param {number} requester - The ID of the requester.
+ * @param {string} fileId - The ID of the file in the database.
+ * @param {string} uuid - The UUID of the request.
+ * @param {string} requester - The ID of the requester.
  * @return {boolean} Returns true if the request was added successfully, false otherwise.
  */
-const addUniqueRequest = (fileId, uuid, requester) => {
-  const requestInfo = selectRequestByValues.get(fileId, requester)
+export const addUniqueRequest = (fileId, uuid, requester) => {
+  const requestInfo = selectRequestByValues.all(fileId, requester)
+  let canAdd = false
   if (requestInfo === undefined) {
+    canAdd = true
+  } else {
+    for (const request of requestInfo) {
+      if (request.agreed == null) {
+        return false
+      }
+    }
+    canAdd = true
+  }
+
+  if (canAdd) {
     insertRequest.run(fileId, uuid, requester)
     return true
   }
   return false
 }
 
-export {
-  AddUserAndGetId,
-  addFileToDatabase,
-  getFileInfo,
-  getAllFilesByUserId,
-  deleteFile,
-  deleteRequest,
-  updateFileInDatabase,
-  addUniqueRequest,
-  getAllRequestFilesByOwner,
-  getAllRequestFilesByRequester
+/**
+ *
+ * @param {*} userId
+ * @returns {Array<{id: string, fileId: string, agreed: boolean, timestamp: string, name: string}>}An array of requests associated with the user.
+ */
+export const getAllRequestsByOwner = (userId) => {
+  return selectRequestsByOwner.all(userId)
 }
 
-// Handle graceful shutdown
+/**
+ *
+ * @param {*} userId
+ * @returns {Array<{id: string, fileId: string, agreed: boolean, timestamp: number}>}An array of requests associated with the user.
+ */
+export const getAllRequestsByRequester = (userId) => {
+  return selectRequestsByRequester.all(userId)
+}
+
+/**
+ *
+ * @param {*} requestId
+ * @returns {{requester: string, pk: string, fileId: string}} The public key of the requester.
+ */
+export const getRequesterPkFileId = (requestId) => {
+  return selectRequesterPkFileId.get(requestId)
+}
+
+/**
+ *
+ * @param {*} requestId
+ * @returns {{id: string, fileId: string, requester: string, agreed: boolean, timestamp: string}|undefined} The information of the request.
+ */
+export const getRequestById = (requestId) => {
+  return selectRequestById.get(requestId)
+}
+
+export const runRespondToRequest = (agreed, requestId) => {
+  const agree = agreed ? 1 : 0
+  return updateRequestAgreed.run(agree, requestId).changes > 0
+}
+
+/**
+ * Deletes a request from the database based on the given UUID.
+ *
+ * @param {string} uuid - The UUID of the request to be deleted.
+ * @return {boolean} Returns true if the request was deleted successfully, false otherwise.
+ */
+export const deleteRequest = (uuid) => {
+  return deleteRequestById.run(uuid).changes > 0
+}
+
+/**
+ * Handle graceful shutdown
+ */
 process.on('exit', () => storageDb.close())
 process.on('SIGHUP', () => process.exit(128 + 1))
 process.on('SIGINT', () => process.exit(128 + 2))
 process.on('SIGTERM', () => process.exit(128 + 15))
+
+logger.info(`Database initialized`)

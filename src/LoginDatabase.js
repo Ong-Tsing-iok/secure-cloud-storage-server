@@ -35,6 +35,8 @@ const insertUserStmt = loginDb.prepare(`INSERT INTO users (socketId, userId) VAL
 
 const selectUserStmt = loginDb.prepare(`SELECT userId FROM users WHERE socketId = ?`)
 
+const getSocketIdStmt = loginDb.prepare(`SELECT socketId FROM users WHERE userId = ?`)
+
 const removeUserStmt = loginDb.prepare(`DELETE FROM users WHERE socketId = ?`)
 
 const insertUploadStmt = loginDb.prepare(
@@ -68,6 +70,10 @@ const checkUserLoggedIn = (socketId) => {
   return selectUserStmt.get(socketId)
 }
 
+const getSocketId = (userId) => {
+  return getSocketIdStmt.get(userId)
+}
+
 /**
  * Removes a user from the database based on their socket ID.
  *
@@ -99,6 +105,6 @@ setInterval(() => {
   removeUploadExpiredStmt.run(Date.now())
 }, interval)
 
-export { userDbLogin, checkUserLoggedIn, userDbLogout, insertUpload, getUpload }
+export { userDbLogin, checkUserLoggedIn, getSocketId, userDbLogout, insertUpload, getUpload }
 
 process.on('exit', () => loginDb.close())

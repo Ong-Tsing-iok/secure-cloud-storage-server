@@ -4,13 +4,13 @@ import {
   deleteFile,
   getAllFilesByUserId,
   addUniqueRequest,
-  getAllRequestFilesByRequester,
-  getAllRequestFilesByOwner,
+  getAllRequestsByRequester,
+  getAllRequestsByOwner,
   deleteRequest
 } from './StorageDatabase.js'
 import { unlink, stat } from 'fs/promises'
 import { join } from 'path'
-import { __dirname, __upload_dir } from './Constants.js'
+import { __upload_dir, __dirname } from './Constants.js'
 import { randomUUID } from 'crypto'
 import { insertUpload } from './LoginDatabase.js'
 import { timeStamp } from 'console'
@@ -37,7 +37,7 @@ const downloadFileBinder = (socket) => {
             userId: socket.userId,
             uuid
           })
-          if (addUniqueRequest(fileInfo.id, uuid, socket.userId)) {
+          if (addUniqueRequest(fileInfo.id, randomUUID(), socket.userId)) {
             socket.emit(
               'message',
               'Requested file permission. You will have to wait for the owner to respond.'
@@ -192,11 +192,13 @@ const getFileListBinder = (socket) => {
   })
   socket.on('get-request-list', () => {
     getListHandler('request', (userId) => {
-      const fileList = getAllRequestFilesByRequester(userId)
+      const fileList = getAllRequestsByRequester(userId)
+      // console.log(fileList)
       return fileList.map((file) => {
         return {
-          uuid: file.uuid,
-          name: file.name,
+          requestId: file.id,
+          fileId: file.fileId,
+          agreed: file.agreed,
           timestamp: file.timestamp
         }
       })
@@ -204,12 +206,14 @@ const getFileListBinder = (socket) => {
   })
   socket.on('get-requested-list', () => {
     getListHandler('requested', (userId) => {
-      const fileList = getAllRequestFilesByOwner(userId)
+      const fileList = getAllRequestsByOwner(userId)
+      // console.log(fileList)
       return fileList.map((file) => {
         return {
-          uuid: file.uuid,
-          name: file.name,
-          timestamp: file.timestamp
+          requestId: file.id,
+          fileId: file.fileId,
+          filename: file.name,
+          timestamp: file.timestamp,
         }
       })
     })

@@ -8,7 +8,7 @@ import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
 import { addFileToDatabase, getFileInfo } from './StorageDatabase.js'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
-import { __dirname, __upload_dir } from './Constants.js'
+import { __upload_dir, __dirname } from './Constants.js'
 
 const app = express()
 app.get('/', (req, res) => {
@@ -176,7 +176,7 @@ app.get('/download', auth, (req, res) => {
         uuid: uuid,
         protocol: 'https'
       })
-      res.download(join(__dirname, __upload_dir, String(req.userId), fileInfo.uuid), fileInfo.name)
+      res.download(join(__dirname, __upload_dir, String(req.userId), fileInfo.id), fileInfo.name)
     }
   } catch (error) {
     logger.error(error, {
