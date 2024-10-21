@@ -49,8 +49,8 @@ const requestBinder = (socket, io) => {
         fileInfo.description
       )
       await copyFile(
-        join(__upload_dir_path, String(fileInfo.ownerId), fileInfo.id),
-        join(__upload_dir_path, String(pkObj.requester), newUUID)
+        join(__upload_dir_path, fileInfo.ownerId, fileInfo.id),
+        join(__upload_dir_path, pkObj.requester, newUUID)
       )
       logger.info('File reencrypted', {
         owner: fileInfo.ownerId,

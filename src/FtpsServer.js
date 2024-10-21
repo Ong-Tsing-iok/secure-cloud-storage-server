@@ -16,7 +16,7 @@ class CustomFileSystem extends FileSystem {
   }
   write(fileName, { append, start }) {
     const uuid = randomUUID()
-    const userId = Number(basename(this.root))
+    const userId = basename(this.root)
     addFileToDatabase(fileName, uuid, userId)
     return super.write(uuid, { append, start })
   }
@@ -39,7 +39,7 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
   })
   const userInfo = checkUserLoggedIn(username)
   if (userInfo !== undefined) {
-    const rootPath = join(__dirname, __upload_dir, userInfo.userId.toString())
+    const rootPath = join(__dirname, __upload_dir, userInfo.userId)
     logger.info('User logged in', {
       ip: connection.ip,
       userId: userInfo.userId,

@@ -106,7 +106,7 @@ const deleteFileBinder = (socket) => {
         if (fileInfo.ownerId !== socket.userId) {
           socket.emit('message', 'permission denied')
         } else {
-          await unlink(join(__dirname, __upload_dir, String(socket.userId), uuid))
+          await unlink(join(__dirname, __upload_dir, socket.userId, uuid))
           deleteFile(uuid)
           logger.info(`File deleted`, {
             ip: socket.ip,
@@ -163,7 +163,7 @@ const getFileListBinder = (socket) => {
    * Handles the request for a list of files of a specific type.
    *
    * @param {'file' | 'request' | 'requested'} getType - The type of files to retrieve.
-   * @param {(userId: number) => Array} getFilesFunc - The function to retrieve the files.
+   * @param {(userId: string) => Array} getFilesFunc - The function to retrieve the files.
    * Should return a list of objects with a 'uuid' property.
    * @return {void} Emits the list of files as a JSON string or an error message.
    */

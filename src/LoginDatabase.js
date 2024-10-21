@@ -12,7 +12,7 @@ loginDb.pragma('journal_mode = WAL')
 const createLoginTable = loginDb.prepare(
   `CREATE TABLE IF NOT EXISTS users (
   socketId TEXT PRIMARY KEY not null, 
-  userId INTEGER not null
+  userId TEXT not null
   )`
 )
 const createUploadsTable = loginDb.prepare(
@@ -53,7 +53,7 @@ const removeUploadExpiredStmt = loginDb.prepare(`DELETE FROM uploads WHERE expir
  * Inserts a user into the database with the given socket ID and user ID.
  *
  * @param {string} socketId - The socket ID of the user.
- * @param {number} userId - The user ID of the user.
+ * @param {string} userId - The user ID of the user.
  * @return {void} This function does not return a value.
  */
 const userDbLogin = (socketId, userId) => {
@@ -64,7 +64,7 @@ const userDbLogin = (socketId, userId) => {
  * Retrieves a user from the database based on their socket ID.
  *
  * @param {string} socketId - The socket ID of the user.
- * @return {{userId: number}|undefined} The userId in a object if found, or undefined if not found.
+ * @return {{userId: string}|undefined} The userId in a object if found, or undefined if not found.
  */
 const checkUserLoggedIn = (socketId) => {
   return selectUserStmt.get(socketId)

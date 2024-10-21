@@ -19,7 +19,7 @@ app.set('trust proxy', true)
 
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
-    const folderPath = join(__dirname, __upload_dir, String(req.userId))
+    const folderPath = join(__dirname, __upload_dir, req.userId)
     try {
       await mkdir(folderPath, { recursive: true })
       cb(null, folderPath)
@@ -176,7 +176,7 @@ app.get('/download', auth, (req, res) => {
         uuid: uuid,
         protocol: 'https'
       })
-      res.download(join(__dirname, __upload_dir, String(req.userId), fileInfo.id), fileInfo.name)
+      res.download(join(__dirname, __upload_dir, req.userId, fileInfo.id), fileInfo.name)
     }
   } catch (error) {
     logger.error(error, {

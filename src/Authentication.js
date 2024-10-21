@@ -61,7 +61,7 @@ const authenticationBinder = (socket) => {
           userId: id
         })
         try {
-          await mkdir(join(__upload_dir_path, id.toString()))
+          await mkdir(join(__upload_dir_path, id))
         } catch (error) {
           if (error.code !== 'EEXIST') {
             logger.error(error, { ip: socket.ip, userId: id })

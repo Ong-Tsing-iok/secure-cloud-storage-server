@@ -1,5 +1,6 @@
 import sqlite from 'better-sqlite3'
 import { logger } from './Logger.js'
+import { randomUUID } from 'crypto'
 
 const storageDb = new sqlite('storage.db', {
   verbose: process.env.NODE_ENV !== 'production' ? console.log : null
@@ -74,7 +75,7 @@ try {
  */
 //* prepare queries
 const selectUserByKeys = storageDb.prepare('SELECT * FROM users WHERE pk = ?')
-const insertUserWithKeys = storageDb.prepare('INSERT INTO users (pk) VALUES (?)')
+const insertUser = storageDb.prepare('INSERT INTO users (id, pk) VALUES (?, ?)')
 
 //* functions
 /**
@@ -93,11 +94,8 @@ export const AddUserAndGetId = (pk) => {
   const info = selectUserByKeys.get(pk)
   if (info === undefined) {
     // If the user does not exist, add them to the database
-    const insertResult = insertUserWithKeys.run(pk)
-    if (insertResult.changes === 1) {
-      // Set the id to the id of the newly added user
-      id = insertResult.lastInsertRowid
-    }
+    id = randomUUID()
+    const insertResult = insertUser.run(id, pk)
   } else {
     // Set the id to the id of the existing user
     id = info.id
