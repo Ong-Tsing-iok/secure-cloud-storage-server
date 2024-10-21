@@ -5,7 +5,7 @@ import { logger } from './Logger.js'
 import { mkdir } from 'fs/promises'
 import multer from 'multer'
 import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
-import { addFileToDatabase, getFileInfo } from './StorageDatabase.js'
+import { addFileToDatabase, getAllFoldersByPathAndUserId, getFileInfo } from './StorageDatabase.js'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { __upload_dir, __dirname } from './Constants.js'
@@ -100,11 +100,23 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
       if (uploadInfo === undefined) {
         logger.info(`Upload ID not found in database`, {
           ip: req.ip,
+          userId: req.userId,
           protocol: 'https'
         })
         res.status(400).send('Upload ID not found or invalid')
         unlink(req.file.path)
         return
+      }
+      // check if path exists, or set to root
+      if (uploadInfo.path !== '/' && getAllFoldersByPathAndUserId(uploadInfo.path, req.userId).length === 0) {
+        logger.warn(`Folder path not found when uploading`, {
+          ip: req.ip,
+          userId: req.userId,
+          protocol: 'https'
+        })
+        // res.write('Folder path not found when uploading. Setting to root')
+        // TODO: send error message to client
+        uploadInfo.path = '/'
       }
       logger.info(`User uploaded a file`, {
         ip: req.ip,
@@ -120,6 +132,7 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
         req.userId,
         uploadInfo.keyCipher,
         uploadInfo.ivCipher,
+        uploadInfo.path,
         req.file.size,
         null
       )
@@ -132,6 +145,15 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
       ip: req.ip,
       userId: req.userId,
       protocol: 'https'
+    })
+    unlink(req.file.path, (err) => {
+      if (err) {
+        logger.error(err, {
+          ip: req.ip,
+          userId: req.userId,
+          protocol: 'https'
+        })
+      }
     })
     res.sendStatus(500)
   }

@@ -69,7 +69,7 @@ const downloadFileBinder = (socket) => {
   })
 }
 const uploadFileBinder = (socket) => {
-  socket.on('upload-file-pre', (key, iv, cb) => {
+  socket.on('upload-file-pre', (key, iv, curPath, cb) => {
     logger.info(`Client ask to prepare upload file`, {
       ip: socket.ip
     })
@@ -81,7 +81,7 @@ const uploadFileBinder = (socket) => {
       // create random id
       const id = randomUUID()
       // store with key and iv in database with expires time
-      insertUpload(id, key, iv, Date.now() + uploadExpireTime)
+      insertUpload(id, key, iv, curPath, Date.now() + uploadExpireTime)
       cb(null, id)
     } catch (error) {
       logger.error(error, {

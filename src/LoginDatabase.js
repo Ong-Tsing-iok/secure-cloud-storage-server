@@ -20,6 +20,7 @@ const createUploadsTable = loginDb.prepare(
   id TEXT PRIMARY KEY not null, 
   keyCipher TEXT not null,
   ivCipher TEXT not null,
+  path TEXT not null,
   expires INTEGER not null
   )`
 )
@@ -40,7 +41,7 @@ const getSocketIdStmt = loginDb.prepare(`SELECT socketId FROM users WHERE userId
 const removeUserStmt = loginDb.prepare(`DELETE FROM users WHERE socketId = ?`)
 
 const insertUploadStmt = loginDb.prepare(
-  `INSERT INTO uploads (id, keyCipher, ivCipher, expires) VALUES (?, ?, ?, ?)`
+  `INSERT INTO uploads (id, keyCipher, ivCipher, path, expires) VALUES (?, ?, ?, ?, ?)`
 )
 
 const selectUploadStmt = loginDb.prepare(`SELECT * FROM uploads WHERE id = ?`)
@@ -84,15 +85,15 @@ const userDbLogout = (socketId) => {
   removeUserStmt.run(socketId)
 }
 
-const insertUpload = (id, keyCipher, ivCipher, expires) => {
-  insertUploadStmt.run(id, keyCipher, ivCipher, expires)
+const insertUpload = (id, keyCipher, ivCipher, path, expires) => {
+  insertUploadStmt.run(id, keyCipher, ivCipher, path, expires)
 }
 
 /**
  * Retrieves the upload information with the given ID from the database, removes it, and returns the upload information.
  *
  * @param {string} id - The ID of the upload.
- * @return {{id: string, keyCipher: string, ivCipher: string, expires: number}
+ * @return {{id: string, keyCipher: string, ivCipher: string, path: string, expires: number}
  * |undefined} The upload information object if found, or undefined if not found.
  */
 const getUpload = (id) => {

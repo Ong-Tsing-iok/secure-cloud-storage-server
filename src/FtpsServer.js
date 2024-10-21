@@ -71,12 +71,12 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       protocol: 'ftps'
     })
   })
+
   connection.on('STOR', async (error, fileName) => {
     if (error) {
       logger.error(error, {
         ip: connection.ip,
         userId: userInfo.userId,
-        fileName,
         protocol: 'ftps'
       })
       return
@@ -86,7 +86,6 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       logger.info('Upload ID not found in database', {
         ip: connection.ip,
         userId: userInfo.userId,
-        fileName,
         protocol: 'ftps'
       })
       deleteFile(basename(fileName))
@@ -94,11 +93,21 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       // TODO: send error message to client
       return
     }
+    if (uploadInfo.path !== '/' && getAllFoldersByPathAndUserId(uploadInfo.path, userInfo.userId).length === 0) {
+      logger.warn('Folder path not found when uploading', {
+        ip: connection.ip,
+        userId: userInfo.userId,
+        protocol: 'ftps'
+      })
+      uploadInfo.path = '/'
+      // TODO: send error message to client
+    }
     const fileSize = (await stat(fileName)).size
     updateFileInDatabase(
       basename(fileName),
       uploadInfo.keyCipher,
       uploadInfo.ivCipher,
+      uploadInfo.path,
       fileSize,
       null
     )

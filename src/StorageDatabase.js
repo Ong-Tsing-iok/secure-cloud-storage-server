@@ -26,11 +26,11 @@ try {
       `CREATE TABLE IF NOT EXISTS files (
       id TEXT PRIMARY KEY not null,
       name TEXT not null,
-      path TEXT not null,
       ownerId TEXT not null,
       permissions INTEGER not null,
       keyCipher TEXT,
       ivCipher TEXT,
+      path TEXT,
       size INTEGER,
       description TEXT,
       timestamp INTEGER default CURRENT_TIMESTAMP,
@@ -110,7 +110,7 @@ export const AddUserAndGetId = (pk) => {
  */
 //* prepare queries
 const insertFile = storageDb.prepare(
-  'INSERT INTO files (id, name, ownerId, keyCipher, ivCipher, size, description) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  'INSERT INTO files (id, name, ownerId, keyCipher, ivCipher, path, permissions, size, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
 )
 const selectFileById = storageDb.prepare('SELECT * FROM files WHERE id = ?')
 const updateFileById = storageDb.prepare(
@@ -131,12 +131,13 @@ const selectFilesByPathOwnerId = storageDb.prepare(
  * @param {string} userId - The ID of the user.
  * @param {string} keyCipher - The cipher for the key.
  * @param {string} ivCipher - The cipher for the initialization vector.
+ * @param {string} path - The path of the folder the file is in.
  * @param {number} size - The size of the file in bytes.
  * @param {string} description - The description of the file.
  * @return {void} This function does not return a value.
  */
-export const addFileToDatabase = (name, id, userId, keyCipher, ivCipher, size, description) => {
-  insertFile.run(id, name, userId, keyCipher, ivCipher, size, description)
+export const addFileToDatabase = (name, id, userId, keyCipher, ivCipher, path, size, description) => {
+  insertFile.run(id, name, userId, keyCipher, ivCipher, path, 0, size, description)
 }
 
 /**
@@ -157,12 +158,13 @@ export const getFileInfo = (uuid) => {
  * @param {string} uuid - The UUID of the file to be updated.
  * @param {string} keyCipher - The cipher for the key.
  * @param {string} ivCipher - The cipher for the initialization vector.
+ * @param {string} path - The path of the folder the file is in.
  * @param {number} size - The size of the file in bytes.
  * @param {string} description - The description of the file.
  * @return {void} This function does not return a value.
  */
-export const updateFileInDatabase = (uuid, keyCipher, ivCipher, size, description) => {
-  updateFileById.run(keyCipher, ivCipher, size, description, uuid)
+export const updateFileInDatabase = (uuid, keyCipher, ivCipher, path, size, description) => {
+  updateFileById.run(keyCipher, ivCipher, path, size, description, uuid)
 }
 
 export const deleteFile = (uuid) => {
