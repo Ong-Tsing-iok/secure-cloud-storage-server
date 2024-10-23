@@ -5,7 +5,7 @@ import { readFileSync, unlink } from 'fs'
 import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
 import { join, basename, dirname } from 'path'
 import { randomUUID } from 'crypto'
-import { addFileToDatabase, deleteFile, updateFileInDatabase } from './StorageDatabase.js'
+import { addFileToDatabase, deleteFile, getFolderInfo, updateFileInDatabase } from './StorageDatabase.js'
 import { stat } from 'fs/promises'
 
 const port = process.env.FTP_PORT || 7002
@@ -17,7 +17,7 @@ class CustomFileSystem extends FileSystem {
   write(fileName, { append, start }) {
     const uuid = randomUUID()
     const userId = basename(this.root)
-    addFileToDatabase(fileName, uuid, userId)
+    addFileToDatabase(fileName, uuid, userId, userId)
     return super.write(uuid, { append, start })
   }
 }
@@ -93,13 +93,13 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       // TODO: send error message to client
       return
     }
-    if (uploadInfo.path !== '/' && getAllFoldersByPathAndUserId(uploadInfo.path, userInfo.userId).length === 0) {
-      logger.warn('Folder path not found when uploading', {
+    if (uploadInfo.parentFolderId !== '/' && getFolderInfo(uploadInfo.parentFolderId).length === 0) {
+      logger.warn('Parent folder path not found when uploading', {
         ip: connection.ip,
         userId: userInfo.userId,
         protocol: 'ftps'
       })
-      uploadInfo.path = '/'
+      uploadInfo.parentFolderId = null
       // TODO: send error message to client
     }
     const fileSize = (await stat(fileName)).size
@@ -107,7 +107,7 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       basename(fileName),
       uploadInfo.keyCipher,
       uploadInfo.ivCipher,
-      uploadInfo.path,
+      uploadInfo.parentFolderId,
       fileSize,
       null
     )

@@ -43,8 +43,10 @@ const requestBinder = (socket, io) => {
         fileInfo.name,
         newUUID,
         pkObj.requester,
+        fileInfo.ownerId,
         newKeyCipher,
         newIvCipher,
+        null, // null for root
         fileInfo.size,
         fileInfo.description
       )

@@ -21,34 +21,40 @@ try {
     .run()
   // file table
   // permissions: 0 = private, 1 = public, 2 = unlisted
+  // parentFolderId: null = root
   storageDb
     .prepare(
       `CREATE TABLE IF NOT EXISTS files (
       id TEXT PRIMARY KEY not null,
       name TEXT not null,
       ownerId TEXT not null,
+      originOwnerId TEXT not null,
       permissions INTEGER not null,
       keyCipher TEXT,
       ivCipher TEXT,
-      path TEXT,
+      parentFolderId TEXT,
       size INTEGER,
       description TEXT,
       timestamp INTEGER default CURRENT_TIMESTAMP,
-      FOREIGN KEY(ownerId) REFERENCES users(id)
+      FOREIGN KEY(ownerId) REFERENCES users(id),
+      FOREIGN KEY(originOwnerId) REFERENCES users(id),
+      FOREIGN KEY(parentFolderId) REFERENCES folders(id)
       )`
     )
     .run()
   // folder table
+  // parentFolderId: null = root
   storageDb
     .prepare(
       `CREATE TABLE IF NOT EXISTS folders (
+      id TEXT PRIMARY KEY not null,
       name TEXT not null,
-      path TEXT not null,
       ownerId TEXT not null,
       permissions INTEGER not null,
+      parentFolderId TEXT,
       timestamp INTEGER default CURRENT_TIMESTAMP,
-      PRIMARY KEY(ownerId, path, name),
-      FOREIGN KEY(ownerId) REFERENCES users(id)
+      FOREIGN KEY(ownerId) REFERENCES users(id),
+      FOREIGN KEY(parentFolderId) REFERENCES folders(id)
       )`
     )
     .run()
@@ -110,16 +116,16 @@ export const AddUserAndGetId = (pk) => {
  */
 //* prepare queries
 const insertFile = storageDb.prepare(
-  'INSERT INTO files (id, name, ownerId, keyCipher, ivCipher, path, permissions, size, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  'INSERT INTO files (id, name, ownerId, originOwnerId, keyCipher, ivCipher, parentFolderId, permissions, size, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 )
 const selectFileById = storageDb.prepare('SELECT * FROM files WHERE id = ?')
 const updateFileById = storageDb.prepare(
-  'UPDATE files SET keyCipher = ?, ivCipher = ?, size = ?, description = ? WHERE id = ?'
+  'UPDATE files SET keyCipher = ?, ivCipher = ?, parentFolderId = ?, size = ?, description = ? WHERE id = ?'
 )
 const deleteFileById = storageDb.prepare('DELETE FROM files WHERE id = ?')
 const selectFilesByOwnerId = storageDb.prepare('SELECT * FROM files WHERE ownerId = ?')
-const selectFilesByPathOwnerId = storageDb.prepare(
-  'SELECT * FROM files WHERE path = ? AND ownerId = ?'
+const selectFilesByParentFolderId = storageDb.prepare(
+  'SELECT * FROM files WHERE parentFolderId = ?'
 )
 
 //* functions
@@ -129,22 +135,23 @@ const selectFilesByPathOwnerId = storageDb.prepare(
  * @param {string} name - The name of the file.
  * @param {string} id - The UUID of the file.
  * @param {string} userId - The ID of the user.
+ * @param {string} originOwnerId - The ID of the orignal owner of the file.
  * @param {string} keyCipher - The cipher for the key.
  * @param {string} ivCipher - The cipher for the initialization vector.
- * @param {string} path - The path of the folder the file is in.
+ * @param {string} parentFolderId - The ID of the parent folder.
  * @param {number} size - The size of the file in bytes.
  * @param {string} description - The description of the file.
  * @return {void} This function does not return a value.
  */
-export const addFileToDatabase = (name, id, userId, keyCipher, ivCipher, path, size, description) => {
-  insertFile.run(id, name, userId, keyCipher, ivCipher, path, 0, size, description)
+export const addFileToDatabase = (name, id, userId, originOwnerId, keyCipher, ivCipher, parentFolderId, size, description) => {
+  insertFile.run(id, name, userId, originOwnerId, keyCipher, ivCipher, parentFolderId, 0, size, description)
 }
 
 /**
  * Retrieves file information from the database based on the given UUID.
  *
  * @param {string} uuid - The UUID of the file.
- * @return {{id: string, name: string, uuid: string, ownerId: string,
+ * @return {{id: string, name: string, uuid: string, ownerId: string, originOwnerId: string,
  * keyCipher: string, ivCipher: string, size: number, description: string, timestamp: number}|undefined}
  * An object of the file information if found, or undefined if not found.
  */
@@ -158,13 +165,13 @@ export const getFileInfo = (uuid) => {
  * @param {string} uuid - The UUID of the file to be updated.
  * @param {string} keyCipher - The cipher for the key.
  * @param {string} ivCipher - The cipher for the initialization vector.
- * @param {string} path - The path of the folder the file is in.
+ * @param {string} parentFolderId - The ID of the parent folder.
  * @param {number} size - The size of the file in bytes.
  * @param {string} description - The description of the file.
  * @return {void} This function does not return a value.
  */
-export const updateFileInDatabase = (uuid, keyCipher, ivCipher, path, size, description) => {
-  updateFileById.run(keyCipher, ivCipher, path, size, description, uuid)
+export const updateFileInDatabase = (uuid, keyCipher, ivCipher, parentFolderId, size, description) => {
+  updateFileById.run(keyCipher, ivCipher, parentFolderId, size, description, uuid)
 }
 
 export const deleteFile = (uuid) => {
@@ -181,8 +188,8 @@ export const getAllFilesByUserId = (userId) => {
   return selectFilesByOwnerId.all(userId)
 }
 
-export const getAllFilesByPathAndUserId = (path, userId) => {
-  return selectFilesByPathOwnerId.all(path, userId)
+export const getAllFilesByParentFolderId = (parentFolderId) => {
+  return selectFilesByParentFolderId.all(parentFolderId)
 }
 
 /**
@@ -190,24 +197,29 @@ export const getAllFilesByPathAndUserId = (path, userId) => {
  */
 //* prepare queries
 const insertFolder = storageDb.prepare(
-  'INSERT INTO folders (name, path, ownerId, permissions) VALUES (?, ?, ?, ?)'
+  'INSERT INTO folders (name, parentFolderId, ownerId, permissions) VALUES (?, ?, ?, ?)'
 )
+const selectFolderById = storageDb.prepare('SELECT * FROM folders WHERE id = ?')
 const selectFoldersByOwnerId = storageDb.prepare('SELECT * FROM folders WHERE ownerId = ?')
-const selectFoldersByPathOwnerId = storageDb.prepare(
-  'SELECT * FROM folders WHERE path = ? AND ownerId = ?'
+const selectFoldersByParentFolderId = storageDb.prepare(
+  'SELECT * FROM folders WHERE parentFolderId'
 )
 
 //* functions
-export const insertFolderToDatabase = (name, path, userId, permissions = 0) => {
-  insertFolder.run(name, path, userId, permissions)
+export const insertFolderToDatabase = (name, parentFolderId, userId, permissions = 0) => {
+  insertFolder.run(name, parentFolderId, userId, permissions)
+}
+
+export const getFolderInfo = (folderId) => {
+  return selectFolderById.get(folderId)
 }
 
 export const getAllFoldersByUserId = (userId) => {
   return selectFoldersByOwnerId.all(userId)
 }
 
-export const getAllFoldersByPathAndUserId = (path, userId) => {
-  return selectFoldersByPathOwnerId.all(path, userId)
+export const getAllFoldersByParentFolderId = (parentFolderId) => {
+  return selectFoldersByParentFolderId.all(parentFolderId)
 }
 
 /**

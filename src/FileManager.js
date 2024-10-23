@@ -69,7 +69,7 @@ const downloadFileBinder = (socket) => {
   })
 }
 const uploadFileBinder = (socket) => {
-  socket.on('upload-file-pre', (key, iv, curPath, cb) => {
+  socket.on('upload-file-pre', (key, iv, parentFolderId, cb) => {
     logger.info(`Client ask to prepare upload file`, {
       ip: socket.ip
     })
@@ -81,7 +81,7 @@ const uploadFileBinder = (socket) => {
       // create random id
       const id = randomUUID()
       // store with key and iv in database with expires time
-      insertUpload(id, key, iv, curPath, Date.now() + uploadExpireTime)
+      insertUpload(id, key, iv, parentFolderId, Date.now() + uploadExpireTime)
       cb(null, id)
     } catch (error) {
       logger.error(error, {
@@ -106,8 +106,8 @@ const deleteFileBinder = (socket) => {
         if (fileInfo.ownerId !== socket.userId) {
           socket.emit('message', 'permission denied')
         } else {
-          await unlink(join(__dirname, __upload_dir, socket.userId, uuid))
           deleteFile(uuid)
+          await unlink(join(__dirname, __upload_dir, socket.userId, uuid))
           logger.info(`File deleted`, {
             ip: socket.ip,
             userId: socket.userId,

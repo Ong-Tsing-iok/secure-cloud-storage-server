@@ -5,7 +5,7 @@ import { logger } from './Logger.js'
 import { mkdir } from 'fs/promises'
 import multer from 'multer'
 import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
-import { addFileToDatabase, getAllFoldersByPathAndUserId, getFileInfo } from './StorageDatabase.js'
+import { addFileToDatabase, getFolderInfo, getFileInfo } from './StorageDatabase.js'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { __upload_dir, __dirname } from './Constants.js'
@@ -108,15 +108,15 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
         return
       }
       // check if path exists, or set to root
-      if (uploadInfo.path !== '/' && getAllFoldersByPathAndUserId(uploadInfo.path, req.userId).length === 0) {
-        logger.warn(`Folder path not found when uploading`, {
+      if (uploadInfo.parentFolderId && getFolderInfo(uploadInfo.parentFolderId).length === 0) {
+        logger.warn(`Parent folder path not found when uploading`, {
           ip: req.ip,
           userId: req.userId,
           protocol: 'https'
         })
         // res.write('Folder path not found when uploading. Setting to root')
         // TODO: send error message to client
-        uploadInfo.path = '/'
+        uploadInfo.parentFolderId = null
       }
       logger.info(`User uploaded a file`, {
         ip: req.ip,
@@ -130,9 +130,10 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
         req.file.originalname,
         req.file.filename,
         req.userId,
+        req.userId,
         uploadInfo.keyCipher,
         uploadInfo.ivCipher,
-        uploadInfo.path,
+        uploadInfo.parentFolderId,
         req.file.size,
         null
       )
