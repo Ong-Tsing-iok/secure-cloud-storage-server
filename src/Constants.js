@@ -1,5 +1,6 @@
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'url'
+
 const __filename = fileURLToPath(import.meta.url) // get the resolved path to the file
 /**
  * The name of the root directory of the project

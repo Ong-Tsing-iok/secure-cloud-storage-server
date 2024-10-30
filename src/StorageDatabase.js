@@ -14,7 +14,8 @@ try {
     .prepare(
       `CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY not null, 
-      pk TEXT not null
+      pk TEXT not null,
+      timestamp INTEGER default CURRENT_TIMESTAMP
       )`
     )
 

@@ -1,0 +1,13 @@
+{
+    "directories": {
+        "root": ".",
+        "uploads": "uploads",
+        "certs": "certs",
+        "logs": "logs",
+        "database": "database"
+    },
+    "ports": {
+        "https": 3001,
+        "fpts": 7002
+    }
+}
