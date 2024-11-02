@@ -144,8 +144,29 @@ const selectFilesByParentFolderId = storageDb.prepare(
  * @param {string} description - The description of the file.
  * @return {void} This function does not return a value.
  */
-export const addFileToDatabase = (name, id, userId, originOwnerId, keyCipher, ivCipher, parentFolderId, size, description) => {
-  insertFile.run(id, name, userId, originOwnerId, keyCipher, ivCipher, parentFolderId, 0, size, description)
+export const addFileToDatabase = (
+  name,
+  id,
+  userId,
+  originOwnerId,
+  keyCipher,
+  ivCipher,
+  parentFolderId,
+  size,
+  description
+) => {
+  insertFile.run(
+    id,
+    name,
+    userId,
+    originOwnerId,
+    keyCipher,
+    ivCipher,
+    parentFolderId,
+    0,
+    size,
+    description
+  )
 }
 
 /**
@@ -171,7 +192,14 @@ export const getFileInfo = (uuid) => {
  * @param {string} description - The description of the file.
  * @return {void} This function does not return a value.
  */
-export const updateFileInDatabase = (uuid, keyCipher, ivCipher, parentFolderId, size, description) => {
+export const updateFileInDatabase = (
+  uuid,
+  keyCipher,
+  ivCipher,
+  parentFolderId,
+  size,
+  description
+) => {
   updateFileById.run(keyCipher, ivCipher, parentFolderId, size, description, uuid)
 }
 
@@ -198,8 +226,9 @@ export const getAllFilesByParentFolderId = (parentFolderId) => {
  */
 //* prepare queries
 const insertFolder = storageDb.prepare(
-  'INSERT INTO folders (name, parentFolderId, ownerId, permissions) VALUES (?, ?, ?, ?)'
+  'INSERT INTO folders (id, name, parentFolderId, ownerId, permissions) VALUES (?, ?, ?, ?, ?)'
 )
+const deleteFolderById = storageDb.prepare('DELETE FROM folders WHERE id = ?')
 const selectFolderById = storageDb.prepare('SELECT * FROM folders WHERE id = ?')
 const selectFoldersByOwnerId = storageDb.prepare('SELECT * FROM folders WHERE ownerId = ?')
 const selectFoldersByParentFolderId = storageDb.prepare(
@@ -207,8 +236,13 @@ const selectFoldersByParentFolderId = storageDb.prepare(
 )
 
 //* functions
-export const insertFolderToDatabase = (name, parentFolderId, userId, permissions = 0) => {
-  insertFolder.run(name, parentFolderId, userId, permissions)
+export const addFolderToDatabase = (name, parentFolderId, userId, permissions = 0) => {
+  const id = randomUUID()
+  insertFolder.run(id, name, parentFolderId, userId, permissions)
+}
+
+export const deleteFolder = (folderId) => {
+  return deleteFolderById.run(folderId)
 }
 
 export const getFolderInfo = (folderId) => {

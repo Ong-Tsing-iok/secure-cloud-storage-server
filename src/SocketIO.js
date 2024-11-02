@@ -6,7 +6,7 @@ import { logger } from './Logger.js'
 // Database
 import { userDbLogout } from './LoginDatabase.js'
 // File operation binders
-import * as fileManager from './FileManager.js'
+import { allFileBinder } from './FileManager.js'
 import authenticationBinder from './Authentication.js'
 import { requestBinder } from './RequestManager.js'
 
@@ -34,12 +34,7 @@ io.on('connection', (socket) => {
   })
 
   authenticationBinder(socket)
-
-  fileManager.downloadFileBinder(socket)
-  fileManager.deleteFileBinder(socket)
-  fileManager.getFileListBinder(socket)
-  fileManager.uploadFileBinder(socket)
-  fileManager.deleteRequestBinder(socket)
+  allFileBinder(socket)
   requestBinder(socket, io)
 })
 

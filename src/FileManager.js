@@ -6,13 +6,16 @@ import {
   addUniqueRequest,
   getAllRequestsByRequester,
   getAllRequestsByOwner,
-  deleteRequest
+  deleteRequest,
+  addFolderToDatabase,
+  deleteFolder
 } from './StorageDatabase.js'
 import { unlink, stat } from 'fs/promises'
 import { join } from 'path'
 import { __upload_dir, __dirname } from './Constants.js'
 import { randomUUID } from 'crypto'
 import { insertUpload } from './LoginDatabase.js'
+import { checkLoggedIn } from './Utils.js'
 import { timeStamp } from 'console'
 
 const uploadExpireTime = 1000 * 60 * 10 // 10 minutes
@@ -95,7 +98,7 @@ const uploadFileBinder = (socket) => {
 
 const deleteFileBinder = (socket) => {
   socket.on('delete-file', async (uuid) => {
-    logger.info(`Client requested to delete file`, {  ip: socket.ip })
+    logger.info(`Client requested to delete file`, { ip: socket.ip })
     if (!socket.authed) {
       socket.emit('message', 'not logged in')
       return
@@ -131,7 +134,7 @@ const deleteFileBinder = (socket) => {
 
 const deleteRequestBinder = (socket) => {
   socket.on('delete-request', (uuid) => {
-    logger.info(`Client requested to delete request`, {  ip: socket.ip })
+    logger.info(`Client requested to delete request`, { ip: socket.ip })
     if (!socket.authed) {
       socket.emit('message', 'not logged in')
       return
@@ -169,11 +172,11 @@ const getFileListBinder = (socket) => {
    */
   const getListHandler = (getType, getFilesFunc) => {
     if (getType !== 'file' && getType !== 'request' && getType !== 'requested') {
-      logger.error(`Invalid list type ${getType}`, {ip: socket.ip })
+      logger.error(`Invalid list type ${getType}`, { ip: socket.ip })
       socket.emit('message', 'invalid list type')
       return
     }
-    logger.info(`Client asked for ${getType} list`, {ip: socket.ip })
+    logger.info(`Client asked for ${getType} list`, { ip: socket.ip })
     if (!socket.authed) {
       socket.emit('message', 'not logged in')
       return
@@ -213,11 +216,57 @@ const getFileListBinder = (socket) => {
           requestId: file.id,
           fileId: file.fileId,
           filename: file.name,
-          timestamp: file.timestamp,
+          timestamp: file.timestamp
         }
       })
     })
   })
 }
 
-export { downloadFileBinder, deleteFileBinder, getFileListBinder, uploadFileBinder, deleteRequestBinder }
+const folderBinder = (socket) => {
+  // Add folder
+  socket.on('add-folder', (parentFolderId, name, cb) => {
+    if (!checkLoggedIn(socket)) {
+      cb('not logged in')
+      return
+    }
+    try {
+      addFolderToDatabase(name, parentFolderId, socket.userId)
+      cb(null)
+    } catch (error) {
+      logger.error(error, {
+        ip: socket.ip,
+        userId: socket.userId
+      })
+      cb('error when add-folder')
+    }
+  })
+  // Delete folder
+  socket.on('delete-folder', (folderId, cb) => {
+    if (!checkLoggedIn(socket)) {
+      cb('not logged in')
+      return
+    }
+    try {
+      deleteFolder(folderId)
+      cb(null)
+    } catch (error) {
+      logger.error(error, {
+        ip: socket.ip,
+        userId: socket.userId
+      })
+      cb('error when delete-folder')
+    }
+  })
+}
+
+const allFileBinder = (socket) => {
+  uploadFileBinder(socket)
+  downloadFileBinder(socket)
+  deleteFileBinder(socket)
+  getFileListBinder(socket)
+  folderBinder(socket)
+  deleteRequestBinder(socket)
+}
+
+export { allFileBinder }

@@ -1,7 +1,9 @@
+import { logger } from './Logger.js'
+
 const checkLoggedIn = (socket) => {
   if (!socket.authed) {
-    // TODO: log unauthorized attempt
-    socket.emit('message', 'not logged in')
+    logger.warn('Unauthorized attempt', { ip: socket.ip })
+    // socket.emit('message', 'not logged in')
     return false
   }
   return true
