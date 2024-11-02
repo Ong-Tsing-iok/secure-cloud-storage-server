@@ -1,8 +1,9 @@
 import sqlite from 'better-sqlite3'
 import { logger } from './Logger.js'
 import { randomUUID } from 'crypto'
+import ConfigManager from './ConfigManager.js'
 
-const storageDb = new sqlite('storage.db', {
+const storageDb = new sqlite(ConfigManager.databasePath, {
   verbose: process.env.NODE_ENV !== 'production' ? console.log : null
 })
 

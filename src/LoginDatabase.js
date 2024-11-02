@@ -20,7 +20,7 @@ const createUploadsTable = loginDb.prepare(
   id TEXT PRIMARY KEY not null, 
   keyCipher TEXT not null,
   ivCipher TEXT not null,
-  parentFolderId TEXT
+  parentFolderId TEXT,
   expires INTEGER not null
   )`
 )
