@@ -10,14 +10,16 @@ import {
   addFolderToDatabase,
   deleteFolder,
   getAllFilesByParentFolderIdUserId,
-  getAllFoldersByParentFolderIdUserId
+  getAllFoldersByParentFolderIdUserId,
+  moveFileToFolder,
+  getAllFoldersByUserId
 } from './StorageDatabase.js'
 import { unlink, stat } from 'fs/promises'
 import { join } from 'path'
 import { __upload_dir, __dirname } from './Constants.js'
 import { randomUUID } from 'crypto'
 import { insertUpload } from './LoginDatabase.js'
-import { checkLoggedIn } from './Utils.js'
+import { checkFolderExistsForUser, checkLoggedIn } from './Utils.js'
 import { timeStamp } from 'console'
 
 const uploadExpireTime = 1000 * 60 * 10 // 10 minutes
@@ -83,6 +85,15 @@ const uploadFileBinder = (socket) => {
       return
     }
     try {
+      if (!checkFolderExistsForUser(parentFolderId, socket.userId)) {
+        logger.warn(`Client tried to upload file to non-existent folder`, {
+          ip: socket.ip,
+          userId: socket.userId,
+          parentFolderId
+        })
+        cb('parent folder not found')
+        return
+      }
       // create random id
       const id = randomUUID()
       // store with key and iv in database with expires time
@@ -321,6 +332,73 @@ const folderBinder = (socket) => {
       cb('unexpected error')
     }
   })
+  // get all folder
+  socket.on('get-all-folders', (cb) => {
+    if (!checkLoggedIn(socket)) {
+      cb('not logged in')
+      return
+    }
+    logger.info(`Client requested to get all folders`, {
+      ip: socket.ip,
+      userId: socket.userId
+    })
+    try {
+      const folders = getAllFoldersByUserId(socket.userId)
+      cb(JSON.stringify(folders))
+    } catch (error) {
+      logger.error(error, {
+        ip: socket.ip,
+        userId: socket.userId
+      })
+      cb('unexpected error')
+    }
+  })
+}
+
+const moveFileBinder = (socket) => {
+  socket.on('move-file', (fileId, targetFolderId, cb) => {
+    if (!checkLoggedIn(socket)) {
+      cb('not logged in')
+      return
+    }
+    logger.info(`Client requested to move file`, {
+      ip: socket.ip,
+      fileId,
+      targetFolderId,
+      userId: socket.userId
+    })
+    try {
+      if (!checkFolderExistsForUser(targetFolderId, socket.userId)) {
+        logger.warn(`Target folder not found when moving file`, {
+          ip: socket.ip,
+          userId: socket.userId,
+          fileId,
+          targetFolderId
+        })
+        cb('target folder not found')
+        return
+      }
+      if (moveFileToFolder(fileId, targetFolderId).changes === 0) {
+        logger.warn(`File not found when moving file`, {
+          ip: socket.ip,
+          userId: socket.userId,
+          fileId,
+          targetFolderId
+        })
+        cb('file not found')
+        return
+      }
+      cb(null)
+    } catch (error) {
+      logger.error(error, {
+        ip: socket.ip,
+        userId: socket.userId,
+        fileId,
+        targetFolderId
+      })
+      cb('unexpected error')
+    }
+  })
 }
 
 const allFileBinder = (socket) => {
@@ -331,6 +409,7 @@ const allFileBinder = (socket) => {
   getRequestListBinder(socket)
   folderBinder(socket)
   deleteRequestBinder(socket)
+  moveFileBinder(socket)
 }
 
 export { allFileBinder }

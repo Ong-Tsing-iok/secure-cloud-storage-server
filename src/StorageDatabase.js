@@ -125,6 +125,9 @@ const selectFileById = storageDb.prepare('SELECT * FROM files WHERE id = ?')
 const updateFileById = storageDb.prepare(
   'UPDATE files SET keyCipher = ?, ivCipher = ?, parentFolderId = ?, size = ?, description = ? WHERE id = ?'
 )
+const updateFileParentFolderById = storageDb.prepare(
+  'UPDATE files SET parentFolderId = ? WHERE id = ?'
+)
 const deleteFileById = storageDb.prepare('DELETE FROM files WHERE id = ?')
 const deleteFileByIdOwnerId = storageDb.prepare('DELETE FROM files WHERE id = ? AND ownerId = ?')
 const selectFilesByOwnerId = storageDb.prepare('SELECT * FROM files WHERE ownerId = ?')
@@ -212,6 +215,10 @@ export const updateFileInDatabase = (
   updateFileById.run(keyCipher, ivCipher, parentFolderId, size, description, uuid)
 }
 
+export const moveFileToFolder = (uuid, parentFolderId) => {
+  return updateFileParentFolderById.run(parentFolderId, uuid)
+}
+
 export const deleteFile = (uuid) => {
   return deleteFileById.run(uuid)
 }
@@ -248,6 +255,9 @@ const insertFolder = storageDb.prepare(
 )
 const deleteFolderById = storageDb.prepare('DELETE FROM folders WHERE id = ?')
 const selectFolderById = storageDb.prepare('SELECT * FROM folders WHERE id = ?')
+const selectFolderByIdOwnerId = storageDb.prepare(
+  'SELECT * FROM folders WHERE id = ? AND ownerId = ?'
+)
 const selectFoldersByOwnerId = storageDb.prepare('SELECT * FROM folders WHERE ownerId = ?')
 const selectFoldersByParentFolderId = storageDb.prepare(
   'SELECT * FROM folders WHERE parentFolderId = ?'
@@ -271,6 +281,10 @@ export const deleteFolder = (folderId) => {
 
 export const getFolderInfo = (folderId) => {
   return selectFolderById.get(folderId)
+}
+
+export const getFolderInfoOfOwnerId = (folderId, userId) => {
+  return selectFolderByIdOwnerId.get(folderId, userId)
 }
 
 export const getAllFoldersByUserId = (userId) => {
