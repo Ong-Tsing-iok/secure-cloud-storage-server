@@ -140,6 +140,10 @@ const selectFilesByParentFolderIdOwnerId = storageDb.prepare(
 const selectFilesInRootByOwnerId = storageDb.prepare(
   'SELECT * FROM files WHERE parentFolderId IS NULL AND ownerId = ?'
 )
+const selectPublicFiles = storageDb.prepare('SELECT * FROM files WHERE permissions = 1')
+const selectPublicFilesNotOwned = storageDb.prepare(
+  'SELECT * FROM files WHERE permissions = 1 AND ownerId != ?'
+)
 
 //* functions
 /**
@@ -244,6 +248,14 @@ export const getAllFilesByParentFolderId = (parentFolderId) => {
 export const getAllFilesByParentFolderIdUserId = (parentFolderId, userId) => {
   if (parentFolderId) return selectFilesByParentFolderIdOwnerId.all(parentFolderId, userId)
   return selectFilesInRootByOwnerId.all(userId)
+}
+
+export const getAllPublicFiles = () => {
+  return selectPublicFiles.all()
+}
+
+export const getAllPublicFilesNotOwned = (userId) => {
+  return selectPublicFilesNotOwned.all(userId)
 }
 
 /**

@@ -12,7 +12,8 @@ import {
   getAllFilesByParentFolderIdUserId,
   getAllFoldersByParentFolderIdUserId,
   moveFileToFolder,
-  getAllFoldersByUserId
+  getAllFoldersByUserId,
+  getAllPublicFilesNotOwned
 } from './StorageDatabase.js'
 import { unlink, stat } from 'fs/promises'
 import { join } from 'path'
@@ -401,6 +402,29 @@ const moveFileBinder = (socket) => {
   })
 }
 
+const getPublicFilesBinder = (socket) => {
+  socket.on('get-public-files', (cb) => {
+    if (!checkLoggedIn(socket)) {
+      cb('not logged in')
+      return
+    }
+    logger.info(`Client requested to get public files`, {
+      ip: socket.ip,
+      userId: socket.userId
+    })
+    try {
+      const files = getAllPublicFilesNotOwned(socket.userId)
+      cb(JSON.stringify(files))
+    } catch (error) {
+      logger.error(error, {
+        ip: socket.ip,
+        userId: socket.userId
+      })
+      cb('unexpected error')
+    }
+  })
+}
+
 const allFileBinder = (socket) => {
   uploadFileBinder(socket)
   downloadFileBinder(socket)
@@ -410,6 +434,7 @@ const allFileBinder = (socket) => {
   folderBinder(socket)
   deleteRequestBinder(socket)
   moveFileBinder(socket)
+  getPublicFilesBinder(socket)
 }
 
 export { allFileBinder }
