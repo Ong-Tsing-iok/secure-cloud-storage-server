@@ -93,7 +93,7 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       // TODO: send error message to client
       return
     }
-    if (uploadInfo.parentFolderId !== '/' && getFolderInfo(uploadInfo.parentFolderId).length === 0) {
+    if (uploadInfo.parentFolderId && !getFolderInfo(uploadInfo.parentFolderId)) {
       logger.warn('Parent folder path not found when uploading', {
         ip: connection.ip,
         userId: userInfo.userId,

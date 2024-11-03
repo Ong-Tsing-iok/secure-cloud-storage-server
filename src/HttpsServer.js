@@ -108,7 +108,7 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
         return
       }
       // check if path exists, or set to root
-      if (uploadInfo.parentFolderId && getFolderInfo(uploadInfo.parentFolderId).length === 0) {
+      if (uploadInfo.parentFolderId && !getFolderInfo(uploadInfo.parentFolderId)) {
         logger.warn(`Parent folder path not found when uploading`, {
           ip: req.ip,
           userId: req.userId,

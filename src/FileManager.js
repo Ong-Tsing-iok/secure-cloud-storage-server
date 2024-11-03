@@ -8,7 +8,8 @@ import {
   getAllRequestsByOwner,
   deleteRequest,
   addFolderToDatabase,
-  deleteFolder
+  deleteFolder,
+  getAllFilesByParentFolderIdUserId
 } from './StorageDatabase.js'
 import { unlink, stat } from 'fs/promises'
 import { join } from 'path'
@@ -67,7 +68,7 @@ const downloadFileBinder = (socket) => {
         userId: socket.userId,
         uuid
       })
-      socket.emit('message', 'error when download-file-pre')
+      socket.emit('message', 'unexpected error when downloading file')
     }
   })
 }
@@ -91,23 +92,23 @@ const uploadFileBinder = (socket) => {
         ip: socket.ip,
         userId: socket.userId
       })
-      cb('error when upload-file-pre')
+      cb('unexpected error')
     }
   })
 }
 
 const deleteFileBinder = (socket) => {
-  socket.on('delete-file', async (uuid) => {
-    logger.info(`Client requested to delete file`, { ip: socket.ip })
+  socket.on('delete-file', async (uuid, cb) => {
     if (!socket.authed) {
-      socket.emit('message', 'not logged in')
+      cb('not logged in')
       return
     }
+    logger.info(`Client requested to delete file`, { ip: socket.ip, uuid })
     try {
       const fileInfo = getFileInfo(uuid)
       if (fileInfo !== undefined) {
         if (fileInfo.ownerId !== socket.userId) {
-          socket.emit('message', 'permission denied')
+          cb('permission denied')
         } else {
           deleteFile(uuid)
           await unlink(join(__dirname, __upload_dir, socket.userId, uuid))
@@ -116,10 +117,10 @@ const deleteFileBinder = (socket) => {
             userId: socket.userId,
             uuid
           })
-          socket.emit('message', `file ${fileInfo.name} (${uuid}) deleted`)
+          cb(null)
         }
       } else {
-        socket.emit('message', 'file not found')
+        cb('file not found')
       }
     } catch (error) {
       logger.error(error, {
@@ -127,18 +128,18 @@ const deleteFileBinder = (socket) => {
         userId: socket.userId,
         uuid
       })
-      socket.emit('message', 'error when delete-file')
+      cb('unexpected error')
     }
   })
 }
 
 const deleteRequestBinder = (socket) => {
   socket.on('delete-request', (uuid) => {
-    logger.info(`Client requested to delete request`, { ip: socket.ip })
     if (!socket.authed) {
       socket.emit('message', 'not logged in')
       return
     }
+    logger.info(`Client requested to delete request`, { ip: socket.ip })
     try {
       if (deleteRequest(uuid)) {
         logger.info(`Client request deleted`, {
@@ -156,12 +157,35 @@ const deleteRequestBinder = (socket) => {
         userId: socket.userId,
         uuid
       })
-      socket.emit('message', 'error when delete-request')
+      socket.emit('message', 'unexpected error when delete-request')
     }
   })
 }
 
 const getFileListBinder = (socket) => {
+  socket.on('get-file-list', (parentFolderId, cb) => {
+    if (!checkLoggedIn(socket)) {
+      cb(null, 'not logged in')
+      return
+    }
+    logger.info(`Client requested to get file list`, {
+      ip: socket.ip,
+      parentFolderId,
+      userId: socket.userId
+    })
+    try {
+      const files = getAllFilesByParentFolderIdUserId(parentFolderId, socket.userId)
+      cb(JSON.stringify(files))
+    } catch (error) {
+      logger.error(error, {
+        ip: socket.ip,
+        userId: socket.userId
+      })
+      cb(null, 'unexpected error')
+    }
+  })
+}
+const getRequestListBinder = (socket) => {
   /**
    * Handles the request for a list of files of a specific type.
    *
@@ -186,7 +210,7 @@ const getFileListBinder = (socket) => {
       socket.emit(`${getType}-list-res`, JSON.stringify(files))
     } catch (error) {
       logger.error(error, { ip: socket.ip })
-      socket.emit('message', `error when getting ${getType} list`)
+      socket.emit('message', `unexpected error when getting ${getType} list`)
     }
   }
 
@@ -230,15 +254,27 @@ const folderBinder = (socket) => {
       cb('not logged in')
       return
     }
+    logger.info(`Client requested to add folder`, {
+      ip: socket.ip,
+      parentFolderId,
+      name,
+      userId: socket.userId
+    })
     try {
       addFolderToDatabase(name, parentFolderId, socket.userId)
+      logger.info(`Folder added`, {
+        ip: socket.ip,
+        userId: socket.userId,
+        parentFolderId,
+        name
+      })
       cb(null)
     } catch (error) {
       logger.error(error, {
         ip: socket.ip,
         userId: socket.userId
       })
-      cb('error when add-folder')
+      cb('unexpected error')
     }
   })
   // Delete folder
@@ -247,15 +283,33 @@ const folderBinder = (socket) => {
       cb('not logged in')
       return
     }
+    logger.info(`Client requested to delete folder`, {
+      ip: socket.ip,
+      folderId,
+      userId: socket.userId
+    })
     try {
-      deleteFolder(folderId)
-      cb(null)
+      if (deleteFolder(folderId).changes > 0) {
+        cb(null)
+        logger.info(`Folder deleted`, {
+          ip: socket.ip,
+          userId: socket.userId,
+          folderId
+        })
+      } else {
+        cb("folder don't exists")
+        logger.warn(`Client tried to delete a non existing folder`, {
+          ip: socket.ip,
+          userId: socket.userId,
+          folderId
+        })
+      }
     } catch (error) {
       logger.error(error, {
         ip: socket.ip,
         userId: socket.userId
       })
-      cb('error when delete-folder')
+      cb('unexpected error')
     }
   })
 }
@@ -265,6 +319,7 @@ const allFileBinder = (socket) => {
   downloadFileBinder(socket)
   deleteFileBinder(socket)
   getFileListBinder(socket)
+  getRequestListBinder(socket)
   folderBinder(socket)
   deleteRequestBinder(socket)
 }

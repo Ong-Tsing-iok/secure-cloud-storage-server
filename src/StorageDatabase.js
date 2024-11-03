@@ -2,6 +2,7 @@ import sqlite from 'better-sqlite3'
 import { logger } from './Logger.js'
 import { randomUUID } from 'crypto'
 import ConfigManager from './ConfigManager.js'
+import exp from 'constants'
 
 const storageDb = new sqlite(ConfigManager.databasePath, {
   verbose: process.env.NODE_ENV !== 'production' ? console.log : null
@@ -102,7 +103,7 @@ export const AddUserAndGetId = (pk) => {
   const info = selectUserByKeys.get(pk)
   if (info === undefined) {
     // If the user does not exist, add them to the database
-    id = randomUUID()
+    id = randomUUID().toString()
     const insertResult = insertUser.run(id, pk)
   } else {
     // Set the id to the id of the existing user
@@ -128,6 +129,10 @@ const deleteFileById = storageDb.prepare('DELETE FROM files WHERE id = ?')
 const selectFilesByOwnerId = storageDb.prepare('SELECT * FROM files WHERE ownerId = ?')
 const selectFilesByParentFolderId = storageDb.prepare(
   'SELECT * FROM files WHERE parentFolderId = ?'
+)
+
+const selectFilesByParentFolderIdOwnerId = storageDb.prepare(
+  'SELECT * FROM files WHERE parentFolderId = ? AND ownerId = ?'
 )
 
 //* functions
@@ -222,6 +227,10 @@ export const getAllFilesByParentFolderId = (parentFolderId) => {
   return selectFilesByParentFolderId.all(parentFolderId)
 }
 
+export const getAllFilesByParentFolderIdUserId = (parentFolderId, userId) => {
+  return selectFilesByParentFolderIdOwnerId.all(parentFolderId, userId)
+}
+
 /**
  *! Folder Related Queries
  */
@@ -238,7 +247,7 @@ const selectFoldersByParentFolderId = storageDb.prepare(
 
 //* functions
 export const addFolderToDatabase = (name, parentFolderId, userId, permissions = 0) => {
-  const id = randomUUID()
+  const id = randomUUID().toString()
   insertFolder.run(id, name, parentFolderId, userId, permissions)
 }
 
