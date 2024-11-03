@@ -4,7 +4,10 @@ import {
   getRequesterPkFileId,
   getRequestById,
   getFileInfo,
-  addFileToDatabase
+  addFileToDatabase,
+  addUniqueRequest,
+  getAllRequestsResponsesByRequester,
+  getAllRequestsResponsesFilesByOwner
 } from './StorageDatabase.js'
 import { getSocketId } from './LoginDatabase.js'
 import CryptoHandler from './CryptoHandler.js'
@@ -24,6 +27,51 @@ const requestNotExistOrResponded = (socket, uuid) => {
 }
 // TODO: handle situation where client drop before giving rekey
 const requestBinder = (socket, io) => {
+  //! ask for request
+  socket.on('request-file', ({ fileId, name, email, description }, cb) => {
+    if (!checkLoggedIn(socket)) {
+      cb('not logged in')
+      return
+    }
+    logger.info('Client asked for request', {
+      ip: socket.ip,
+      userId: socket.userId,
+      fileId
+    })
+    try {
+      const fileInfo = getFileInfo(fileId)
+      if (!fileInfo) {
+        logger.warn('File not found when requesting file', {
+          ip: socket.ip,
+          userId: socket.userId,
+          fileId
+        })
+        cb('file not found')
+        return
+      }
+      // if (fileInfo.permissions === 0) {
+      //   cb('file not found')
+      //   return
+      // }
+      // if (fileInfo.ownerId === socket.userId) {
+      //   cb('file is owned by you')
+      //   return
+      // }
+      if (addUniqueRequest(fileId, socket.userId, name, email, description)) {
+        cb(null)
+      } else {
+        cb('request already exist')
+      }
+    } catch (error) {
+      logger.error(error, {
+        ip: socket.ip,
+        userId: socket.userId,
+        fileId
+      })
+      cb('unexpected error')
+    }
+  })
+  //! request agree
   socket.on('request-agree', (uuid) => {
     if (!checkLoggedIn(socket)) return
     if (requestNotExistOrResponded(socket, uuid)) return
@@ -63,14 +111,16 @@ const requestBinder = (socket, io) => {
       // If requester is online, notify requester
       const requesterSocketId = getSocketId(pkObj.requester)
       if (requesterSocketId) {
-        io.to(requesterSocketId.socketId).to(requesterSocketId.socketId).emit('message', `request ${uuid} is agreed.`)
+        io.to(requesterSocketId.socketId)
+          .to(requesterSocketId.socketId)
+          .emit('message', `request ${uuid} is agreed.`)
       }
     })
     // * could be dead thread if wait for response?
   })
   // TODO: handle receive re-key
   // TODO: use re-key to re-encrypt file, and add into requester's database and file system
-
+  //! request reject
   socket.on('request-reject', (uuid) => {
     if (!checkLoggedIn(socket)) return
     if (requestNotExistOrResponded(socket, uuid)) return
@@ -84,7 +134,53 @@ const requestBinder = (socket, io) => {
     const requesterSocketId = getSocketId(info.requester)
     // console.log('requesterSocketId', requesterSocketId)
     if (requesterSocketId) {
-      io.to(requesterSocketId.socketId).to(requesterSocketId.socketId).emit('message', `request ${uuid} is rejected.`)
+      io.to(requesterSocketId.socketId)
+        .to(requesterSocketId.socketId)
+        .emit('message', `request ${uuid} is rejected.`)
+    }
+  })
+  //! get request list
+  socket.on('get-request-list', (cb) => {
+    if (!checkLoggedIn(socket)) {
+      cb(null, 'not logged in')
+      return
+    }
+    logger.info(`Client requested to get request list`, {
+      ip: socket.ip,
+      userId: socket.userId
+    })
+    try {
+      const requests = getAllRequestsResponsesByRequester(socket.userId)
+      // console.log({ files, folders })
+      cb(JSON.stringify(requests))
+    } catch (error) {
+      logger.error(error, {
+        ip: socket.ip,
+        userId: socket.userId
+      })
+      cb(null, 'unexpected error')
+    }
+  })
+  //! get requested list
+  socket.on('get-requested-list', (cb) => {
+    if (!checkLoggedIn(socket)) {
+      cb(null, 'not logged in')
+      return
+    }
+    logger.info(`Client requested to get requested list`, {
+      ip: socket.ip,
+      userId: socket.userId
+    })
+    try {
+      const requests = getAllRequestsResponsesFilesByOwner(socket.userId)
+      // console.log({ files, folders })
+      cb(JSON.stringify(requests))
+    } catch (error) {
+      logger.error(error, {
+        ip: socket.ip,
+        userId: socket.userId
+      })
+      cb(null, 'unexpected error')
     }
   })
 }

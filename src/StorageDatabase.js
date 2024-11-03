@@ -68,10 +68,25 @@ try {
       id TEXT PRIMARY KEY not null,
       fileId TEXT not null,
       requester INTEGER not null,
-      agreed BOOLEAN default null,
+      name TEXT,
+      email TEXT,
+      description TEXT,
       timestamp INTEGER default CURRENT_TIMESTAMP,
       FOREIGN KEY(fileId) REFERENCES files(id),
       FOREIGN KEY(requester) REFERENCES users(id)
+      )`
+    )
+    .run()
+  // response table
+  storageDb
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS responses (
+      id TEXT PRIMARY KEY not null,
+      requestId TEXT not null,
+      agreed BOOLEAN not null,
+      description TEXT,
+      timestamp INTEGER default CURRENT_TIMESTAMP,
+      FOREIGN KEY(requestId) REFERENCES requests(id)
       )`
     )
     .run()
@@ -329,16 +344,16 @@ export const getAllFoldersByParentFolderIdUserId = (parentFolderId, userId) => {
  */
 //* prepare queries
 const insertRequest = storageDb.prepare(
-  'INSERT INTO requests (fileId, id, requester) VALUES (?, ?, ?)'
+  'INSERT INTO requests (fileId, id, requester, name, email, description) VALUES (?, ?, ?, ?, ?, ?)'
 )
 const selectRequestsByOwner = storageDb.prepare(
-  `SELECT requests.id, requests.fileId, requests.agreed, requests.timestamp, files.name
+  `SELECT requests.id, requests.fileId, requests.timestamp, files.name
   FROM requests 
   JOIN files ON requests.fileId = files.id 
   WHERE files.ownerId = ?`
 )
 const selectRequestsByRequester = storageDb.prepare(
-  'SELECT id, fileId, agreed, timestamp FROM requests WHERE requester = ?'
+  'SELECT id, fileId, timestamp FROM requests WHERE requester = ?'
 )
 const selectRequesterPkFileId = storageDb.prepare(
   `SELECT users.pk, requests.requester, requests.fileId FROM requests 
@@ -349,25 +364,45 @@ const selectRequestByValues = storageDb.prepare(
   'SELECT * FROM requests WHERE fileId = ? AND requester = ?'
 )
 const selectRequestById = storageDb.prepare('SELECT * FROM requests WHERE id = ?')
-const updateRequestAgreed = storageDb.prepare('UPDATE requests SET agreed = ? WHERE id = ?')
+// const updateRequestAgreed = storageDb.prepare('UPDATE requests SET agreed = ? WHERE id = ?')
 const deleteRequestById = storageDb.prepare('DELETE FROM requests WHERE id = ?')
+
+const selectResponseByRequestId = storageDb.prepare('SELECT * FROM responses WHERE requestId = ?')
+const selectRequestResponseByFileIdRequester = storageDb.prepare(
+  'SELECT * FROM responses JOIN requests ON responses.requestId = requests.id WHERE requests.fileId = ? AND requests.requester = ?'
+)
+const selectRequestResponseByRequester = storageDb.prepare(
+  `SELECT requests.id as requestId, requests.fileId, requests.requester, requests.name as userName, requests.email as userEmail, requests.description as requestDescription, requests.timestamp as requestTime,
+  responses.requestId, responses.agreed, responses.description as responseDescription, responses.timestamp as responseTime 
+  FROM requests LEFT JOIN responses ON responses.requestId = requests.id WHERE requests.requester = ?`
+)
+const selectRequestResponseFileByFileOwner = storageDb.prepare(
+  `SELECT requests.id as requestId, requests.fileId, requests.requester, requests.name as userName, requests.email as userEmail, requests.description as requestDescription, requests.timestamp as requestTime,
+  responses.agreed, responses.description as responseDescription, responses.timestamp as responseTime,
+  files.name, files.ownerId, files.originOwnerId, files.permissions, files.parentFolderId, files.size, files.description, files.timestamp
+  FROM requests LEFT JOIN responses ON responses.requestId = requests.id JOIN files ON requests.fileId = files.id WHERE files.ownerId = ?`
+)
 
 //* functions
 /**
  * Adds a unique request to the database with the given file ID, UUID, owner, and requester.
  *
  * @param {string} fileId - The ID of the file in the database.
- * @param {string} uuid - The UUID of the request.
  * @param {string} requester - The ID of the requester.
+ * @param {string} name - The name of the requester.
+ * @param {string} email - The email of the requester.
+ * @param {string} description - The description of the request.
  * @return {boolean} Returns true if the request was added successfully, false otherwise.
  */
-export const addUniqueRequest = (fileId, uuid, requester) => {
-  const requestInfo = selectRequestByValues.all(fileId, requester)
+export const addUniqueRequest = (fileId, requester, name, email, description) => {
+  const requestId = randomUUID().toString()
+  const requestResponseInfo = selectRequestResponseByFileIdRequester.all(fileId, requester)
+  // console.log(requestResponseInfo)
   let canAdd = false
-  if (requestInfo === undefined) {
+  if (requestResponseInfo === undefined) {
     canAdd = true
   } else {
-    for (const request of requestInfo) {
+    for (const request of requestResponseInfo) {
       if (request.agreed == null) {
         return false
       }
@@ -376,28 +411,18 @@ export const addUniqueRequest = (fileId, uuid, requester) => {
   }
 
   if (canAdd) {
-    insertRequest.run(fileId, uuid, requester)
+    insertRequest.run(fileId, requestId, requester, name, email, description)
     return true
   }
   return false
 }
 
-/**
- *
- * @param {*} userId
- * @returns {Array<{id: string, fileId: string, agreed: boolean, timestamp: string, name: string}>}An array of requests associated with the user.
- */
-export const getAllRequestsByOwner = (userId) => {
-  return selectRequestsByOwner.all(userId)
+export const getAllRequestsResponsesFilesByOwner = (userId) => {
+  return selectRequestResponseFileByFileOwner.all(userId)
 }
 
-/**
- *
- * @param {*} userId
- * @returns {Array<{id: string, fileId: string, agreed: boolean, timestamp: number}>}An array of requests associated with the user.
- */
-export const getAllRequestsByRequester = (userId) => {
-  return selectRequestsByRequester.all(userId)
+export const getAllRequestsResponsesByRequester = (userId) => {
+  return selectRequestResponseByRequester.all(userId)
 }
 
 /**
