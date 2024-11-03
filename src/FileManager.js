@@ -9,7 +9,8 @@ import {
   deleteRequest,
   addFolderToDatabase,
   deleteFolder,
-  getAllFilesByParentFolderIdUserId
+  getAllFilesByParentFolderIdUserId,
+  getAllFoldersByParentFolderIdUserId
 } from './StorageDatabase.js'
 import { unlink, stat } from 'fs/promises'
 import { join } from 'path'
@@ -175,7 +176,9 @@ const getFileListBinder = (socket) => {
     })
     try {
       const files = getAllFilesByParentFolderIdUserId(parentFolderId, socket.userId)
-      cb(JSON.stringify(files))
+      const folders = getAllFoldersByParentFolderIdUserId(parentFolderId, socket.userId)
+      console.log({ files, folders })
+      cb({ files: JSON.stringify(files), folders: JSON.stringify(folders) })
     } catch (error) {
       logger.error(error, {
         ip: socket.ip,
@@ -214,9 +217,9 @@ const getRequestListBinder = (socket) => {
     }
   }
 
-  socket.on('get-file-list', () => {
-    getListHandler('file', getAllFilesByUserId)
-  })
+  // socket.on('get-file-list', () => {
+  //   getListHandler('file', getAllFilesByUserId)
+  // })
   socket.on('get-request-list', () => {
     getListHandler('request', (userId) => {
       const fileList = getAllRequestsByRequester(userId)

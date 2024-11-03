@@ -130,9 +130,11 @@ const selectFilesByOwnerId = storageDb.prepare('SELECT * FROM files WHERE ownerI
 const selectFilesByParentFolderId = storageDb.prepare(
   'SELECT * FROM files WHERE parentFolderId = ?'
 )
-
 const selectFilesByParentFolderIdOwnerId = storageDb.prepare(
   'SELECT * FROM files WHERE parentFolderId = ? AND ownerId = ?'
+)
+const selectFilesInRootByOwnerId = storageDb.prepare(
+  'SELECT * FROM files WHERE parentFolderId IS NULL AND ownerId = ?'
 )
 
 //* functions
@@ -228,7 +230,8 @@ export const getAllFilesByParentFolderId = (parentFolderId) => {
 }
 
 export const getAllFilesByParentFolderIdUserId = (parentFolderId, userId) => {
-  return selectFilesByParentFolderIdOwnerId.all(parentFolderId, userId)
+  if (parentFolderId) return selectFilesByParentFolderIdOwnerId.all(parentFolderId, userId)
+  return selectFilesInRootByOwnerId.all(userId)
 }
 
 /**
@@ -242,7 +245,13 @@ const deleteFolderById = storageDb.prepare('DELETE FROM folders WHERE id = ?')
 const selectFolderById = storageDb.prepare('SELECT * FROM folders WHERE id = ?')
 const selectFoldersByOwnerId = storageDb.prepare('SELECT * FROM folders WHERE ownerId = ?')
 const selectFoldersByParentFolderId = storageDb.prepare(
-  'SELECT * FROM folders WHERE parentFolderId'
+  'SELECT * FROM folders WHERE parentFolderId = ?'
+)
+const selectFoldersByParentFolderIdOwnerId = storageDb.prepare(
+  'SELECT * FROM folders WHERE parentFolderId = ? AND ownerId = ?'
+)
+const selectFoldersInRootByOwnerId = storageDb.prepare(
+  'SELECT * FROM folders WHERE parentFolderId IS NULL AND ownerId = ?'
 )
 
 //* functions
@@ -265,6 +274,11 @@ export const getAllFoldersByUserId = (userId) => {
 
 export const getAllFoldersByParentFolderId = (parentFolderId) => {
   return selectFoldersByParentFolderId.all(parentFolderId)
+}
+
+export const getAllFoldersByParentFolderIdUserId = (parentFolderId, userId) => {
+  if (parentFolderId) return selectFoldersByParentFolderIdOwnerId.all(parentFolderId, userId)
+  return selectFoldersInRootByOwnerId.all(userId)
 }
 
 /**
