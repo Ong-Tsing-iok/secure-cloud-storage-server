@@ -72,11 +72,11 @@ const authenticationBinder = (socket) => {
       socket.userId = id
       userDbLogin(socket.id, id)
       logger.debug(`User id: ${id}`)
-      socket.emit('login-auth-res', 'OK')
+      socket.emit('login-auth-res', id)
     } else {
       logger.warn(`Client respond with incorrect auth key`, { ip: socket.ip })
       logger.debug(`respond with ${decodeValue} instead of ${socket.randKey}`)
-      socket.emit('login-auth-res', 'incorrect')
+      socket.emit('login-auth-res', null)
     }
   })
 }

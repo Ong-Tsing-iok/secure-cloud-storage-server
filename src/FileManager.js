@@ -13,7 +13,9 @@ import {
   getAllFoldersByParentFolderIdUserId,
   moveFileToFolder,
   getAllFoldersByUserId,
-  getAllPublicFilesNotOwned
+  getAllPublicFilesNotOwned,
+  getFileInfoOfOwnerId,
+  updateFileDescPermInDatabase
 } from './StorageDatabase.js'
 import { unlink, stat } from 'fs/promises'
 import { join } from 'path'
@@ -22,6 +24,7 @@ import { randomUUID } from 'crypto'
 import { insertUpload } from './LoginDatabase.js'
 import { checkFolderExistsForUser, checkLoggedIn } from './Utils.js'
 import { timeStamp } from 'console'
+import ConfigManager from './ConfigManager.js'
 
 const uploadExpireTime = 1000 * 60 * 10 // 10 minutes
 
@@ -425,6 +428,54 @@ const getPublicFilesBinder = (socket) => {
   })
 }
 
+const updateFileBinder = (socket) => {
+  socket.on('update-file-desc-perm', (fileId, description, permission, cb) => {
+    if (!checkLoggedIn(socket)) {
+      cb('not logged in')
+      return
+    }
+    logger.info(`Client requested to update file description and permission`, {
+      ip: socket.ip,
+      userId: socket.userId,
+      fileId
+    })
+    if (!getFileInfoOfOwnerId(fileId, socket.userId)) {
+      logger.warn(`File not found when updating file description and permission`, {
+        ip: socket.ip,
+        userId: socket.userId,
+        fileId
+      })
+      cb('file not found')
+      return
+    }
+    permission = parseInt(permission)
+    if (!(permission in [0, 1, 2])) {
+      logger.warn(`Invalid permission when updating file description and permission`, {
+        ip: socket.ip,
+        userId: socket.userId,
+        fileId,
+        permission
+      })
+      cb('invalid permission')
+      return
+    }
+    description = String(description)
+    if (description.length > ConfigManager.databaseConfig.descMaxLength) {
+      description = description.substring(0, ConfigManager.databaseConfig.descMaxLength)
+    }
+    try {
+      updateFileDescPermInDatabase(fileId, description, permission)
+      cb(null)
+    } catch (error) {
+      logger.error(error, {
+        ip: socket.ip,
+        userId: socket.userId
+      })
+      cb('unexpected error')
+    }
+  })
+}
+
 const allFileBinder = (socket) => {
   uploadFileBinder(socket)
   downloadFileBinder(socket)
@@ -435,6 +486,7 @@ const allFileBinder = (socket) => {
   deleteRequestBinder(socket)
   moveFileBinder(socket)
   getPublicFilesBinder(socket)
+  updateFileBinder(socket)
 }
 
 export { allFileBinder }

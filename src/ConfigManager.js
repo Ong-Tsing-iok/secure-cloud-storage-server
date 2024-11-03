@@ -8,6 +8,7 @@ class ConfigManager {
     // TODO: if not exist, create
     try {
       this.directoryConfig = config.get('directories')
+      this.databaseConfig = config.get('database')
       for (const key in this.directoryConfig) {
         if (!existsSync(join(this.directoryConfig.root, this.directoryConfig[key]))) {
           mkdirSync(join(this.directoryConfig.root, this.directoryConfig[key]))

@@ -53,14 +53,16 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       logger.info('User logged in', {
         ip: connection.ip,
         userId: userInfo.userId,
+        uploadId: password,
         protocol: 'ftps'
       })
-      if (password) {
+      if (password !== 'guest') { // default password when not assigned
         uploadInfo = getUpload(password) // use password as upload id
         if (uploadInfo === undefined) {
           logger.info('Upload info not found in database', {
             ip: connection.ip,
             userId: userInfo.userId,
+            uploadId: password,
             protocol: 'ftps'
           })
           reject(new Error('Upload info not found in database'))
@@ -70,6 +72,7 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
           logger.info('Parent folder path not found when uploading', {
             ip: connection.ip,
             userId: userInfo.userId,
+            uploadId: password,
             protocol: 'ftps'
           })
           reject(new Error('Parent folder path not found when uploading'))

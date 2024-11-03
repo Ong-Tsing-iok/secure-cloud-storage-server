@@ -122,8 +122,12 @@ const insertFile = storageDb.prepare(
   'INSERT INTO files (id, name, ownerId, originOwnerId, keyCipher, ivCipher, parentFolderId, permissions, size, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 )
 const selectFileById = storageDb.prepare('SELECT * FROM files WHERE id = ?')
+const selectFileByIdOwnerId = storageDb.prepare('SELECT * FROM files WHERE id = ? AND ownerId = ?')
 const updateFileById = storageDb.prepare(
   'UPDATE files SET keyCipher = ?, ivCipher = ?, parentFolderId = ?, size = ?, description = ? WHERE id = ?'
+)
+const updateFileDescPermById = storageDb.prepare(
+  'UPDATE files SET description = ?, permissions = ? WHERE id = ?'
 )
 const updateFileParentFolderById = storageDb.prepare(
   'UPDATE files SET parentFolderId = ? WHERE id = ?'
@@ -197,6 +201,10 @@ export const getFileInfo = (uuid) => {
   return selectFileById.get(uuid)
 }
 
+export const getFileInfoOfOwnerId = (uuid, userId) => {
+  return selectFileByIdOwnerId.get(uuid, userId)
+}
+
 /**
  * Updates the information of a file in the database.
  *
@@ -217,6 +225,10 @@ export const updateFileInDatabase = (
   description
 ) => {
   updateFileById.run(keyCipher, ivCipher, parentFolderId, size, description, uuid)
+}
+
+export const updateFileDescPermInDatabase = (uuid, description, permissions) => {
+  updateFileDescPermById.run(description, permissions, uuid)
 }
 
 export const moveFileToFolder = (uuid, parentFolderId) => {

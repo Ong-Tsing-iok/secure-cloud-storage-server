@@ -8,6 +8,9 @@
     },
     "ports": {
         "https": 3001,
-        "fpts": 7002
+        "ftps": 7002
+    },
+    "database": {
+        "descMaxLength": 2000
     }
 }
