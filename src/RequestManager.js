@@ -7,7 +7,8 @@ import {
   addFileToDatabase,
   addUniqueRequest,
   getAllRequestsResponsesByRequester,
-  getAllRequestsResponsesFilesByOwner
+  getAllRequestsResponsesFilesByOwner,
+  deleteRequestOfRequester
 } from './StorageDatabase.js'
 import { getSocketId } from './LoginDatabase.js'
 import CryptoHandler from './CryptoHandler.js'
@@ -67,6 +68,37 @@ const requestBinder = (socket, io) => {
         ip: socket.ip,
         userId: socket.userId,
         fileId
+      })
+      cb('unexpected error')
+    }
+  })
+  //! delete request
+  socket.on('delete-request', (requestId, cb) => {
+    if (!checkLoggedIn(socket)) {
+      cb('not logged in')
+      return
+    }
+    logger.info(`Client requested to delete request`, {
+      ip: socket.ip,
+      userId: socket.userId,
+      requestId
+    })
+    try {
+      if (deleteRequestOfRequester(requestId, socket.userId).changes > 0) {
+        logger.info(`Client request deleted`, {
+          ip: socket.ip,
+          userId: socket.userId,
+          requestId
+        })
+        cb(null)
+      } else {
+        cb('request not exist')
+      }
+    } catch (error) {
+      logger.error(error, {
+        ip: socket.ip,
+        userId: socket.userId,
+        requestId
       })
       cb('unexpected error')
     }

@@ -366,14 +366,16 @@ const selectRequestByValues = storageDb.prepare(
 const selectRequestById = storageDb.prepare('SELECT * FROM requests WHERE id = ?')
 // const updateRequestAgreed = storageDb.prepare('UPDATE requests SET agreed = ? WHERE id = ?')
 const deleteRequestById = storageDb.prepare('DELETE FROM requests WHERE id = ?')
-
+const deleteRequestByIdRequester = storageDb.prepare(
+  'DELETE FROM requests WHERE id = ? AND requester = ?'
+)
 const selectResponseByRequestId = storageDb.prepare('SELECT * FROM responses WHERE requestId = ?')
 const selectRequestResponseByFileIdRequester = storageDb.prepare(
   'SELECT * FROM responses JOIN requests ON responses.requestId = requests.id WHERE requests.fileId = ? AND requests.requester = ?'
 )
 const selectRequestResponseByRequester = storageDb.prepare(
   `SELECT requests.id as requestId, requests.fileId, requests.requester, requests.name as userName, requests.email as userEmail, requests.description as requestDescription, requests.timestamp as requestTime,
-  responses.requestId, responses.agreed, responses.description as responseDescription, responses.timestamp as responseTime 
+  responses.agreed, responses.description as responseDescription, responses.timestamp as responseTime 
   FROM requests LEFT JOIN responses ON responses.requestId = requests.id WHERE requests.requester = ?`
 )
 const selectRequestResponseFileByFileOwner = storageDb.prepare(
@@ -456,6 +458,10 @@ export const runRespondToRequest = (agreed, requestId) => {
  */
 export const deleteRequest = (uuid) => {
   return deleteRequestById.run(uuid).changes > 0
+}
+
+export const deleteRequestOfRequester = (requestId, requester) => {
+  return deleteRequestByIdRequester.run(requestId, requester)
 }
 
 /**

@@ -152,35 +152,6 @@ const deleteFileBinder = (socket) => {
   })
 }
 
-const deleteRequestBinder = (socket) => {
-  socket.on('delete-request', (uuid) => {
-    if (!socket.authed) {
-      socket.emit('message', 'not logged in')
-      return
-    }
-    logger.info(`Client requested to delete request`, { ip: socket.ip })
-    try {
-      if (deleteRequest(uuid)) {
-        logger.info(`Client request deleted`, {
-          ip: socket.ip,
-          userId: socket.userId,
-          uuid
-        })
-        socket.emit('message', 'request deleted')
-      } else {
-        socket.emit('message', 'request not found')
-      }
-    } catch (error) {
-      logger.error(error, {
-        ip: socket.ip,
-        userId: socket.userId,
-        uuid
-      })
-      socket.emit('message', 'unexpected error when delete-request')
-    }
-  })
-}
-
 const getFileListBinder = (socket) => {
   socket.on('get-file-list', (parentFolderId, cb) => {
     if (!checkLoggedIn(socket)) {
@@ -206,67 +177,6 @@ const getFileListBinder = (socket) => {
     }
   })
 }
-// const getRequestListBinder = (socket) => {
-//   /**
-//    * Handles the request for a list of files of a specific type.
-//    *
-//    * @param {'file' | 'request' | 'requested'} getType - The type of files to retrieve.
-//    * @param {(userId: string) => Array} getFilesFunc - The function to retrieve the files.
-//    * Should return a list of objects with a 'uuid' property.
-//    * @return {void} Emits the list of files as a JSON string or an error message.
-//    */
-//   const getListHandler = (getType, getFilesFunc) => {
-//     if (getType !== 'file' && getType !== 'request' && getType !== 'requested') {
-//       logger.error(`Invalid list type ${getType}`, { ip: socket.ip })
-//       socket.emit('message', 'invalid list type')
-//       return
-//     }
-//     logger.info(`Client asked for ${getType} list`, { ip: socket.ip })
-//     if (!socket.authed) {
-//       socket.emit('message', 'not logged in')
-//       return
-//     }
-//     try {
-//       const files = getFilesFunc(socket.userId)
-//       socket.emit(`${getType}-list-res`, JSON.stringify(files))
-//     } catch (error) {
-//       logger.error(error, { ip: socket.ip })
-//       socket.emit('message', `unexpected error when getting ${getType} list`)
-//     }
-//   }
-
-  // socket.on('get-file-list', () => {
-  //   getListHandler('file', getAllFilesByUserId)
-  // })
-//   socket.on('get-request-list', () => {
-//     getListHandler('request', (userId) => {
-//       const fileList = getAllRequestsResponsesByRequester(userId)
-//       // console.log(fileList)
-//       return fileList.map((file) => {
-//         return {
-//           requestId: file.id,
-//           fileId: file.fileId,
-//           agreed: file.agreed,
-//           timestamp: file.timestamp
-//         }
-//       })
-//     })
-//   })
-//   socket.on('get-requested-list', () => {
-//     getListHandler('requested', (userId) => {
-//       const fileList = getAllRequestsResponsesByOwner(userId)
-//       // console.log(fileList)
-//       return fileList.map((file) => {
-//         return {
-//           requestId: file.id,
-//           fileId: file.fileId,
-//           filename: file.name,
-//           timestamp: file.timestamp
-//         }
-//       })
-//     })
-//   })
-// }
 
 const folderBinder = (socket) => {
   // Add folder
@@ -486,7 +396,7 @@ const allFileBinder = (socket) => {
   getFileListBinder(socket)
   // getRequestListBinder(socket)
   folderBinder(socket)
-  deleteRequestBinder(socket)
+  // deleteRequestBinder(socket)
   moveFileBinder(socket)
   getPublicFilesBinder(socket)
   updateFileBinder(socket)
