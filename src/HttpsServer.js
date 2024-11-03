@@ -5,7 +5,7 @@ import { logger } from './Logger.js'
 import { mkdir } from 'fs/promises'
 import multer from 'multer'
 import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
-import { addFileToDatabase, getFolderInfo, getFileInfo } from './StorageDatabase.js'
+import { addFileToDatabase, getFolderInfo, getFileInfo, deleteFileOfOwnerId } from './StorageDatabase.js'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { __upload_dir, __dirname } from './Constants.js'
@@ -84,40 +84,41 @@ const auth = (req, res, next) => {
     res.sendStatus(500)
   }
 }
-app.post('/upload', auth, upload.single('file'), (req, res) => {
+const checkUpload = (req, res, next) => {
+  if (!req.headers.uploadid || !(typeof req.headers.uploadid === 'string')) {
+    logger.info(`Upload ID not found in request headers`, {
+      ip: req.ip,
+      protocol: 'https'
+    })
+    res.status(400).send('Upload ID not found or invalid')
+    return
+  }
+  const uploadInfo = getUpload(req.headers.uploadid)
+  if (uploadInfo === undefined) {
+    logger.info(`Upload ID not found in database`, {
+      ip: req.ip,
+      userId: req.userId,
+      protocol: 'https'
+    })
+    res.status(400).send('Upload ID not found or invalid')
+    return
+  }
+  // check if path exists
+  if (uploadInfo.parentFolderId && !getFolderInfo(uploadInfo.parentFolderId)) {
+    logger.warn(`Parent folder path not found when uploading`, {
+      ip: req.ip,
+      userId: req.userId,
+      protocol: 'https'
+    })
+    res.status(400).send('Parent folder path not found or invalid')
+    return
+  }
+  req.uploadInfo = uploadInfo
+  next()
+}
+app.post('/upload', auth, checkUpload, upload.single('file'), (req, res) => {
   try {
     if (req.file) {
-      if (!req.headers.uploadid || !(typeof req.headers.uploadid === 'string')) {
-        logger.info(`Upload ID not found in request headers`, {
-          ip: req.ip,
-          protocol: 'https'
-        })
-        res.status(400).send('Upload ID not found or invalid')
-        unlink(req.file.path)
-        return
-      }
-      const uploadInfo = getUpload(req.headers.uploadid)
-      if (uploadInfo === undefined) {
-        logger.info(`Upload ID not found in database`, {
-          ip: req.ip,
-          userId: req.userId,
-          protocol: 'https'
-        })
-        res.status(400).send('Upload ID not found or invalid')
-        unlink(req.file.path)
-        return
-      }
-      // check if path exists, or set to root
-      if (uploadInfo.parentFolderId && !getFolderInfo(uploadInfo.parentFolderId)) {
-        logger.warn(`Parent folder path not found when uploading`, {
-          ip: req.ip,
-          userId: req.userId,
-          protocol: 'https'
-        })
-        // res.write('Folder path not found when uploading. Setting to root')
-        // TODO: send error message to client
-        uploadInfo.parentFolderId = null
-      }
       logger.info(`User uploaded a file`, {
         ip: req.ip,
         userId: req.userId,
@@ -131,9 +132,9 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
         req.file.filename,
         req.userId,
         req.userId,
-        uploadInfo.keyCipher,
-        uploadInfo.ivCipher,
-        uploadInfo.parentFolderId,
+        req.uploadInfo.keyCipher,
+        req.uploadInfo.ivCipher,
+        req.uploadInfo.parentFolderId,
         req.file.size,
         null
       )
@@ -156,9 +157,11 @@ app.post('/upload', auth, upload.single('file'), (req, res) => {
         })
       }
     })
+    deleteFileOfOwnerId(req.file.filename, req.userId)
     res.sendStatus(500)
   }
 })
+
 app.get('/download', auth, (req, res) => {
   if (!req.headers.uuid || !(typeof req.headers.socketid === 'string')) {
     logger.info(`UUID not found in request headers`, {

@@ -5,8 +5,15 @@ import { readFileSync, unlink } from 'fs'
 import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
 import { join, basename, dirname } from 'path'
 import { randomUUID } from 'crypto'
-import { addFileToDatabase, deleteFile, getFolderInfo, updateFileInDatabase } from './StorageDatabase.js'
+import {
+  addFileToDatabase,
+  deleteFile,
+  deleteFileOfOwnerId,
+  getFolderInfo,
+  updateFileInDatabase
+} from './StorageDatabase.js'
 import { stat } from 'fs/promises'
+import { emitToSocket } from './SocketIO.js'
 
 const port = process.env.FTP_PORT || 7002
 
@@ -37,21 +44,68 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
     ip: connection.ip,
     protocol: 'ftps'
   })
-  const userInfo = checkUserLoggedIn(username)
-  if (userInfo !== undefined) {
-    const rootPath = join(__dirname, __upload_dir, userInfo.userId)
-    logger.info('User logged in', {
+  let uploadInfo = undefined
+  let userInfo = undefined
+  try {
+    userInfo = checkUserLoggedIn(username)
+    if (userInfo !== undefined) {
+      const rootPath = join(__dirname, __upload_dir, userInfo.userId)
+      logger.info('User logged in', {
+        ip: connection.ip,
+        userId: userInfo.userId,
+        protocol: 'ftps'
+      })
+      if (password) {
+        uploadInfo = getUpload(password) // use password as upload id
+        if (uploadInfo === undefined) {
+          logger.info('Upload info not found in database', {
+            ip: connection.ip,
+            userId: userInfo.userId,
+            protocol: 'ftps'
+          })
+          reject(new Error('Upload info not found in database'))
+          return
+        }
+        if (uploadInfo.parentFolderId && !getFolderInfo(uploadInfo.parentFolderId)) {
+          logger.info('Parent folder path not found when uploading', {
+            ip: connection.ip,
+            userId: userInfo.userId,
+            protocol: 'ftps'
+          })
+          reject(new Error('Parent folder path not found when uploading'))
+          return
+        }
+        // if (uploadInfo.expires < Date.now()) {
+        //   logger.info('Upload expired', {
+        //     ip: connection.ip,
+        //     userId: userInfo.userId,
+        //     protocol: 'ftps'
+        //   })
+        //   reject(new Error('Upload expired'))
+        //   return
+        // }
+      }
+      resolve({
+        root: rootPath,
+        fs: new CustomFileSystem(connection, { root: rootPath, cwd: '/' })
+      })
+    } else {
+      logger.info('User not logged in', {
+        ip: connection.ip,
+        userId: username,
+        uploadId: password,
+        protocol: 'ftps'
+      })
+      reject(new Error('User not logged in'))
+    }
+  } catch (error) {
+    logger.error(error, {
       ip: connection.ip,
-      userId: userInfo.userId,
+      userId: username,
+      uploadId: password,
       protocol: 'ftps'
     })
-    resolve({
-      root: rootPath,
-      fs: new CustomFileSystem(connection, { root: rootPath, cwd: '/' })
-    })
-  } else {
-    logger.info('User not logged in', { ip: connection.ip, protocol: 'ftps' })
-    reject(new Error('User not logged in'))
+    reject(new Error('Unexpected error'))
   }
 
   connection.on('RETR', (error, filePath) => {
@@ -79,45 +133,37 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
         userId: userInfo.userId,
         protocol: 'ftps'
       })
+      // emitToSocket(username, 'upload-file-res', 'Error uploading file')
       return
     }
-    const uploadInfo = getUpload(password) // use password as upload id
-    if (uploadInfo === undefined) {
-      logger.info('Upload ID not found in database', {
+    try {
+      const fileSize = (await stat(fileName)).size
+      updateFileInDatabase(
+        basename(fileName),
+        uploadInfo.keyCipher,
+        uploadInfo.ivCipher,
+        uploadInfo.parentFolderId,
+        fileSize,
+        null
+      )
+      // emitToSocket(username, 'upload-file-res', null)
+      logger.info('User uploaded file', {
+        ip: connection.ip,
+        userId: userInfo.userId,
+        fileName,
+        size: fileSize,
+        protocol: 'ftps'
+      })
+    } catch (error) {
+      logger.error(error, {
         ip: connection.ip,
         userId: userInfo.userId,
         protocol: 'ftps'
       })
-      deleteFile(basename(fileName))
       unlink(fileName)
-      // TODO: send error message to client
-      return
+      deleteFileOfOwnerId(basename(fileName), userInfo.userId)
+      emitToSocket(username, 'upload-file-res', 'Unexpected error')
     }
-    if (uploadInfo.parentFolderId && !getFolderInfo(uploadInfo.parentFolderId)) {
-      logger.warn('Parent folder path not found when uploading', {
-        ip: connection.ip,
-        userId: userInfo.userId,
-        protocol: 'ftps'
-      })
-      uploadInfo.parentFolderId = null
-      // TODO: send error message to client
-    }
-    const fileSize = (await stat(fileName)).size
-    updateFileInDatabase(
-      basename(fileName),
-      uploadInfo.keyCipher,
-      uploadInfo.ivCipher,
-      uploadInfo.parentFolderId,
-      fileSize,
-      null
-    )
-    logger.info('User uploaded file', {
-      ip: connection.ip,
-      userId: userInfo.userId,
-      fileName,
-      size: fileSize,
-      protocol: 'ftps'
-    })
   })
 })
 

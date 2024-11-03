@@ -126,6 +126,7 @@ const updateFileById = storageDb.prepare(
   'UPDATE files SET keyCipher = ?, ivCipher = ?, parentFolderId = ?, size = ?, description = ? WHERE id = ?'
 )
 const deleteFileById = storageDb.prepare('DELETE FROM files WHERE id = ?')
+const deleteFileByIdOwnerId = storageDb.prepare('DELETE FROM files WHERE id = ? AND ownerId = ?')
 const selectFilesByOwnerId = storageDb.prepare('SELECT * FROM files WHERE ownerId = ?')
 const selectFilesByParentFolderId = storageDb.prepare(
   'SELECT * FROM files WHERE parentFolderId = ?'
@@ -213,6 +214,10 @@ export const updateFileInDatabase = (
 
 export const deleteFile = (uuid) => {
   return deleteFileById.run(uuid)
+}
+
+export const deleteFileOfOwnerId = (uuid, userId) => {
+  return deleteFileByIdOwnerId.run(uuid, userId)
 }
 
 /**

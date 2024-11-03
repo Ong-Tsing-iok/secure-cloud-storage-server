@@ -21,6 +21,7 @@ io.on('connection', (socket) => {
   // TODO: need to get address from header if server is behind a proxy
   // See https://socket.io/how-to/get-the-ip-address-of-the-client
   logger.info('Client connected', { socketId: socket.id, ip: socket.ip })
+  // io.to(socket.id).emit('message', 'Welcome to server')
 
   socket.on('message', (message) => {
     logger.info(`Received message: ${message}`, { socketId: socket.id, ip: socket.ip })
@@ -38,4 +39,9 @@ io.on('connection', (socket) => {
   requestBinder(socket, io)
 })
 
+const emitToSocket = (socketId, event, ...data) => {
+  return io.to(socketId).emit(event, ...data)
+} 
+
 export default io
+export { emitToSocket }

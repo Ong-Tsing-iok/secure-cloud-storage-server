@@ -177,7 +177,7 @@ const getFileListBinder = (socket) => {
     try {
       const files = getAllFilesByParentFolderIdUserId(parentFolderId, socket.userId)
       const folders = getAllFoldersByParentFolderIdUserId(parentFolderId, socket.userId)
-      console.log({ files, folders })
+      // console.log({ files, folders })
       cb({ files: JSON.stringify(files), folders: JSON.stringify(folders) })
     } catch (error) {
       logger.error(error, {
@@ -292,6 +292,12 @@ const folderBinder = (socket) => {
       userId: socket.userId
     })
     try {
+      const files = getAllFilesByParentFolderIdUserId(folderId, socket.userId)
+      const folders = getAllFoldersByParentFolderIdUserId(folderId, socket.userId)
+      if (files.length > 0 || folders.length > 0) {
+        cb('folder not empty')
+        return
+      }
       if (deleteFolder(folderId).changes > 0) {
         cb(null)
         logger.info(`Folder deleted`, {
