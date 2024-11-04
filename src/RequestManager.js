@@ -8,7 +8,9 @@ import {
   addUniqueRequest,
   getAllRequestsResponsesByRequester,
   getAllRequestsResponsesFilesByOwner,
-  deleteRequestOfRequester
+  deleteRequestOfRequester,
+  getRequestNotRespondedByIdOfFileOwner,
+  addResponse
 } from './StorageDatabase.js'
 import { getSocketId } from './LoginDatabase.js'
 import CryptoHandler from './CryptoHandler.js'
@@ -17,16 +19,8 @@ import { copyFile } from 'fs/promises'
 import { __upload_dir_path } from './Constants.js'
 import { join } from 'path'
 import { logger } from './Logger.js'
+import ConfigManager from './ConfigManager.js'
 
-const requestNotExistOrResponded = (socket, uuid) => {
-  const info = getRequestById(uuid)
-  if (info === undefined || info.agreed != null) {
-    socket.emit('message', 'request not exist or already responded')
-    return true
-  }
-  return false
-}
-// TODO: handle situation where client drop before giving rekey
 const requestBinder = (socket, io) => {
   //! ask for request
   socket.on('request-file', ({ fileId, name, email, description }, cb) => {
@@ -50,14 +44,14 @@ const requestBinder = (socket, io) => {
         cb('file not found')
         return
       }
-      // if (fileInfo.permissions === 0) {
-      //   cb('file not found')
-      //   return
-      // }
-      // if (fileInfo.ownerId === socket.userId) {
-      //   cb('file is owned by you')
-      //   return
-      // }
+      if (fileInfo.permissions === 0) {
+        cb('file not found')
+        return
+      }
+      if (fileInfo.ownerId === socket.userId) {
+        cb('file is owned by you')
+        return
+      }
       if (addUniqueRequest(fileId, socket.userId, name, email, description)) {
         cb(null)
       } else {
@@ -103,72 +97,61 @@ const requestBinder = (socket, io) => {
       cb('unexpected error')
     }
   })
-  //! request agree
-  socket.on('request-agree', (uuid) => {
-    if (!checkLoggedIn(socket)) return
-    if (requestNotExistOrResponded(socket, uuid)) return
-    logger.info('Client agreed to request', {
+  //! request respond
+  socket.on('respond-request', async ({ requestId, agreed, description, rekey }, cb) => {
+    if (!checkLoggedIn(socket)) {
+      cb('not logged in')
+      return
+    }
+    logger.info(`Client respond to request`, {
       ip: socket.ip,
       userId: socket.userId,
-      requestId: uuid
+      requestId,
+      agreed
     })
-    runRespondToRequest(true, uuid)
-    const pkObj = getRequesterPkFileId(uuid)
-    socket.emit('rekey-ask', pkObj.pk, async (rekey) => {
-      const fileInfo = getFileInfo(pkObj.fileId)
-      const newKeyCipher = await CryptoHandler.reencrypt(rekey, fileInfo.keyCipher)
-      const newIvCipher = await CryptoHandler.reencrypt(rekey, fileInfo.ivCipher)
-      const newUUID = randomUUID()
-      addFileToDatabase(
-        fileInfo.name,
-        newUUID,
-        pkObj.requester,
-        fileInfo.ownerId,
-        newKeyCipher,
-        newIvCipher,
-        null, // null for root
-        fileInfo.size,
-        fileInfo.description
-      )
-      await copyFile(
-        join(__upload_dir_path, fileInfo.ownerId, fileInfo.id),
-        join(__upload_dir_path, pkObj.requester, newUUID)
-      )
-      logger.info('File reencrypted', {
-        owner: fileInfo.ownerId,
-        requester: pkObj.requester,
-        originId: fileInfo.id,
-        newId: newUUID
-      })
-      // If requester is online, notify requester
-      const requesterSocketId = getSocketId(pkObj.requester)
-      if (requesterSocketId) {
-        io.to(requesterSocketId.socketId)
-          .to(requesterSocketId.socketId)
-          .emit('message', `request ${uuid} is agreed.`)
+    try {
+      const requestObj = getRequestNotRespondedByIdOfFileOwner(requestId, socket.userId)
+      if (requestObj === undefined) {
+        cb('request not exist or already responded')
+        return
       }
-    })
-    // * could be dead thread if wait for response?
-  })
-  // TODO: handle receive re-key
-  // TODO: use re-key to re-encrypt file, and add into requester's database and file system
-  //! request reject
-  socket.on('request-reject', (uuid) => {
-    if (!checkLoggedIn(socket)) return
-    if (requestNotExistOrResponded(socket, uuid)) return
-    logger.info('Client rejected request', {
-      ip: socket.ip,
-      userId: socket.userId,
-      requestId: uuid
-    })
-    runRespondToRequest(false, uuid)
-    const info = getRequestById(uuid)
-    const requesterSocketId = getSocketId(info.requester)
-    // console.log('requesterSocketId', requesterSocketId)
-    if (requesterSocketId) {
-      io.to(requesterSocketId.socketId)
-        .to(requesterSocketId.socketId)
-        .emit('message', `request ${uuid} is rejected.`)
+      // console.log(requestId, agreed, description)
+      addResponse(requestId, agreed ? 1 : 0, description)
+      cb(null) // TODO: maybe move after copy file?
+      if (agreed) {
+        const fileInfo = getFileInfo(requestObj.fileId)
+        const newKeyCipher = await CryptoHandler.reencrypt(rekey, fileInfo.keyCipher)
+        const newIvCipher = await CryptoHandler.reencrypt(rekey, fileInfo.ivCipher)
+        const newUUID = randomUUID()
+        addFileToDatabase(
+          fileInfo.name,
+          newUUID,
+          requestObj.requester,
+          fileInfo.ownerId,
+          newKeyCipher,
+          newIvCipher,
+          null, // null for root
+          fileInfo.size,
+          fileInfo.description
+        )
+        await copyFile(
+          join(ConfigManager.uploadDir, fileInfo.ownerId, fileInfo.id),
+          join(ConfigManager.uploadDir, requestObj.requester, newUUID)
+        )
+        logger.info('File reencrypted', {
+          owner: fileInfo.ownerId,
+          requester: requestObj.requester,
+          originId: fileInfo.id,
+          newId: newUUID
+        })
+      }
+    } catch (error) {
+      logger.error(error, {
+        ip: socket.ip,
+        userId: socket.userId,
+        requestId
+      })
+      cb('unexpected error')
     }
   })
   //! get request list
@@ -205,6 +188,11 @@ const requestBinder = (socket, io) => {
     })
     try {
       const requests = getAllRequestsResponsesFilesByOwner(socket.userId)
+      requests.forEach((request) => {
+        if (request.agreed != null) {
+          delete request.pk
+        }
+      })
       // console.log({ files, folders })
       cb(JSON.stringify(requests))
     } catch (error) {

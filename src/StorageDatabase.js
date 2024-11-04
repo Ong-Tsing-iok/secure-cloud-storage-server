@@ -346,6 +346,9 @@ export const getAllFoldersByParentFolderIdUserId = (parentFolderId, userId) => {
 const insertRequest = storageDb.prepare(
   'INSERT INTO requests (fileId, id, requester, name, email, description) VALUES (?, ?, ?, ?, ?, ?)'
 )
+const insertResponse = storageDb.prepare(
+  'INSERT INTO responses (id, requestId, agreed, description) VALUES (?, ?, ?, ?)'
+)
 const selectRequestsByOwner = storageDb.prepare(
   `SELECT requests.id, requests.fileId, requests.timestamp, files.name
   FROM requests 
@@ -381,8 +384,17 @@ const selectRequestResponseByRequester = storageDb.prepare(
 const selectRequestResponseFileByFileOwner = storageDb.prepare(
   `SELECT requests.id as requestId, requests.fileId, requests.requester, requests.name as userName, requests.email as userEmail, requests.description as requestDescription, requests.timestamp as requestTime,
   responses.agreed, responses.description as responseDescription, responses.timestamp as responseTime,
-  files.name, files.ownerId, files.originOwnerId, files.permissions, files.parentFolderId, files.size, files.description, files.timestamp
-  FROM requests LEFT JOIN responses ON responses.requestId = requests.id JOIN files ON requests.fileId = files.id WHERE files.ownerId = ?`
+  files.name, files.ownerId, files.originOwnerId, files.permissions, files.parentFolderId, files.size, files.description, files.timestamp,
+  users.pk
+  FROM requests LEFT JOIN responses ON responses.requestId = requests.id JOIN files ON requests.fileId = files.id JOIN users ON files.ownerId = users.id WHERE files.ownerId = ?`
+)
+const selectRequestNotRespondedByFileOwner = storageDb.prepare(
+  `SELECT requests.fileId, requests.requester FROM requests LEFT JOIN responses ON responses.requestId = requests.id JOIN files ON requests.fileId = files.id 
+  WHERE requests.id = ? AND files.ownerId = ? AND responses.agreed IS NULL`
+)
+const selectRequestNotRespondedByFileIdRequester = storageDb.prepare(
+  `SELECT requests.fileId, requests.requester FROM requests LEFT JOIN responses ON responses.requestId = requests.id
+  WHERE requests.fileId = ? AND requests.requester = ? AND responses.agreed IS NULL`
 )
 
 //* functions
@@ -397,26 +409,16 @@ const selectRequestResponseFileByFileOwner = storageDb.prepare(
  * @return {boolean} Returns true if the request was added successfully, false otherwise.
  */
 export const addUniqueRequest = (fileId, requester, name, email, description) => {
+  if (selectRequestNotRespondedByFileIdRequester.get(fileId, requester)) {
+    return false
+  }
   const requestId = randomUUID().toString()
-  const requestResponseInfo = selectRequestResponseByFileIdRequester.all(fileId, requester)
-  // console.log(requestResponseInfo)
-  let canAdd = false
-  if (requestResponseInfo === undefined) {
-    canAdd = true
-  } else {
-    for (const request of requestResponseInfo) {
-      if (request.agreed == null) {
-        return false
-      }
-    }
-    canAdd = true
-  }
-
-  if (canAdd) {
-    insertRequest.run(fileId, requestId, requester, name, email, description)
-    return true
-  }
-  return false
+  insertRequest.run(fileId, requestId, requester, name, email, description)
+  return true
+}
+export const addResponse = (requestId, agreed, description) => {
+  const responseId = randomUUID().toString()
+  return insertResponse.run(responseId, requestId, agreed, description)
 }
 
 export const getAllRequestsResponsesFilesByOwner = (userId) => {
@@ -425,6 +427,10 @@ export const getAllRequestsResponsesFilesByOwner = (userId) => {
 
 export const getAllRequestsResponsesByRequester = (userId) => {
   return selectRequestResponseByRequester.all(userId)
+}
+
+export const getRequestNotRespondedByIdOfFileOwner = (requestId, ownerId) => {
+  return selectRequestNotRespondedByFileOwner.get(requestId, ownerId)
 }
 
 /**

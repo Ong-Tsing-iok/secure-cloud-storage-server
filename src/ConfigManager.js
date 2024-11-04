@@ -16,6 +16,9 @@ class ConfigManager {
       }
     } catch (error) {}
   }
+  get uploadDir() {
+    return join(this.directoryConfig.root, this.directoryConfig.upload)
+  }
   get databasePath() {
     return join(this.directoryConfig.root, this.directoryConfig.database, 'storage.db')
   }
