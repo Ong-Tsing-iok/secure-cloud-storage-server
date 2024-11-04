@@ -20,6 +20,7 @@ import { __upload_dir_path } from './Constants.js'
 import { join } from 'path'
 import { logger } from './Logger.js'
 import ConfigManager from './ConfigManager.js'
+import { emitToSocket } from './SocketIO.js'
 
 const requestBinder = (socket, io) => {
   //! ask for request
@@ -44,18 +45,22 @@ const requestBinder = (socket, io) => {
         cb('file not found')
         return
       }
-      if (fileInfo.permissions === 0) {
-        cb('file not found')
-        return
-      }
-      if (fileInfo.ownerId === socket.userId) {
-        cb('file is owned by you')
-        return
-      }
+      // if (fileInfo.ownerId === socket.userId) {
+      //   cb('file is owned by you')
+      //   return
+      // }
+      // if (fileInfo.permissions === 0) {
+      //   cb('file not found')
+      //   return
+      // }
       if (addUniqueRequest(fileId, socket.userId, name, email, description)) {
         cb(null)
       } else {
         cb('request already exist')
+      }
+      const ownerSocketIdObj = getSocketId(fileInfo.ownerId)
+      if (ownerSocketIdObj) {
+        emitToSocket(ownerSocketIdObj.socketId, 'new-request')
       }
     } catch (error) {
       logger.error(error, {
@@ -138,12 +143,17 @@ const requestBinder = (socket, io) => {
           join(ConfigManager.uploadDir, fileInfo.ownerId, fileInfo.id),
           join(ConfigManager.uploadDir, requestObj.requester, newUUID)
         )
-        logger.info('File reencrypted', {
+        logger.info('File re-encrypted', {
           owner: fileInfo.ownerId,
           requester: requestObj.requester,
           originId: fileInfo.id,
           newId: newUUID
         })
+      }
+      const requesterSocketIdObj = getSocketId(requestObj.requester)
+      console.log(requesterSocketIdObj)
+      if (requesterSocketIdObj) {
+        emitToSocket(requesterSocketIdObj.socketId, 'new-response')
       }
     } catch (error) {
       logger.error(error, {
