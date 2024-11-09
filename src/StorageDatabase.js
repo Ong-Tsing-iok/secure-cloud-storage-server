@@ -2,7 +2,6 @@ import sqlite from 'better-sqlite3'
 import { logger } from './Logger.js'
 import { randomUUID } from 'crypto'
 import ConfigManager from './ConfigManager.js'
-import exp from 'constants'
 
 const storageDb = new sqlite(ConfigManager.databasePath, {
   verbose: process.env.NODE_ENV !== 'production' ? console.log : null
@@ -74,8 +73,8 @@ try {
       email TEXT,
       description TEXT,
       timestamp INTEGER default CURRENT_TIMESTAMP,
-      FOREIGN KEY(fileId) REFERENCES files(id),
-      FOREIGN KEY(requester) REFERENCES users(id)
+      FOREIGN KEY(fileId) REFERENCES files(id) ON DELETE CASCADE,
+      FOREIGN KEY(requester) REFERENCES users(id) ON DELETE CASCADE
       )`
     )
     .run()
@@ -88,7 +87,7 @@ try {
       agreed BOOLEAN not null,
       description TEXT,
       timestamp INTEGER default CURRENT_TIMESTAMP,
-      FOREIGN KEY(requestId) REFERENCES requests(id)
+      FOREIGN KEY(requestId) REFERENCES requests(id) ON DELETE CASCADE
       )`
     )
     .run()

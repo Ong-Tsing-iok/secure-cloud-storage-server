@@ -97,7 +97,7 @@ const authenticationBinder = (socket) => {
     logger.info(`Client responding with authentication key`, { ip: socket.ip, decodeValue })
     if (!socket.pk || !socket.randKey || !(socket.userId || (socket.name && socket.email))) {
       logger.warn(`Client authenticate without asking`, { ip: socket.ip, decodeValue })
-      cb("didn't ask to log in")
+      cb("didn't ask to log in or register first")
       return
     }
     if (!checkValidString(decodeValue)) {
@@ -143,7 +143,7 @@ const authenticationBinder = (socket) => {
 
       userDbLogin(socket.id, socket.userId)
       socket.authed = true
-      cb(null)
+      cb(null, socket.userId)
     } catch (error) {
       logger.error(error, { ip: socket.ip, userId: socket.userId })
       cb('unexpected error')
