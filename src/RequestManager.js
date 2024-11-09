@@ -1,8 +1,5 @@
 import { checkLoggedIn } from './Utils.js'
 import {
-  runRespondToRequest,
-  getRequesterPkFileId,
-  getRequestById,
   getFileInfo,
   addFileToDatabase,
   addUniqueRequest,
@@ -22,9 +19,9 @@ import { logger } from './Logger.js'
 import ConfigManager from './ConfigManager.js'
 import { emitToSocket } from './SocketIO.js'
 
-const requestBinder = (socket, io) => {
+const requestBinder = (socket) => {
   //! ask for request
-  socket.on('request-file', ({ fileId, name, email, description }, cb) => {
+  socket.on('request-file', ({ fileId, description }, cb) => {
     if (!checkLoggedIn(socket)) {
       cb('not logged in')
       return
@@ -45,15 +42,15 @@ const requestBinder = (socket, io) => {
         cb('file not found')
         return
       }
-      // if (fileInfo.ownerId === socket.userId) {
-      //   cb('file is owned by you')
-      //   return
-      // }
-      // if (fileInfo.permissions === 0) {
-      //   cb('file not found')
-      //   return
-      // }
-      if (addUniqueRequest(fileId, socket.userId, name, email, description)) {
+      if (fileInfo.ownerId === socket.userId) {
+        cb('file is owned by you')
+        return
+      }
+      if (fileInfo.permissions === 0) {
+        cb('file not found')
+        return
+      }
+      if (addUniqueRequest(fileId, socket.userId, description)) {
         cb(null)
       } else {
         cb('request already exist')

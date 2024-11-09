@@ -2,11 +2,6 @@ import { logger } from './Logger.js'
 import {
   getFileInfo,
   deleteFile,
-  getAllFilesByUserId,
-  addUniqueRequest,
-  getAllRequestsResponsesByRequester,
-  getAllRequestsResponsesFilesByOwner,
-  deleteRequest,
   addFolderToDatabase,
   deleteFolder,
   getAllFilesByParentFolderIdUserId,
@@ -23,7 +18,6 @@ import { __upload_dir, __dirname } from './Constants.js'
 import { randomUUID } from 'crypto'
 import { insertUpload } from './LoginDatabase.js'
 import { checkFolderExistsForUser, checkLoggedIn } from './Utils.js'
-import { timeStamp } from 'console'
 import ConfigManager from './ConfigManager.js'
 
 const uploadExpireTime = 1000 * 60 * 10 // 10 minutes
@@ -42,36 +36,16 @@ const downloadFileBinder = (socket) => {
 
     try {
       const fileInfo = getFileInfo(uuid)
-      if (fileInfo !== undefined) {
-        if (fileInfo.ownerId !== socket.userId) {
-          logger.info('Client requested for file permission', {
-            ip: socket.ip,
-            userId: socket.userId,
-            uuid
-          })
-          if (addUniqueRequest(fileInfo.id, randomUUID(), socket.userId)) {
-            cb(null)
-            // socket.emit(
-            //   'message',
-            //   'Requested file permission. You will have to wait for the owner to respond.'
-            // )
-          } else {
-            cb('File already requested.')
-            // socket.emit('message', 'File already requested.')
-          }
-        } else {
-          socket.emit(
-            'download-file-res',
-            uuid,
-            fileInfo.name,
-            fileInfo.keyCipher,
-            fileInfo.ivCipher,
-            fileInfo.size
-          )
-        }
-      } else {
+      if (fileInfo === undefined || fileInfo.ownerId !== socket.userId) {
+        logger.warn('File not found when downloading file', {
+          ip: socket.ip,
+          userId: socket.userId,
+          uuid: uuid
+        })
         cb('file not found')
+        return
       }
+      cb(null, fileInfo)
     } catch (error) {
       logger.error(error, {
         ip: socket.ip,

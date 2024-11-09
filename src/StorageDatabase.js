@@ -69,8 +69,6 @@ try {
       id TEXT PRIMARY KEY not null,
       fileId TEXT not null,
       requester INTEGER not null,
-      name TEXT,
-      email TEXT,
       description TEXT,
       timestamp INTEGER default CURRENT_TIMESTAMP,
       FOREIGN KEY(fileId) REFERENCES files(id) ON DELETE CASCADE,
@@ -200,8 +198,8 @@ export const addFileToDatabase = (
  * Retrieves file information from the database based on the given UUID.
  *
  * @param {string} uuid - The UUID of the file.
- * @return {{id: string, name: string, uuid: string, ownerId: string, originOwnerId: string,
- * keyCipher: string, ivCipher: string, size: number, description: string, timestamp: number}|undefined}
+ * @return {{id: string, name: string, ownerId: string, originOwnerId:  string, permissions: number, keyCipher: string, ivCipher: string,
+ * parentFolderId: string, size: number, description: string, timestamp: number}|undefined}
  * An object of the file information if found, or undefined if not found.
  */
 export const getFileInfo = (uuid) => {
@@ -336,7 +334,7 @@ export const getAllFoldersByParentFolderIdUserId = (parentFolderId, userId) => {
  */
 //* prepare queries
 const insertRequest = storageDb.prepare(
-  'INSERT INTO requests (fileId, id, requester, name, email, description) VALUES (?, ?, ?, ?, ?, ?)'
+  'INSERT INTO requests (fileId, id, requester, description) VALUES (?, ?, ?, ?)'
 )
 const insertResponse = storageDb.prepare(
   'INSERT INTO responses (id, requestId, agreed, description) VALUES (?, ?, ?, ?)'
@@ -369,16 +367,18 @@ const selectRequestResponseByFileIdRequester = storageDb.prepare(
   'SELECT * FROM responses JOIN requests ON responses.requestId = requests.id WHERE requests.fileId = ? AND requests.requester = ?'
 )
 const selectRequestResponseByRequester = storageDb.prepare(
-  `SELECT requests.id as requestId, requests.fileId, requests.requester, requests.name as userName, requests.email as userEmail, requests.description as requestDescription, requests.timestamp as requestTime,
-  responses.agreed, responses.description as responseDescription, responses.timestamp as responseTime 
-  FROM requests LEFT JOIN responses ON responses.requestId = requests.id WHERE requests.requester = ?`
+  `SELECT requests.id as requestId, requests.fileId, requests.requester, requests.description as requestDescription, requests.timestamp as requestTime,
+  responses.agreed, responses.description as responseDescription, responses.timestamp as responseTime,
+  users.name as userName, users.email as userEmail
+  FROM requests LEFT JOIN responses ON responses.requestId = requests.id JOIN users ON requests.requester = users.id WHERE requests.requester = ?`
 )
 const selectRequestResponseFileByFileOwner = storageDb.prepare(
-  `SELECT requests.id as requestId, requests.fileId, requests.requester, requests.name as userName, requests.email as userEmail, requests.description as requestDescription, requests.timestamp as requestTime,
+  `SELECT requests.id as requestId, requests.fileId, requests.requester, requests.description as requestDescription, requests.timestamp as requestTime,
   responses.agreed, responses.description as responseDescription, responses.timestamp as responseTime,
   files.name, files.ownerId, files.originOwnerId, files.permissions, files.parentFolderId, files.size, files.description, files.timestamp,
-  users.pk
-  FROM requests LEFT JOIN responses ON responses.requestId = requests.id JOIN files ON requests.fileId = files.id JOIN users ON files.ownerId = users.id WHERE files.ownerId = ?`
+  owners.pk, requesters.name as userName, requesters.email as userEmail
+  FROM requests LEFT JOIN responses ON responses.requestId = requests.id JOIN files ON requests.fileId = files.id
+  JOIN users as owners ON files.ownerId = owners.id JOIN users as requesters ON requests.requester = requesters.id WHERE files.ownerId = ?`
 )
 const selectRequestNotRespondedByFileOwner = storageDb.prepare(
   `SELECT requests.fileId, requests.requester FROM requests LEFT JOIN responses ON responses.requestId = requests.id JOIN files ON requests.fileId = files.id 
@@ -395,17 +395,15 @@ const selectRequestNotRespondedByFileIdRequester = storageDb.prepare(
  *
  * @param {string} fileId - The ID of the file in the database.
  * @param {string} requester - The ID of the requester.
- * @param {string} name - The name of the requester.
- * @param {string} email - The email of the requester.
  * @param {string} description - The description of the request.
  * @return {boolean} Returns true if the request was added successfully, false otherwise.
  */
-export const addUniqueRequest = (fileId, requester, name, email, description) => {
+export const addUniqueRequest = (fileId, requester, description) => {
   if (selectRequestNotRespondedByFileIdRequester.get(fileId, requester)) {
     return false
   }
   const requestId = randomUUID().toString()
-  insertRequest.run(fileId, requestId, requester, name, email, description)
+  insertRequest.run(fileId, requestId, requester, description)
   return true
 }
 export const addResponse = (requestId, agreed, description) => {
