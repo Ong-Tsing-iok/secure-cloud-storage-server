@@ -17,6 +17,8 @@ try {
       `CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY not null, 
       pk TEXT not null,
+      name TEXT not null,
+      email TEXT not null,
       timestamp INTEGER default CURRENT_TIMESTAMP
       )`
     )
@@ -99,34 +101,25 @@ try {
  */
 //* prepare queries
 const selectUserByKeys = storageDb.prepare('SELECT * FROM users WHERE pk = ?')
-const insertUser = storageDb.prepare('INSERT INTO users (id, pk) VALUES (?, ?)')
+const insertUser = storageDb.prepare('INSERT INTO users (id, pk, name, email) VALUES (?, ?, ?, ?)')
 
 //* functions
+export const getUserByKey = (pk) => {
+  return selectUserByKeys.get(pk)
+}
 /**
- * Checks if a user with the given public keys (p, g, y) exists in the database,
- * and if not, adds the user to the database.
+ * Adds a user to the database and returns the id of the added user.
  *
  * @param {string} pk - The public key of the user.
- * @return {{id: string|undefined, exists: boolean}} An object containing the id of the added user and a boolean indicating if the user already existed.
- *                  If an error occurred, the id is undefined and the boolean is false.
+ * @param {string} name - The name of the user.
+ * @param {string} email - The email of the user.
+ * @return {{id: string, info: {changes: number, lastInsertRowid: number}}} An object containing the id of the added user and a boolean indicating if the user already existed.
+ * If an error occurred, the id is undefined and the boolean is false.
  */
-export const AddUserAndGetId = (pk) => {
-  // Initialize the id with undefined
-  let id = undefined
-  let exists = false
-
-  const info = selectUserByKeys.get(pk)
-  if (info === undefined) {
-    // If the user does not exist, add them to the database
-    id = randomUUID().toString()
-    const insertResult = insertUser.run(id, pk)
-  } else {
-    // Set the id to the id of the existing user
-    id = info.id
-    exists = true
-  }
-  // Return the id of the added user or undefined if an error occurred
-  return { id, exists }
+export const AddUserAndGetId = (pk, name, email) => {
+  const id = randomUUID().toString()
+  const info = insertUser.run(id, pk, name, email)
+  return { id, info }
 }
 
 /**
