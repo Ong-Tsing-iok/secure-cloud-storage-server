@@ -84,6 +84,8 @@ const authenticationBinder = (socket) => {
       socket.userId = userInfo.id
       socket.randKey = randomUUID()
       socket.pk = publicKey
+      socket.name = userInfo.name
+      socket.email = userInfo.email
       const cipher = await encrypt(publicKey, socket.randKey)
       cb(null, cipher)
       // logger.debug(`Asking client to respond with correct auth key`, { ip: socket.ip })
@@ -117,7 +119,8 @@ const authenticationBinder = (socket) => {
 
     logger.info(`Client is authenticated`, { ip: socket.ip, userId: socket.userId })
     try {
-      if (!socket.userId) { // register
+      if (!socket.userId) {
+        // register
         const { id, info } = AddUserAndGetId(socket.pk, socket.name, socket.email)
         if (info.changes === 0) {
           throw new Error('Failed to add user to database. Might be id collision.')
@@ -143,7 +146,7 @@ const authenticationBinder = (socket) => {
 
       userDbLogin(socket.id, socket.userId)
       socket.authed = true
-      cb(null, socket.userId)
+      cb(null, { userId: socket.userId, name: socket.name, email: socket.email })
     } catch (error) {
       logger.error(error, { ip: socket.ip, userId: socket.userId })
       cb('unexpected error')
