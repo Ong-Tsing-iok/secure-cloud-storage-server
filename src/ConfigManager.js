@@ -46,8 +46,15 @@ class ConfigManager {
   get serverHost() {
     return getConfig('server.host')
   }
-  get httpsPort() {P
+  get httpsPort() {
     return getConfig('server.https.port')
+  }
+  get httpsUploadSizeLimit() {
+    const uploadSizeLimit = getConfig('server.https.uploadSizeLimit')
+    if (uploadSizeLimit.endsWith('gb')) {
+      return parseInt(uploadSizeLimit.replace('gb', '')) * 1024 * 1024 * 1024
+    }
+    return 1024 * 1024 * 1024 // default to 1GB
   }
 }
 

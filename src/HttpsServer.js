@@ -8,18 +8,14 @@ import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
 import { addFileToDatabase, getFolderInfo, getFileInfo, deleteFileOfOwnerId } from './StorageDatabase.js'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
-import { __upload_dir, __dirname } from './Constants.js'
+import ConfigManager from './ConfigManager.js'
 
 const app = express()
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
-
 app.set('trust proxy', true)
 
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
-    const folderPath = join(__dirname, __upload_dir, req.userId)
+    const folderPath = join(ConfigManager.uploadDir, req.userId)
     try {
       await mkdir(folderPath, { recursive: true })
       cb(null, folderPath)
@@ -36,8 +32,8 @@ const storage = multer.diskStorage({
     cb(null, randomUUID())
   },
   limits: {
-    fileSize: 1024 * 1024 * 1024
-  } // 1GB
+    fileSize: ConfigManager.httpsUploadSizeLimit
+  }
 })
 const upload = multer({ storage: storage })
 
@@ -51,16 +47,16 @@ const upload = multer({ storage: storage })
  */
 const auth = (req, res, next) => {
   if (!req.headers.socketid || !(typeof req.headers.socketid === 'string')) {
-    logger.info('Socket ID not found in request headers', {
+    logger.warn('Socket Id not found in request headers', {
       ip: req.ip,
       protocol: 'https'
     })
-    res.status(400).send('Socket ID not found or invalid')
+    res.status(400).send('Socket Id not found or invalid')
     return
   }
   try {
     const user = checkUserLoggedIn(req.headers.socketid)
-    logger.debug(`User with socket id ${req.headers.socketid} is authenticating`)
+    // logger.debug(`User with socket id ${req.headers.socketid} is authenticating`)
     if (user !== undefined) {
       logger.info(`User is authenticated`, {
         ip: req.ip,
@@ -70,7 +66,7 @@ const auth = (req, res, next) => {
       req.userId = user.userId
       next()
     } else {
-      logger.info(`User is not authenticated`, {
+      logger.warn(`User is not authenticated`, {
         ip: req.ip,
         protocol: 'https'
       })
@@ -86,21 +82,21 @@ const auth = (req, res, next) => {
 }
 const checkUpload = (req, res, next) => {
   if (!req.headers.uploadid || !(typeof req.headers.uploadid === 'string')) {
-    logger.info(`Upload ID not found in request headers`, {
+    logger.warn(`Upload Id not found in request headers`, {
       ip: req.ip,
       protocol: 'https'
     })
-    res.status(400).send('Upload ID not found or invalid')
+    res.status(400).send('Upload Id not found or invalid')
     return
   }
   const uploadInfo = getUpload(req.headers.uploadid)
   if (uploadInfo === undefined) {
-    logger.info(`Upload ID not found in database`, {
+    logger.warn(`Upload Id not found in database`, {
       ip: req.ip,
       userId: req.userId,
       protocol: 'https'
     })
-    res.status(400).send('Upload ID not found or invalid')
+    res.status(400).send('Upload Id not found or invalid')
     return
   }
   // check if path exists
@@ -164,11 +160,11 @@ app.post('/upload', auth, checkUpload, upload.single('file'), (req, res) => {
 
 app.get('/download', auth, (req, res) => {
   if (!req.headers.uuid || !(typeof req.headers.socketid === 'string')) {
-    logger.info(`UUID not found in request headers`, {
+    logger.info(`File Id not found in request headers`, {
       ip: req.ip,
       protocol: 'https'
     })
-    res.status(400).send('UUID not found or invalid')
+    res.status(400).send('File Id not found or invalid')
   }
   try {
     const uuid = req.headers.uuid
@@ -188,7 +184,7 @@ app.get('/download', auth, (req, res) => {
       })
       res.status(404).send('File not found')
     } else if (fileInfo.ownerId !== req.userId) {
-      logger.info(`User don't have permission to download file`, {
+      logger.warn(`User don't have permission to download file`, {
         ip: req.ip,
         userId: req.userId,
         uuid: uuid,
@@ -202,7 +198,7 @@ app.get('/download', auth, (req, res) => {
         uuid: uuid,
         protocol: 'https'
       })
-      res.download(join(__dirname, __upload_dir, req.userId, fileInfo.id), fileInfo.name)
+      res.download(join(ConfigManager.uploadDir, req.userId, fileInfo.id), fileInfo.name)
     }
   } catch (error) {
     logger.error(error, {
@@ -215,19 +211,15 @@ app.get('/download', auth, (req, res) => {
 })
 
 const options = {
-  key: readFileSync('server.key'),
-  cert: readFileSync('server.crt'),
+  key: readFileSync(ConfigManager.serverKeyPath),
+  cert: readFileSync(ConfigManager.serverCertPath),
   maxHttpBufferSize: 1e8 // 100 MB TODO: May need to increase
 }
-/**
- * @todo Redirect http to https?
- */
+//? Redirect http to https?
 const server = createServer(options, app)
 
 export default server
 
-const PORT = process.env.PORT || 3001
-
-server.listen(PORT, () => {
-  logger.log('info', `Server is running on port ${PORT}`)
+server.listen(ConfigManager.httpsPort, () => {
+  logger.log('info', `Server is running on port ${ConfigManager.httpsPort}`)
 })
