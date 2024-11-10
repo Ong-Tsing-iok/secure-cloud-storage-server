@@ -2,7 +2,7 @@ import { AddUserAndGetId, getUserByKey } from './StorageDatabase.js'
 import { userDbLogin } from './LoginDatabase.js'
 import { __upload_dir, __crypto_filepath, keyFormatRe, __upload_dir_path } from './Constants.js'
 import { logger } from './Logger.js'
-import { encrypt } from './CryptoHandler.js'
+import CryptoHandler from './CryptoHandler.js'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'crypto'
@@ -48,7 +48,7 @@ const authenticationBinder = (socket) => {
       socket.pk = publicKey
       socket.name = name
       socket.email = email
-      const cipher = await encrypt(publicKey, socket.randKey)
+      const cipher = await CryptoHandler.encrypt(publicKey, socket.randKey)
       cb(null, cipher)
       // Wait for login-auth
     } catch (error) {
@@ -86,7 +86,7 @@ const authenticationBinder = (socket) => {
       socket.pk = publicKey
       socket.name = userInfo.name
       socket.email = userInfo.email
-      const cipher = await encrypt(publicKey, socket.randKey)
+      const cipher = await CryptoHandler.encrypt(publicKey, socket.randKey)
       cb(null, cipher)
       // logger.debug(`Asking client to respond with correct auth key`, { ip: socket.ip })
     } catch (error) {
