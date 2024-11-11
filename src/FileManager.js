@@ -52,7 +52,7 @@ const downloadFileBinder = (socket) => {
         userId: socket.userId,
         uuid
       })
-      cb('unexpected error')
+      cb('Internal server error')
     }
   })
 }
@@ -85,7 +85,7 @@ const uploadFileBinder = (socket) => {
         ip: socket.ip,
         userId: socket.userId
       })
-      cb('unexpected error')
+      cb('Internal server error')
     }
   })
 }
@@ -116,12 +116,14 @@ const deleteFileBinder = (socket) => {
         cb('file not found')
       }
     } catch (error) {
-      logger.error(error, {
-        ip: socket.ip,
-        userId: socket.userId,
-        uuid
-      })
-      cb('unexpected error')
+      if (error.code !== 'ENOENT') {
+        logger.error(error, {
+          ip: socket.ip,
+          userId: socket.userId,
+          uuid
+        })
+      }
+      cb('Internal server error')
     }
   })
 }
@@ -147,7 +149,7 @@ const getFileListBinder = (socket) => {
         ip: socket.ip,
         userId: socket.userId
       })
-      cb(null, 'unexpected error')
+      cb(null, 'Internal server error')
     }
   })
 }
@@ -179,7 +181,7 @@ const folderBinder = (socket) => {
         ip: socket.ip,
         userId: socket.userId
       })
-      cb('unexpected error')
+      cb('Internal server error')
     }
   })
   // Delete folder
@@ -220,7 +222,7 @@ const folderBinder = (socket) => {
         ip: socket.ip,
         userId: socket.userId
       })
-      cb('unexpected error')
+      cb('Internal server error')
     }
   })
   // get all folder
@@ -241,7 +243,7 @@ const folderBinder = (socket) => {
         ip: socket.ip,
         userId: socket.userId
       })
-      cb('unexpected error')
+      cb('Internal server error')
     }
   })
 }
@@ -287,7 +289,7 @@ const moveFileBinder = (socket) => {
         fileId,
         targetFolderId
       })
-      cb('unexpected error')
+      cb('Internal server error')
     }
   })
 }
@@ -304,13 +306,13 @@ const getPublicFilesBinder = (socket) => {
     })
     try {
       const files = getAllPublicFilesNotOwned(socket.userId)
-      cb(JSON.stringify(files))
+      cb(null, JSON.stringify(files))
     } catch (error) {
       logger.error(error, {
         ip: socket.ip,
         userId: socket.userId
       })
-      cb('unexpected error')
+      cb('Internal server error')
     }
   })
 }
@@ -336,7 +338,7 @@ const updateFileBinder = (socket) => {
       return
     }
     permission = parseInt(permission)
-    if (!(permission in [0, 1, 2])) {
+    if (![0, 1, 2].includes(permission)) {
       logger.warn(`Invalid permission when updating file description and permission`, {
         ip: socket.ip,
         userId: socket.userId,
@@ -347,8 +349,8 @@ const updateFileBinder = (socket) => {
       return
     }
     description = String(description)
-    if (description.length > ConfigManager.databaseConfig.descMaxLength) {
-      description = description.substring(0, ConfigManager.databaseConfig.descMaxLength)
+    if (description.length > ConfigManager.databaseLengthLimit) {
+      description = description.substring(0, ConfigManager.databaseLengthLimit)
     }
     try {
       updateFileDescPermInDatabase(fileId, description, permission)
@@ -358,7 +360,7 @@ const updateFileBinder = (socket) => {
         ip: socket.ip,
         userId: socket.userId
       })
-      cb('unexpected error')
+      cb('Internal server error')
     }
   })
 }

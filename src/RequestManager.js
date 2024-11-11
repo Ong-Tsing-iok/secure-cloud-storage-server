@@ -65,7 +65,7 @@ const requestBinder = (socket) => {
         userId: socket.userId,
         fileId
       })
-      cb('unexpected error')
+      cb('Internal server error')
     }
   })
   //! delete request
@@ -96,7 +96,7 @@ const requestBinder = (socket) => {
         userId: socket.userId,
         requestId
       })
-      cb('unexpected error')
+      cb('Internal server error')
     }
   })
   //! request respond
@@ -125,17 +125,17 @@ const requestBinder = (socket) => {
         const newKeyCipher = await CryptoHandler.reencrypt(rekey, fileInfo.keyCipher)
         const newIvCipher = await CryptoHandler.reencrypt(rekey, fileInfo.ivCipher)
         const newUUID = randomUUID()
-        addFileToDatabase(
-          fileInfo.name,
-          newUUID,
-          requestObj.requester,
-          fileInfo.ownerId,
-          newKeyCipher,
-          newIvCipher,
-          null, // null for root
-          fileInfo.size,
-          fileInfo.description
-        )
+        addFileToDatabase({
+          name: fileInfo.name,
+          fileId: newUUID,
+          userId: requestObj.requester,
+          originOwnerId: fileInfo.ownerId,
+          keyCipher: newKeyCipher,
+          ivCipher: newIvCipher,
+          parentFolderId: null, // null for root
+          size: fileInfo.size,
+          description: fileInfo.description
+        })
         await copyFile(
           join(ConfigManager.uploadDir, fileInfo.ownerId, fileInfo.id),
           join(ConfigManager.uploadDir, requestObj.requester, newUUID)
@@ -158,7 +158,7 @@ const requestBinder = (socket) => {
         userId: socket.userId,
         requestId
       })
-      cb('unexpected error')
+      cb('Internal server error')
     }
   })
   //! get request list
@@ -180,7 +180,7 @@ const requestBinder = (socket) => {
         ip: socket.ip,
         userId: socket.userId
       })
-      cb(null, 'unexpected error')
+      cb(null, 'Internal server error')
     }
   })
   //! get requested list
@@ -207,7 +207,7 @@ const requestBinder = (socket) => {
         ip: socket.ip,
         userId: socket.userId
       })
-      cb(null, 'unexpected error')
+      cb(null, 'Internal server error')
     }
   })
 }

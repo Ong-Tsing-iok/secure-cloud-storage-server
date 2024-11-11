@@ -18,7 +18,7 @@ const io = new Server(server, {
 
 io.on('connection', (socket) => {
   socket.ip = socket.handshake.address
-  // TODO: need to get address from header if server is behind a proxy
+  // TODO: may need to get address from header if server is behind a proxy
   // See https://socket.io/how-to/get-the-ip-address-of-the-client
   logger.info('Client connected', { socketId: socket.id, ip: socket.ip })
   // io.to(socket.id).emit('message', 'Welcome to server')

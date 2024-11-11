@@ -169,7 +169,7 @@ const selectPublicFilesNotOwned = storageDb.prepare(
  * @param {string} description - The description of the file.
  * @return {void} This function does not return a value.
  */
-export const addFileToDatabase = (
+export const addFileToDatabase = ({
   name,
   id,
   userId,
@@ -179,7 +179,7 @@ export const addFileToDatabase = (
   parentFolderId,
   size,
   description
-) => {
+}) => {
   insertFile.run(
     id,
     name,

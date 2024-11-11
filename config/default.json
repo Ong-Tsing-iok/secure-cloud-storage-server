@@ -11,8 +11,7 @@
     "key": "server.key",
     "cert": "server.crt",
     "https": {
-      "port": 3001,
-      "uploadSizeLimit": "5gb"
+      "port": 3001
     },
     "ftps": {
       "port": 7002

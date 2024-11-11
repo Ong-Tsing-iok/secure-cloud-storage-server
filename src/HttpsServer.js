@@ -1,11 +1,16 @@
-import { readFileSync, unlink } from 'fs'
+import { readFileSync } from 'fs'
 import express from 'express'
 import { createServer } from 'https'
 import { logger } from './Logger.js'
-import { mkdir } from 'fs/promises'
+import { mkdir, unlink } from 'fs/promises'
 import multer from 'multer'
 import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
-import { addFileToDatabase, getFolderInfo, getFileInfo, deleteFileOfOwnerId } from './StorageDatabase.js'
+import {
+  addFileToDatabase,
+  getFolderInfo,
+  getFileInfo,
+  deleteFileOfOwnerId
+} from './StorageDatabase.js'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 import ConfigManager from './ConfigManager.js'
@@ -32,7 +37,7 @@ const storage = multer.diskStorage({
     cb(null, randomUUID())
   },
   limits: {
-    fileSize: ConfigManager.httpsUploadSizeLimit
+    fileSize: 8000000
   }
 })
 const upload = multer({ storage: storage })
@@ -112,7 +117,7 @@ const checkUpload = (req, res, next) => {
   req.uploadInfo = uploadInfo
   next()
 }
-app.post('/upload', auth, checkUpload, upload.single('file'), (req, res) => {
+app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res) => {
   try {
     if (req.file) {
       logger.info(`User uploaded a file`, {
@@ -123,17 +128,16 @@ app.post('/upload', auth, checkUpload, upload.single('file'), (req, res) => {
         uuid: req.file.filename,
         protocol: 'https'
       })
-      addFileToDatabase(
-        req.file.originalname,
-        req.file.filename,
-        req.userId,
-        req.userId,
-        req.uploadInfo.keyCipher,
-        req.uploadInfo.ivCipher,
-        req.uploadInfo.parentFolderId,
-        req.file.size,
-        null
-      )
+      addFileToDatabase({
+        name: req.file.originalname,
+        id: req.file.filename,
+        userId: req.userId,
+        originOwnerId: req.userId,
+        keyCipher: req.uploadInfo.keyCipher,
+        ivCipher: req.uploadInfo.ivCipher,
+        parentFolderId: req.uploadInfo.parentFolderId,
+        size: req.file.size
+      })
       res.send('File uploaded successfully')
     } else {
       res.status(400).send('No file uploaded')
@@ -144,16 +148,19 @@ app.post('/upload', auth, checkUpload, upload.single('file'), (req, res) => {
       userId: req.userId,
       protocol: 'https'
     })
-    unlink(req.file.path, (err) => {
-      if (err) {
-        logger.error(err, {
+    try {
+      deleteFileOfOwnerId(req.file.filename, req.userId)
+      await unlink(req.file.path)
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        logger.error(error, {
           ip: req.ip,
           userId: req.userId,
           protocol: 'https'
         })
       }
-    })
-    deleteFileOfOwnerId(req.file.filename, req.userId)
+    }
+
     res.sendStatus(500)
   }
 })

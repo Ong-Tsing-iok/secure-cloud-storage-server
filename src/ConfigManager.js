@@ -1,11 +1,11 @@
 import config from 'config'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
-import { logger } from './Logger'
+import { logger } from './Logger.js'
 
 const getConfig = (key) => {
   if (config.has(key)) {
-    return getConfig(key)
+    return config.get(key)
   }
   logger.error(`Config ${key} not found`)
   return undefined
@@ -17,10 +17,6 @@ class ConfigManager {
     // TODO: if not exist, create
     try {
       this.directoryConfig = getConfig('directories')
-      this.databaseConfig = getConfig('database')
-      this.serverConfig = getConfig('server')
-      this.httpsConfig = getConfig('server.https')
-      this.ftpsConfig = getConfig('server.ftps')
       for (const key in this.directoryConfig) {
         if (!existsSync(join(this.directoryConfig.root, this.directoryConfig[key]))) {
           mkdirSync(join(this.directoryConfig.root, this.directoryConfig[key]))
@@ -29,10 +25,10 @@ class ConfigManager {
     } catch (error) {}
   }
   get uploadDir() {
-    return join(this.directoryConfig.root, this.directoryConfig.upload)
+    return join(getConfig('directories.root'), getConfig('directories.uploads'))
   }
   get databasePath() {
-    return join(this.directoryConfig.root, this.directoryConfig.database, 'storage.db')
+    return join(getConfig('directories.root'), getConfig('directories.database'), getConfig('database.name'))
   }
   get serverCertPath() {
     return join(getConfig('directories.root'), getConfig('directories.certs'), getConfig('server.cert'))
@@ -49,12 +45,8 @@ class ConfigManager {
   get httpsPort() {
     return getConfig('server.https.port')
   }
-  get httpsUploadSizeLimit() {
-    const uploadSizeLimit = getConfig('server.https.uploadSizeLimit')
-    if (uploadSizeLimit.endsWith('gb')) {
-      return parseInt(uploadSizeLimit.replace('gb', '')) * 1024 * 1024 * 1024
-    }
-    return 1024 * 1024 * 1024 // default to 1GB
+  get databaseLengthLimit() {
+    return getConfig('database.descMaxLength')
   }
 }
 

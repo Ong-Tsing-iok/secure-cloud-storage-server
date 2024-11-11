@@ -49,11 +49,12 @@ const authenticationBinder = (socket) => {
       socket.name = name
       socket.email = email
       const cipher = await CryptoHandler.encrypt(publicKey, socket.randKey)
+      console.log(cipher)
       cb(null, cipher)
       // Wait for login-auth
     } catch (error) {
       logger.error(error, { ip: socket.ip, publicKey, name, email })
-      cb('unexpected error')
+      cb('Internal server error')
     }
   })
   /**
@@ -91,7 +92,7 @@ const authenticationBinder = (socket) => {
       // logger.debug(`Asking client to respond with correct auth key`, { ip: socket.ip })
     } catch (error) {
       logger.error(error, { ip: socket.ip, publicKey })
-      cb('unexpected error')
+      cb('Internal server error')
     }
   })
 
@@ -149,7 +150,7 @@ const authenticationBinder = (socket) => {
       cb(null, { userId: socket.userId, name: socket.name, email: socket.email })
     } catch (error) {
       logger.error(error, { ip: socket.ip, userId: socket.userId })
-      cb('unexpected error')
+      cb('Internal server error')
     }
   })
 }

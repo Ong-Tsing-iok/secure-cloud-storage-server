@@ -1,6 +1,7 @@
 import { FtpSrv, FileSystem } from 'ftp-srv'
 import { logger } from './Logger.js'
-import { readFileSync, unlink } from 'fs'
+import { readFileSync } from 'fs'
+import { mkdir, unlink } from 'node:fs/promises'
 import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
 import { join, basename } from 'path'
 import { randomUUID } from 'crypto'
@@ -21,7 +22,7 @@ class CustomFileSystem extends FileSystem {
   write(fileName, { append, start }) {
     const uuid = randomUUID()
     const userId = basename(this.root)
-    addFileToDatabase(fileName, uuid, userId, userId)
+    addFileToDatabase({ name: fileName, id: uuid, userId, originOwnerId: userId })
     return super.write(uuid, { append, start })
   }
 }
@@ -31,12 +32,12 @@ const ftpServer = new FtpSrv({
   pasv_url: `ftp://${ConfigManager.serverHost}`,
   blacklist: ['MKD', 'DELE', 'RNFR', 'RNTO', 'RMD'],
   tls: {
-    key: readFileSync(join(ConfigManager.serverCertPath, 'server.key')),
-    cert: readFileSync('server.crt')
+    key: readFileSync(ConfigManager.serverKeyPath),
+    cert: readFileSync(ConfigManager.serverCertPath)
   }
 })
 
-ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
+ftpServer.on('login', async ({ connection, username, password }, resolve, reject) => {
   logger.info('User trying to authenticate', {
     ip: connection.ip,
     protocol: 'ftps',
@@ -57,6 +58,8 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
     }
 
     const rootPath = join(ConfigManager.uploadDir, userInfo.userId)
+    await mkdir(rootPath, { recursive: true })
+
     logger.info('User logged in', {
       ip: connection.ip,
       userId: userInfo.userId,
@@ -98,10 +101,10 @@ ftpServer.on('login', ({ connection, username, password }, resolve, reject) => {
       uploadId: password,
       protocol: 'ftps'
     })
-    reject(new Error('Unexpected error'))
+    reject(new Error('Internal server error'))
   }
 
-  connectionBinder(connection)
+  connectionBinder(connection, userInfo, uploadInfo)
 })
 
 const connectionBinder = (connection, userInfo, uploadInfo) => {
@@ -159,9 +162,19 @@ const connectionBinder = (connection, userInfo, uploadInfo) => {
         userId: userInfo.userId,
         protocol: 'ftps'
       })
-      unlink(fileName)
-      deleteFileOfOwnerId(basename(fileName), userInfo.userId)
-      emitToSocket(username, 'upload-file-res', 'Unexpected error')
+      try {
+        deleteFileOfOwnerId(basename(fileName), userInfo.userId)
+        await unlink(fileName)
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          logger.error(error, {
+            ip: connection.ip,
+            userId: userInfo.userId,
+            protocol: 'ftps'
+          })
+        }
+      }
+      emitToSocket(username, 'upload-file-res', 'Internal server error')
     }
   })
 }
