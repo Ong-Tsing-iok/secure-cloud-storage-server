@@ -24,20 +24,38 @@ class ConfigManager {
       }
     } catch (error) {}
   }
+  get cryptoPath() {
+    return join(getConfig('directories.root'), 'src', 'py', 'crypto.py')
+  }
   get uploadDir() {
     return join(getConfig('directories.root'), getConfig('directories.uploads'))
   }
   get databasePath() {
-    return join(getConfig('directories.root'), getConfig('directories.database'), getConfig('database.name'))
+    return join(
+      getConfig('directories.root'),
+      getConfig('directories.database'),
+      getConfig('database.name')
+    )
   }
   get serverCertPath() {
-    return join(getConfig('directories.root'), getConfig('directories.certs'), getConfig('server.cert'))
+    return join(
+      getConfig('directories.root'),
+      getConfig('directories.certs'),
+      getConfig('server.cert')
+    )
   }
   get serverKeyPath() {
-    return join(getConfig('directories.root'), getConfig('directories.certs'), getConfig('server.key'))
+    return join(
+      getConfig('directories.root'),
+      getConfig('directories.certs'),
+      getConfig('server.key')
+    )
   }
   get ftpsPort() {
-    return getConfig('server.ftps.port')
+    return getConfig('server.ftps.port.control')
+  }
+  get ftpsPasvPort() {
+    return getConfig('server.ftps.port.data')
   }
   get serverHost() {
     return getConfig('server.host')

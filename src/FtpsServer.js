@@ -29,7 +29,9 @@ class CustomFileSystem extends FileSystem {
 
 const ftpServer = new FtpSrv({
   url: `ftp://${ConfigManager.serverHost}:${ConfigManager.ftpsPort}`,
-  pasv_url: `ftp://${ConfigManager.serverHost}`,
+  pasv_url: `ftp://${ConfigManager.serverHost}:${ConfigManager.ftpsPasvPort}`,
+  pasv_min: ConfigManager.ftpsPasvPort,
+  pasv_max: ConfigManager.ftpsPasvPort,
   blacklist: ['MKD', 'DELE', 'RNFR', 'RNTO', 'RMD'],
   tls: {
     key: readFileSync(ConfigManager.serverKeyPath),
