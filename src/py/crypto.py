@@ -74,7 +74,7 @@ if len(sys.argv) > 1:
         serialized_params = {}
         for key, element in params.items():
             serialized_params[key] = serialize_group_element(element, groupObj)
-        print(json.dumps(serialized_params))
+        print(json.dumps(serialized_params), end='')
     elif args.keygen:
         '''
         output: pk\nsk
@@ -84,8 +84,8 @@ if len(sys.argv) > 1:
             
         params = retrieve_params(args.params)
         (pk, sk) = pre.keygen(params)
-        print(serialize_group_element(pk, groupObj))
-        print(serialize_group_element(sk, groupObj))
+        print(serialize_group_element(pk, groupObj), end='')
+        print(serialize_group_element(sk, groupObj), end='')
     elif args.encrypt:
         '''
         output: cipher
@@ -97,7 +97,7 @@ if len(sys.argv) > 1:
         pk = deserialize_group_element(args.pk, groupObj)
         msg = args.message.encode('utf-8')
         cipher = pre.encrypt(params, pk, msg)
-        print(serialize_cipher(cipher))
+        print(serialize_cipher(cipher), end='')
     elif args.decrypt:
         '''
         output: msg
@@ -113,7 +113,7 @@ if len(sys.argv) > 1:
             rk = pre.rekeygen(None, None, sk, pk, None)
             cipher = pre.re_encrypt(params, rk, cipher)
         m = pre.decrypt(params, sk, cipher)
-        print(m.decode('utf-8'))
+        print(m.decode('utf-8'), end='')
     elif args.rekeygen:
         '''
         output: rk
@@ -124,7 +124,7 @@ if len(sys.argv) > 1:
         pk_b = deserialize_group_element(args.pk, groupObj)
         sk_a = deserialize_group_element(args.sk, groupObj)
         rk = pre.rekeygen(None, None, sk_a, pk_b, None)
-        print(serialize_group_element(rk, groupObj))
+        print(serialize_group_element(rk, groupObj), end='')
     elif args.re_encrypt:
         '''
         output: cipher
@@ -136,4 +136,4 @@ if len(sys.argv) > 1:
         rk = deserialize_group_element(args.rekey, groupObj)
         cipher = retrieve_cipher(args.ciphertext)
         cipher = pre.re_encrypt(params, rk, cipher)
-        print(serialize_cipher(cipher))
+        print(serialize_cipher(cipher), end='')

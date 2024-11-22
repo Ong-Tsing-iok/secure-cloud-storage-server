@@ -25,7 +25,7 @@ class ConfigManager {
     } catch (error) {}
   }
   get cryptoPath() {
-    return join(getConfig('directories.root'), 'src', 'py', 'crypto.py')
+    return join(getConfig('directories.root'), 'src', 'py', 'crypto')
   }
   get uploadDir() {
     return join(getConfig('directories.root'), getConfig('directories.uploads'))

@@ -171,7 +171,7 @@ const selectPublicFilesNotOwned = storageDb.prepare(
  */
 export const addFileToDatabase = ({
   name,
-  id,
+  fileId,
   userId,
   originOwnerId,
   keyCipher,
@@ -181,7 +181,7 @@ export const addFileToDatabase = ({
   description
 }) => {
   insertFile.run(
-    id,
+    fileId,
     name,
     userId,
     originOwnerId,
