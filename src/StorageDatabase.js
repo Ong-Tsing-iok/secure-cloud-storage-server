@@ -11,6 +11,7 @@ storageDb.pragma('journal_mode = WAL')
 /**prepare tables */
 try {
   // user table
+  // status: stopped, activate, deleted
   storageDb
     .prepare(
       `CREATE TABLE IF NOT EXISTS users (
@@ -18,6 +19,7 @@ try {
       pk TEXT not null,
       name TEXT not null,
       email TEXT not null,
+      status TEXT not null,
       timestamp INTEGER default CURRENT_TIMESTAMP
       )`
     )
@@ -96,13 +98,31 @@ try {
 /**
  *! User Related Queries
  */
+export const userStatusType = Object.freeze({
+  activate: 'activate',
+  stopped: 'stopped',
+  deleted: 'deleted'
+})
 //* prepare queries
 const selectUserByKeys = storageDb.prepare('SELECT * FROM users WHERE pk = ?')
-const insertUser = storageDb.prepare('INSERT INTO users (id, pk, name, email) VALUES (?, ?, ?, ?)')
+const selectAllUsers = storageDb.prepare('SELECT * FROM users')
+const insertUser = storageDb.prepare('INSERT INTO users (id, pk, name, email, status) VALUES (?, ?, ?, ?, ?)')
+const updateUserStatus = storageDb.prepare('UPDATE users SET status = ? WHERE id = ?')
 
 //* functions
 export const getUserByKey = (pk) => {
   return selectUserByKeys.get(pk)
+}
+
+export const getAllUsers = () => {
+  return selectAllUsers.all()
+}
+
+export const updateUserStatusById = (id, status) => {
+  if (!Object.values(userStatusType).includes(status)) {
+    throw new Error('Invalid status')
+  }
+  return updateUserStatus.run(status, id)
 }
 /**
  * Adds a user to the database and returns the id of the added user.
@@ -115,7 +135,7 @@ export const getUserByKey = (pk) => {
  */
 export const AddUserAndGetId = (pk, name, email) => {
   const id = randomUUID().toString()
-  const info = insertUser.run(id, pk, name, email)
+  const info = insertUser.run(id, pk, name, email, userStatusType.activate)
   return { id, info }
 }
 
@@ -171,7 +191,7 @@ const selectPublicFilesNotOwned = storageDb.prepare(
  */
 export const addFileToDatabase = ({
   name,
-  fileId,
+  id,
   userId,
   originOwnerId,
   keyCipher,
@@ -181,7 +201,7 @@ export const addFileToDatabase = ({
   description
 }) => {
   insertFile.run(
-    fileId,
+    id,
     name,
     userId,
     originOwnerId,

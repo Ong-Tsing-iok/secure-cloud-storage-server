@@ -127,7 +127,7 @@ const requestBinder = (socket) => {
         const newUUID = randomUUID()
         addFileToDatabase({
           name: fileInfo.name,
-          fileId: newUUID,
+          id: newUUID,
           userId: requestObj.requester,
           originOwnerId: fileInfo.ownerId,
           keyCipher: newKeyCipher,

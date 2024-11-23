@@ -84,7 +84,7 @@ if len(sys.argv) > 1:
             
         params = retrieve_params(args.params)
         (pk, sk) = pre.keygen(params)
-        print(serialize_group_element(pk, groupObj), end='')
+        print(serialize_group_element(pk, groupObj))
         print(serialize_group_element(sk, groupObj), end='')
     elif args.encrypt:
         '''

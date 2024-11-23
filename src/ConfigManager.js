@@ -30,6 +30,9 @@ class ConfigManager {
   get uploadDir() {
     return join(getConfig('directories.root'), getConfig('directories.uploads'))
   }
+  get logDir() {
+    return join(getConfig('directories.root'), getConfig('directories.logs'))
+  }
   get databasePath() {
     return join(
       getConfig('directories.root'),

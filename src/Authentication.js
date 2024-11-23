@@ -1,4 +1,4 @@
-import { AddUserAndGetId, getUserByKey } from './StorageDatabase.js'
+import { AddUserAndGetId, getUserByKey, userStatusType } from './StorageDatabase.js'
 import { userDbLogin } from './LoginDatabase.js'
 import { __upload_dir, __crypto_filepath, keyFormatRe, __upload_dir_path } from './Constants.js'
 import { logger } from './Logger.js'
@@ -80,6 +80,11 @@ const authenticationBinder = (socket) => {
       if (!userInfo) {
         logger.warn(`Client login with unknown public key`, { ip: socket.ip, publicKey })
         cb('not registered')
+        return
+      }
+      if (userInfo.status === userStatusType.stopped) {
+        logger.warn(`Stopped client tried to login`, { ip: socket.ip, publicKey, userId: userInfo.id })
+        cb('user account is stopped')
         return
       }
       socket.userId = userInfo.id
