@@ -42,6 +42,9 @@ io.on('connection', (socket) => {
 const emitToSocket = (socketId, event, ...data) => {
   return io.to(socketId).emit(event, ...data)
 } 
+const disconnectSocket = (socketId) => {
+  return io.sockets.sockets.get(socketId).disconnect(true)
+}
 
 export default io
-export { emitToSocket }
+export { emitToSocket, disconnectSocket }

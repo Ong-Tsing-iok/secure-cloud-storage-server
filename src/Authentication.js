@@ -49,7 +49,6 @@ const authenticationBinder = (socket) => {
       socket.name = name
       socket.email = email
       const cipher = await CryptoHandler.encrypt(publicKey, socket.randKey)
-      console.log(cipher)
       cb(null, cipher)
       // Wait for login-auth
     } catch (error) {

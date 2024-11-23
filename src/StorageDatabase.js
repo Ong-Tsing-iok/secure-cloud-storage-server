@@ -34,17 +34,17 @@ try {
       id TEXT PRIMARY KEY not null,
       name TEXT not null,
       ownerId TEXT not null,
-      originOwnerId TEXT not null,
+      originOwnerId TEXT,
       permissions INTEGER not null,
       keyCipher TEXT,
       ivCipher TEXT,
       parentFolderId TEXT,
       size INTEGER,
-      description TEXT,
+      description TEXT default '',
       timestamp INTEGER default CURRENT_TIMESTAMP,
-      FOREIGN KEY(ownerId) REFERENCES users(id),
-      FOREIGN KEY(originOwnerId) REFERENCES users(id),
-      FOREIGN KEY(parentFolderId) REFERENCES folders(id)
+      FOREIGN KEY(ownerId) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(originOwnerId) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(parentFolderId) REFERENCES folders(id) ON DELETE SET NULL
       )`
     )
     .run()
@@ -59,8 +59,8 @@ try {
       permissions INTEGER not null,
       parentFolderId TEXT,
       timestamp INTEGER default CURRENT_TIMESTAMP,
-      FOREIGN KEY(ownerId) REFERENCES users(id),
-      FOREIGN KEY(parentFolderId) REFERENCES folders(id)
+      FOREIGN KEY(ownerId) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(parentFolderId) REFERENCES folders(id) ON DELETE SET NULL
       )`
     )
     .run()
@@ -108,6 +108,7 @@ const selectUserByKeys = storageDb.prepare('SELECT * FROM users WHERE pk = ?')
 const selectAllUsers = storageDb.prepare('SELECT * FROM users')
 const insertUser = storageDb.prepare('INSERT INTO users (id, pk, name, email, status) VALUES (?, ?, ?, ?, ?)')
 const updateUserStatus = storageDb.prepare('UPDATE users SET status = ? WHERE id = ?')
+const deleteUser = storageDb.prepare('DELETE FROM users WHERE id = ?')
 
 //* functions
 export const getUserByKey = (pk) => {
@@ -123,6 +124,10 @@ export const updateUserStatusById = (id, status) => {
     throw new Error('Invalid status')
   }
   return updateUserStatus.run(status, id)
+}
+
+export const deleteUserById = (id) => {
+  return deleteUser.run(id)
 }
 /**
  * Adds a user to the database and returns the id of the added user.
@@ -147,6 +152,7 @@ const insertFile = storageDb.prepare(
   'INSERT INTO files (id, name, ownerId, originOwnerId, keyCipher, ivCipher, parentFolderId, permissions, size, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 )
 const selectFileById = storageDb.prepare('SELECT * FROM files WHERE id = ?')
+const selectFilesByOwner = storageDb.prepare('SELECT * FROM files WHERE ownerId = ?')
 const selectFileByIdOwnerId = storageDb.prepare('SELECT * FROM files WHERE id = ? AND ownerId = ?')
 const updateFileById = storageDb.prepare(
   'UPDATE files SET keyCipher = ?, ivCipher = ?, parentFolderId = ?, size = ?, description = ? WHERE id = ?'
@@ -224,6 +230,10 @@ export const addFileToDatabase = ({
  */
 export const getFileInfo = (uuid) => {
   return selectFileById.get(uuid)
+}
+
+export const getFilesOfOwnerId = (userId) => {
+  return selectFilesByOwner.all(userId)
 }
 
 export const getFileInfoOfOwnerId = (uuid, userId) => {

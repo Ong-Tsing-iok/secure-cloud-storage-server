@@ -14,7 +14,8 @@ loginDb.pragma('journal_mode = WAL')
 const createLoginTable = loginDb.prepare(
   `CREATE TABLE IF NOT EXISTS users (
   socketId TEXT PRIMARY KEY not null, 
-  userId TEXT not null
+  userId TEXT not null,
+  timestamp INTEGER not null default CURRENT_TIMESTAMP
   )`
 )
 const createUploadsTable = loginDb.prepare(
@@ -47,6 +48,8 @@ const insertUserStmt = loginDb.prepare(`INSERT INTO users (socketId, userId) VAL
 
 const selectUserStmt = loginDb.prepare(`SELECT userId FROM users WHERE socketId = ?`)
 
+const selectAllUsersStmt = loginDb.prepare(`SELECT * FROM users`)
+
 const getSocketIdStmt = loginDb.prepare(`SELECT socketId FROM users WHERE userId = ?`)
 
 const removeUserStmt = loginDb.prepare(`DELETE FROM users WHERE socketId = ?`)
@@ -62,9 +65,7 @@ const removeUploadStmt = loginDb.prepare(`DELETE FROM uploads WHERE id = ?`)
 const removeUploadExpiredStmt = loginDb.prepare(`DELETE FROM uploads WHERE expires < ?`)
 
 // failure attempt table
-const insertFailureStmt = loginDb.prepare(
-  `INSERT INTO failures (id) VALUES (?)`  
-)
+const insertFailureStmt = loginDb.prepare(`INSERT INTO failures (id) VALUES (?)`)
 const increaseFailureCountStmt = loginDb.prepare(
   `UPDATE failures SET count = count + 1, timestamp = ? WHERE id = ?`
 )
@@ -80,6 +81,10 @@ const removeFailureExpiredStmt = loginDb.prepare(`DELETE FROM failures WHERE tim
  */
 const userDbLogin = (socketId, userId) => {
   insertUserStmt.run(socketId, userId)
+}
+
+export const getAllLoginUsers = () => {
+  return selectAllUsersStmt.all()
 }
 
 /**
@@ -121,6 +126,10 @@ const getUpload = (id) => {
   const uploadInfo = selectUploadStmt.get(id)
   removeUploadStmt.run(id)
   return uploadInfo
+}
+
+export const removeUpload = (id) => {
+  return removeUploadStmt.run(id)
 }
 
 export const addFailure = (id) => {
