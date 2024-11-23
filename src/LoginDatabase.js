@@ -1,7 +1,9 @@
 import sqlite from 'better-sqlite3'
 import { logger } from './Logger.js'
+import ConfigManager from './ConfigManager.js'
 
 const interval = 5 * 60 * 1000 // 5 minutes
+const failureExpireInterval = ConfigManager.loginAttemptsTimeout
 
 const loginDb = new sqlite(':memory:', {
   verbose: process.env.NODE_ENV !== 'production' ? console.log : null
@@ -25,9 +27,18 @@ const createUploadsTable = loginDb.prepare(
   )`
 )
 
+const createFailureTable = loginDb.prepare(
+  `CREATE TABLE IF NOT EXISTS failures (
+  id TEXT PRIMARY KEY not null, 
+  timestamp INTEGER not null default CURRENT_TIMESTAMP,
+  count INTEGER not null default 0
+  )`
+)
+
 try {
   createLoginTable.run()
   createUploadsTable.run()
+  createFailureTable.run()
 } catch (error) {
   logger.error(`Error creating login database: ${error}`)
 }
@@ -49,6 +60,16 @@ const selectUploadStmt = loginDb.prepare(`SELECT * FROM uploads WHERE id = ?`)
 const removeUploadStmt = loginDb.prepare(`DELETE FROM uploads WHERE id = ?`)
 
 const removeUploadExpiredStmt = loginDb.prepare(`DELETE FROM uploads WHERE expires < ?`)
+
+// failure attempt table
+const insertFailureStmt = loginDb.prepare(
+  `INSERT INTO failures (id) VALUES (?)`  
+)
+const increaseFailureCountStmt = loginDb.prepare(
+  `UPDATE failures SET count = count + 1, timestamp = ? WHERE id = ?`
+)
+const selectFailureStmt = loginDb.prepare(`SELECT * FROM failures WHERE id = ?`)
+const removeFailureExpiredStmt = loginDb.prepare(`DELETE FROM failures WHERE timestamp < ?`)
 
 /**
  * Inserts a user into the database with the given socket ID and user ID.
@@ -102,9 +123,25 @@ const getUpload = (id) => {
   return uploadInfo
 }
 
+export const addFailure = (id) => {
+  const result = increaseFailureCountStmt.run(Date.now(), id)
+  if (result.changes === 0) {
+    return insertFailureStmt.run(id)
+  }
+  return result
+}
+
+export const getFailure = (id) => {
+  return selectFailureStmt.get(id)
+}
+
 setInterval(() => {
   removeUploadExpiredStmt.run(Date.now())
 }, interval)
+
+setInterval(() => {
+  removeFailureExpiredStmt.run(Date.now())
+}, failureExpireInterval)
 
 export { userDbLogin, checkUserLoggedIn, getSocketId, userDbLogout, insertUpload, getUpload }
 

@@ -9,10 +9,10 @@ import Table from 'tty-table'
 const queryDatabase = async () => {
   while (true) {
     const action = await select({
-      message: 'What do you want to do?',
+      message: '選擇要執行的指令',
       choices: [
-        { name: 'Get users', value: 'get-users' },
-        { name: 'Return', value: 'return' }
+        { name: '列出所有使用者', value: 'get-users' },
+        { name: '返回', value: 'return' }
       ]
     })
     switch (action) {
@@ -28,7 +28,6 @@ const queryDatabase = async () => {
         ]
         const users = getAllUsers()
         const p = new Table(header, users).render()
-        // p.push(users)
         console.log(p)
         break
       case 'return':
@@ -41,7 +40,7 @@ const queryDatabase = async () => {
 const manageAccounts = async () => {
   while (true) {
     const action = await select({
-      message: 'What do you want to do?',
+      message: '選擇要執行的指令',
       choices: [
         { name: '啟用帳號', value: 'activate-account' },
         { name: '停用帳號', value: 'stop-account' },
@@ -49,23 +48,48 @@ const manageAccounts = async () => {
       ]
     })
     if (action === 'return') return
-    userId = await input({
+    const userId = await input({
       message: '請輸入使用者ID',
       type: 'string'
     })
     try {
       switch (action) {
         case 'stop-account':
-          logger.info('manage account', { admin: true, userId, action })
-          updateUserStatusById(userId, userStatusType.stopped)
+          {
+            const result = updateUserStatusById(userId, userStatusType.stopped)
+            if (result.changes === 0) {
+              console.log('查無此使用者')
+            } else {
+              console.log('停用成功')
+            }
+            logger.info('manage account', {
+              admin: true,
+              userId,
+              action,
+              success: result.changes > 0
+            })
+          }
           break
         case 'activate-account':
-          logger.info('manage account', { admin: true, userId, action })
-          updateUserStatusById(userId, userStatusType.activate)
+          {
+            const result = updateUserStatusById(userId, userStatusType.activate)
+            if (result.changes === 0) {
+              console.log('查無此使用者')
+            } else {
+              console.log('啟用成功')
+            }
+            logger.info('manage account', {
+              admin: true,
+              userId,
+              action,
+              success: result.changes > 0
+            })
+          }
           break
       }
     } catch (error) {
       logger.error(error, { admin: true, userId, action })
+      console.log('指令執行失敗: ' + error)
     }
 
     break
@@ -76,9 +100,9 @@ while (true) {
   const action = await select({
     message: '選擇要執行的指令',
     choices: [
-      { name: 'Query Database', value: 'database' },
-      { name: 'Manage accounts', value: 'accounts' },
-      { name: 'Exit', value: 'exit' }
+      { name: '查看資料庫', value: 'database' },
+      { name: '管理帳號', value: 'accounts' },
+      { name: '離開', value: 'exit' }
     ]
   })
   switch (action) {

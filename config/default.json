@@ -23,5 +23,9 @@
   "database": {
     "name": "storage.db",
     "descMaxLength": 2000
+  },
+  "loginAttempts": {
+    "limit": 5,
+    "timeout": 15 // in minutes
   }
 }

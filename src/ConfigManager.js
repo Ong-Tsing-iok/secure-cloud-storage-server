@@ -69,6 +69,12 @@ class ConfigManager {
   get databaseLengthLimit() {
     return getConfig('database.descMaxLength')
   }
+  get loginAttemptsLimit() {
+    return parseInt(getConfig('loginAttempts.limit'))
+  }
+  get loginAttemptsTimeout() {
+    return parseFloat(getConfig('loginAttempts.timeout')) * 60 * 1000
+  }
 }
 
 export default new ConfigManager()

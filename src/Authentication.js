@@ -1,5 +1,5 @@
 import { AddUserAndGetId, getUserByKey, userStatusType } from './StorageDatabase.js'
-import { userDbLogin } from './LoginDatabase.js'
+import { addFailure, getFailure, userDbLogin } from './LoginDatabase.js'
 import { __upload_dir, __crypto_filepath, keyFormatRe, __upload_dir_path } from './Constants.js'
 import { logger } from './Logger.js'
 import CryptoHandler from './CryptoHandler.js'
@@ -83,10 +83,26 @@ const authenticationBinder = (socket) => {
         return
       }
       if (userInfo.status === userStatusType.stopped) {
-        logger.warn(`Stopped client tried to login`, { ip: socket.ip, publicKey, userId: userInfo.id })
+        logger.warn(`Stopped client tried to login`, {
+          ip: socket.ip,
+          publicKey,
+          userId: userInfo.id
+        })
         cb('user account is stopped')
         return
       }
+
+      // Check login attempts
+      const failureInfo = getFailure(userInfo.id)
+      if (failureInfo && failureInfo.failures > ConfigManager.loginAttemptsLimit) {
+        logger.warn(`Block client for too many login attempts`, {
+          ip: socket.ip,
+          userId: userInfo.id
+        })
+        cb('too many login attempts')
+        return
+      }
+
       socket.userId = userInfo.id
       socket.randKey = randomUUID()
       socket.pk = publicKey
@@ -119,6 +135,7 @@ const authenticationBinder = (socket) => {
         decodeValue,
         randKey: socket.randKey
       })
+      addFailure(socket.userId)
       cb('incorrect authentication key')
       return
     }
