@@ -105,14 +105,20 @@ export const userStatusType = Object.freeze({
 })
 //* prepare queries
 const selectUserByKeys = storageDb.prepare('SELECT * FROM users WHERE pk = ?')
+const selectUserById = storageDb.prepare('SELECT * FROM users WHERE id = ?')
 const selectAllUsers = storageDb.prepare('SELECT * FROM users')
 const insertUser = storageDb.prepare('INSERT INTO users (id, pk, name, email, status) VALUES (?, ?, ?, ?, ?)')
 const updateUserStatus = storageDb.prepare('UPDATE users SET status = ? WHERE id = ?')
+const updateUserInfo = storageDb.prepare('UPDATE users SET name = ?, email = ? WHERE id = ?')
 const deleteUser = storageDb.prepare('DELETE FROM users WHERE id = ?')
 
 //* functions
 export const getUserByKey = (pk) => {
   return selectUserByKeys.get(pk)
+}
+
+export const getUserById = (id) => {
+  return selectUserById.get(id)
 }
 
 export const getAllUsers = () => {
@@ -124,6 +130,10 @@ export const updateUserStatusById = (id, status) => {
     throw new Error('Invalid status')
   }
   return updateUserStatus.run(status, id)
+}
+
+export const updateUserInfoById = (id, name, email) => {
+  return updateUserInfo.run(name, email, id)
 }
 
 export const deleteUserById = (id) => {

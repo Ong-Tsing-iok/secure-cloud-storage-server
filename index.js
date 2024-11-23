@@ -8,6 +8,8 @@ import {
   deleteUserById,
   getAllUsers,
   getFilesOfOwnerId,
+  getUserById,
+  updateUserInfoById,
   updateUserStatusById,
   userStatusType
 } from './src/StorageDatabase.js'
@@ -15,6 +17,27 @@ import {
 import Table from 'tty-table'
 import { getAllLoginUsers, getSocketId, removeUpload } from './src/LoginDatabase.js'
 import ConfigManager from './src/ConfigManager.js'
+import { emailFormatRe } from './src/Constants.js'
+
+const controller = new AbortController()
+const stdin = process.stdin
+stdin.resume()
+
+// i don't want binary, do you?
+stdin.setEncoding('utf8')
+
+// on any data into stdin
+stdin.on('data', function (key) {
+  // ctrl-c ( end of text )
+  if (key === '\u0003') {
+    process.exit()
+  }
+  if (key === '\u001b') {
+    controller.abort()
+  }
+  // write the key to stdout all normal like
+  // process.stdout.write(key)
+})
 
 const queryDatabase = async () => {
   while (true) {
@@ -58,24 +81,23 @@ const queryDatabase = async () => {
           console.log(p)
           success = true
           break
-        case 'get-files-of-user':
-          {
-            const userId = await input({
-              message: '請輸入使用者ID'
-            })
-            const header = [
-              { value: 'id', align: 'left' },
-              { value: 'name', align: 'left' },
-              { value: 'size', align: 'left' },
-              { value: 'permissions', align: 'left' },
-              { value: 'description', align: 'left' },
-              { value: 'timestamp', alias: 'created time', align: 'left' }
-            ]
-            const files = getFilesOfOwnerId(userId)
-            const p = new Table(header, files).render()
-            console.log(p)
-            success = true
-          }
+        case 'get-files-of-user': {
+          const userId = await input({
+            message: '請輸入使用者ID'
+          })
+          const header = [
+            { value: 'id', align: 'left' },
+            { value: 'name', align: 'left' },
+            { value: 'size', align: 'left' },
+            { value: 'permissions', align: 'left' },
+            { value: 'description', align: 'left' },
+            { value: 'timestamp', alias: 'created time', align: 'left' }
+          ]
+          const files = getFilesOfOwnerId(userId)
+          const p = new Table(header, files).render()
+          console.log(p)
+          success = true
+        }
         case 'return':
           return
       }
@@ -123,6 +145,52 @@ const deleteAccount = async (userId) => {
   return success
 }
 
+const updateAccount = async (userInfo) => {
+  let success = false
+  try {
+    const name = await input(
+      {
+        message: '請輸入使用者名稱',
+        type: 'string',
+        required: true,
+        default: userInfo.name
+      },
+      { signal: controller.signal }
+    )
+    const email = await input(
+      {
+        message: '請輸入使用者Email',
+        type: 'string',
+        required: true,
+        default: userInfo.email,
+        validate: (email) => {
+          if (!emailFormatRe.test(email)) {
+            return 'Email格式不正確'
+          }
+          return true
+        }
+      },
+      { signal: controller.signal }
+    )
+    updateUserInfoById(userInfo.id, name, email)
+    console.log('更新成功')
+    logger.info('successfully updated account', {
+      userId: userInfo.id,
+      name,
+      email,
+      adminAction: 'update-account'
+    })
+    success = true
+  } catch (error) {
+    if (error.name === 'AbortPromptError') {
+      console.log('更新已取消')
+    } else {
+      throw error
+    }
+  }
+  return success
+}
+
 const manageAccounts = async () => {
   while (true) {
     let success = false
@@ -132,51 +200,55 @@ const manageAccounts = async () => {
         { name: '啟用帳號', value: 'activate-account' },
         { name: '停用帳號', value: 'stop-account' },
         { name: '刪除帳號', value: 'delete-account' },
+        { name: '更新帳號資訊', value: 'update-account' },
         { name: '返回', value: 'return' }
       ]
     })
     if (adminAction === 'return') return
+
     const userId = await input({
       message: '請輸入使用者ID',
       type: 'string'
     })
     try {
+      const userInfo = getUserById(userId)
+      if (!userInfo) {
+        console.log('查無此使用者')
+        break
+      }
       switch (adminAction) {
         case 'stop-account':
           {
-            const result = updateUserStatusById(userId, userStatusType.stopped)
-            if (result.changes === 0) {
-              console.log('查無此使用者')
-            } else {
-              const loginInfo = getSocketId(userId)
-              if (loginInfo) {
-                disconnectSocket(loginInfo.socketId)
-              }
-              console.log('停用成功')
-              success = true
+            updateUserStatusById(userId, userStatusType.stopped)
+            const loginInfo = getSocketId(userId)
+            if (loginInfo) {
+              disconnectSocket(loginInfo.socketId)
             }
+            console.log('停用成功')
+            success = true
           }
           break
         case 'activate-account':
           {
-            const result = updateUserStatusById(userId, userStatusType.activate)
-            if (result.changes === 0) {
-              console.log('查無此使用者')
-            } else {
-              console.log('啟用成功')
-              success = true
-            }
+            updateUserStatusById(userId, userStatusType.activate)
+            console.log('啟用成功')
+            success = true
           }
           break
         case 'delete-account':
           success = await deleteAccount(userId)
           break
+        case 'update-account':
+          success = await updateAccount(userInfo)
+          break
       }
     } catch (error) {
       logger.error(error, { userId, adminAction })
       console.log('指令執行失敗: ' + error)
+    } finally {
+      logger.info('manage accounts', { userId, adminAction, success })
     }
-    logger.info('manage accounts', { userId, adminAction, success })
+
     break
   }
 }

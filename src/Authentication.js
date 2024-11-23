@@ -1,6 +1,6 @@
 import { AddUserAndGetId, getUserByKey, userStatusType } from './StorageDatabase.js'
 import { addFailure, getFailure, userDbLogin } from './LoginDatabase.js'
-import { __upload_dir, __crypto_filepath, keyFormatRe, __upload_dir_path } from './Constants.js'
+import { __upload_dir, __crypto_filepath, keyFormatRe, __upload_dir_path, emailFormatRe } from './Constants.js'
 import { logger } from './Logger.js'
 import CryptoHandler from './CryptoHandler.js'
 import { mkdir } from 'node:fs/promises'
@@ -8,7 +8,6 @@ import { join } from 'node:path'
 import { randomUUID } from 'crypto'
 import ConfigManager from './ConfigManager.js'
 
-const emailFormatRe = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/
 const checkValidString = (str) => {
   return str && typeof str === 'string' && str.length > 0
 }

@@ -10,5 +10,6 @@ const __upload_dir = 'uploads'
 const __upload_dir_path = join(__dirname, __upload_dir)
 const __crypto_filepath = join(__dirname, 'src', 'py', 'crypto.py')
 const keyFormatRe = /^[a-zA-Z0-9+/=]+$/
+const emailFormatRe = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/
 
-export { __upload_dir, __crypto_filepath, keyFormatRe, __upload_dir_path, __dirname }
+export { __upload_dir, __crypto_filepath, keyFormatRe, emailFormatRe, __upload_dir_path, __dirname }
