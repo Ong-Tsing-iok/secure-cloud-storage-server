@@ -40,7 +40,7 @@ try {
       ivCipher TEXT,
       parentFolderId TEXT,
       size INTEGER,
-      description TEXT default '',
+      description TEXT not null default '',
       timestamp INTEGER default CURRENT_TIMESTAMP,
       FOREIGN KEY(ownerId) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY(originOwnerId) REFERENCES users(id) ON DELETE SET NULL,
@@ -71,7 +71,7 @@ try {
       id TEXT PRIMARY KEY not null,
       fileId TEXT not null,
       requester INTEGER not null,
-      description TEXT,
+      description TEXT not null default '',
       timestamp INTEGER default CURRENT_TIMESTAMP,
       FOREIGN KEY(fileId) REFERENCES files(id) ON DELETE CASCADE,
       FOREIGN KEY(requester) REFERENCES users(id) ON DELETE CASCADE
@@ -85,7 +85,7 @@ try {
       id TEXT PRIMARY KEY not null,
       requestId TEXT not null,
       agreed BOOLEAN not null,
-      description TEXT,
+      description TEXT not null default '',
       timestamp INTEGER default CURRENT_TIMESTAMP,
       FOREIGN KEY(requestId) REFERENCES requests(id) ON DELETE CASCADE
       )`
@@ -416,7 +416,7 @@ const selectRequestResponseFileByFileOwner = storageDb.prepare(
   `SELECT requests.id as requestId, requests.fileId, requests.requester, requests.description as requestDescription, requests.timestamp as requestTime,
   responses.agreed, responses.description as responseDescription, responses.timestamp as responseTime,
   files.name, files.ownerId, files.originOwnerId, files.permissions, files.parentFolderId, files.size, files.description, files.timestamp,
-  owners.pk, requesters.name as userName, requesters.email as userEmail
+  requesters.pk, requesters.name as userName, requesters.email as userEmail
   FROM requests LEFT JOIN responses ON responses.requestId = requests.id JOIN files ON requests.fileId = files.id
   JOIN users as owners ON files.ownerId = owners.id JOIN users as requesters ON requests.requester = requesters.id WHERE files.ownerId = ?`
 )
