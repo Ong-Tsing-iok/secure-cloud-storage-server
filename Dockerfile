@@ -1,11 +1,10 @@
-FROM node:22-alpine3.20
-RUN apk update && apk add --no-cache openssl=3.3.2-r1 && apk add --no-cache vim
-RUN apk add --no-cache tcpdump
+FROM node:22
+RUN apt-get update && apt-get install -y tcpdump && apt-get clean
 ENV NODE_ENV=production
 WORKDIR /usr/src/app
-COPY ["package.json", "package-lock.json*", "npm-shrinkwrap.json*", "./"]
-RUN npm install --production --silent && mv node_modules ../
-RUN rm -r /usr/local/lib/node_modules/npm/node_modules/cross-spawn/
+COPY ["package.json", "package-lock.json", "./"]
+RUN npm install --production && mv node_modules ../ \
+&& rm -r /usr/local/lib/node_modules/npm/node_modules/cross-spawn/
 # RUN rm -r /usr/lib/node_modules_20/npm/node_modules/cross-spawn/
 # RUN rm -r /usr/local/n/versions/node/18.20.5/lib/node_modules/npm/node_modules/cross-spawn/
 COPY src ./src

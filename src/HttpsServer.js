@@ -40,7 +40,7 @@ const storage = multer.diskStorage({
     fileSize: 8000000
   }
 })
-const upload = multer({ storage: storage })
+const upload = multer({ storage: storage, limits: { fileSize: 8000000 } })
 
 /**
  * Check authentication of the user based on the provided socket ID.
@@ -51,7 +51,7 @@ const upload = multer({ storage: storage })
  * @return {void} This function does not return a value.
  */
 const auth = (req, res, next) => {
-  if (!req.headers.socketid || !(typeof req.headers.socketid === 'string')) {
+  if (!req.headers.socketid || (typeof req.headers.socketid !== 'string')) {
     logger.warn('Socket Id not found in request headers', {
       ip: req.ip,
       protocol: 'https'
@@ -86,7 +86,7 @@ const auth = (req, res, next) => {
   }
 }
 const checkUpload = (req, res, next) => {
-  if (!req.headers.uploadid || !(typeof req.headers.uploadid === 'string')) {
+  if (!req.headers.uploadid || (typeof req.headers.uploadid !== 'string')) {
     logger.warn(`Upload Id not found in request headers`, {
       ip: req.ip,
       protocol: 'https'
@@ -166,7 +166,7 @@ app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res) =
 })
 
 app.get('/download', auth, (req, res) => {
-  if (!req.headers.uuid || !(typeof req.headers.socketid === 'string')) {
+  if (!req.headers.uuid || (typeof req.headers.socketid !== 'string')) {
     logger.info(`File Id not found in request headers`, {
       ip: req.ip,
       protocol: 'https'
@@ -220,7 +220,7 @@ app.get('/download', auth, (req, res) => {
 const options = {
   key: readFileSync(ConfigManager.serverKeyPath),
   cert: readFileSync(ConfigManager.serverCertPath),
-  maxHttpBufferSize: 1e8 // 100 MB TODO: May need to increase
+  maxHttpBufferSize: 1e8 // 100 MB, may need to increase
 }
 //? Redirect http to https?
 const server = createServer(options, app)

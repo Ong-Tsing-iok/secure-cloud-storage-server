@@ -6,14 +6,14 @@ import sys
 import json
 import argparse
 
-groupObj = PairingGroup('SS512')
-pre = NAL16b(groupObj)
+group_obj = PairingGroup('SS512')
+pre = NAL16b(group_obj)
 
 def retrieve_params(serialized_params_json):
     serialized_params = json.loads(serialized_params_json)
     params = {}
     for key, element in serialized_params.items():
-        params[key] = bytesToObject(element.encode('utf-8'), groupObj)
+        params[key] = bytesToObject(element.encode('utf-8'), group_obj)
     return params
 
 def retrieve_cipher(serialized_cipher_json):
@@ -23,14 +23,14 @@ def retrieve_cipher(serialized_cipher_json):
         if key == 'c3':
             cipher[key] = bytesToObject(element.encode('utf-8'), IntegerGroup())
         else:
-            cipher[key] = bytesToObject(element.encode('utf-8'), groupObj)
+            cipher[key] = bytesToObject(element.encode('utf-8'), group_obj)
     return cipher
 
-def serialize_group_element(object, groupObj):
-    return objectToBytes(object, groupObj).decode('utf-8')
+def serialize_group_element(object, group_obj):
+    return objectToBytes(object, group_obj).decode('utf-8')
 
-def deserialize_group_element(object, groupObj):
-    return bytesToObject(object.encode('utf-8'), groupObj)
+def deserialize_group_element(object, group_obj):
+    return bytesToObject(object.encode('utf-8'), group_obj)
 
 def serialize_cipher(cipher: dict):
     serialized_c = {}
@@ -38,7 +38,7 @@ def serialize_cipher(cipher: dict):
         if key == 'c3':
             serialized_c[key] = serialize_group_element(element, IntegerGroup())
         else:
-            serialized_c[key] = serialize_group_element(element, groupObj)
+            serialized_c[key] = serialize_group_element(element, group_obj)
     return json.dumps(serialized_c)
 
 def parser_setup():
@@ -64,8 +64,6 @@ parser = parser_setup()
 args = parser.parse_args()
 
 if len(sys.argv) > 1:
-    # for i in sys.argv:
-    #     print(i)
     if args.setup:
         '''
         output: params
@@ -73,7 +71,7 @@ if len(sys.argv) > 1:
         params = pre.setup()
         serialized_params = {}
         for key, element in params.items():
-            serialized_params[key] = serialize_group_element(element, groupObj)
+            serialized_params[key] = serialize_group_element(element, group_obj)
         print(json.dumps(serialized_params), end='')
     elif args.keygen:
         '''
@@ -84,8 +82,8 @@ if len(sys.argv) > 1:
             
         params = retrieve_params(args.params)
         (pk, sk) = pre.keygen(params)
-        print(serialize_group_element(pk, groupObj))
-        print(serialize_group_element(sk, groupObj), end='')
+        print(serialize_group_element(pk, group_obj))
+        print(serialize_group_element(sk, group_obj), end='')
     elif args.encrypt:
         '''
         output: cipher
@@ -94,7 +92,7 @@ if len(sys.argv) > 1:
             parser.error('--params --pk --message are required')
             
         params = retrieve_params(args.params)
-        pk = deserialize_group_element(args.pk, groupObj)
+        pk = deserialize_group_element(args.pk, group_obj)
         msg = args.message.encode('utf-8')
         cipher = pre.encrypt(params, pk, msg)
         print(serialize_cipher(cipher), end='')
@@ -106,8 +104,8 @@ if len(sys.argv) > 1:
             parser.error('--params --pk --sk --ciphertext are required')
             
         params = retrieve_params(args.params)
-        pk = deserialize_group_element(args.pk, groupObj)
-        sk = deserialize_group_element(args.sk, groupObj)
+        pk = deserialize_group_element(args.pk, group_obj)
+        sk = deserialize_group_element(args.sk, group_obj)
         cipher = retrieve_cipher(args.ciphertext)
         if args.owned:
             rk = pre.rekeygen(None, None, sk, pk, None)
@@ -121,10 +119,10 @@ if len(sys.argv) > 1:
         if args.pk == None or args.sk == None:
             parser.error('--pk --sk are required')
             
-        pk_b = deserialize_group_element(args.pk, groupObj)
-        sk_a = deserialize_group_element(args.sk, groupObj)
+        pk_b = deserialize_group_element(args.pk, group_obj)
+        sk_a = deserialize_group_element(args.sk, group_obj)
         rk = pre.rekeygen(None, None, sk_a, pk_b, None)
-        print(serialize_group_element(rk, groupObj), end='')
+        print(serialize_group_element(rk, group_obj), end='')
     elif args.re_encrypt:
         '''
         output: cipher
@@ -133,7 +131,7 @@ if len(sys.argv) > 1:
             parser.error('--params --rekey --ciphertext are required')
             
         params = retrieve_params(args.params)
-        rk = deserialize_group_element(args.rekey, groupObj)
+        rk = deserialize_group_element(args.rekey, group_obj)
         cipher = retrieve_cipher(args.ciphertext)
         cipher = pre.re_encrypt(params, rk, cipher)
         print(serialize_cipher(cipher), end='')

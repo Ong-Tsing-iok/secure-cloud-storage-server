@@ -18,7 +18,7 @@ const io = new Server(server, {
 
 io.on('connection', (socket) => {
   socket.ip = socket.handshake.address
-  // TODO: may need to get address from header if server is behind a proxy
+  // May need to get address from header if server is behind a proxy
   // See https://socket.io/how-to/get-the-ip-address-of-the-client
   logger.info('Client connected', { socketId: socket.id, ip: socket.ip })
   // io.to(socket.id).emit('message', 'Welcome to server')
@@ -30,7 +30,7 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     logger.info('Client disconnected', { socketId: socket.id, ip: socket.ip })
-    // TODO: maybe move to Authentication.js?
+    // Maybe move to Authentication.js?
     userDbLogout(socket.id)
   })
 
@@ -46,5 +46,5 @@ const disconnectSocket = (socketId) => {
   return io.sockets.sockets.get(socketId).disconnect(true)
 }
 
-export default io
+// export default io
 export { emitToSocket, disconnectSocket }

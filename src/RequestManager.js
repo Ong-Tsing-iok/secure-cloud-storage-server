@@ -13,7 +13,6 @@ import { getSocketId } from './LoginDatabase.js'
 import CryptoHandler from './CryptoHandler.js'
 import { randomUUID } from 'crypto'
 import { copyFile } from 'fs/promises'
-import { __upload_dir_path } from './Constants.js'
 import { join } from 'path'
 import { logger } from './Logger.js'
 import ConfigManager from './ConfigManager.js'
@@ -119,7 +118,6 @@ const requestBinder = (socket) => {
       }
       // console.log(requestId, agreed, description)
       addResponse(requestId, agreed ? 1 : 0, description)
-      cb(null) // TODO: maybe move after copy file?
       if (agreed) {
         const fileInfo = getFileInfo(requestObj.fileId)
         const newKeyCipher = await CryptoHandler.reencrypt(rekey, fileInfo.keyCipher)
@@ -152,6 +150,7 @@ const requestBinder = (socket) => {
       if (requesterSocketIdObj) {
         emitToSocket(requesterSocketIdObj.socketId, 'new-response')
       }
+      cb(null)
     } catch (error) {
       logger.error(error, {
         ip: socket.ip,

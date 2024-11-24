@@ -1,6 +1,6 @@
 import { AddUserAndGetId, getUserByKey, userStatusType } from './StorageDatabase.js'
 import { addFailure, getFailure, userDbLogin } from './LoginDatabase.js'
-import { __upload_dir, __crypto_filepath, keyFormatRe, __upload_dir_path, emailFormatRe } from './Constants.js'
+import { keyFormatRe, emailFormatRe } from './Utils.js'
 import { logger } from './Logger.js'
 import CryptoHandler from './CryptoHandler.js'
 import { mkdir } from 'node:fs/promises'
@@ -127,19 +127,20 @@ const authenticationBinder = (socket) => {
       cb('invalid authentication key')
       return
     }
-    if (socket.randKey !== decodeValue) {
-      logger.warn(`Client sent incorrect auth key`, {
-        ip: socket.ip,
-        decodeValue,
-        randKey: socket.randKey
-      })
-      addFailure(socket.userId)
-      cb('incorrect authentication key')
-      return
-    }
-
-    logger.info(`Client is authenticated`, { ip: socket.ip, userId: socket.userId })
     try {
+      if (socket.randKey !== decodeValue) {
+        logger.warn(`Client sent incorrect auth key`, {
+          ip: socket.ip,
+          decodeValue,
+          randKey: socket.randKey
+        })
+        if (socket.userId) addFailure(socket.userId)
+        cb('incorrect authentication key')
+        return
+      }
+
+      logger.info(`Client is authenticated`, { ip: socket.ip, userId: socket.userId })
+
       if (!socket.userId) {
         // register
         const { id, info } = AddUserAndGetId(socket.pk, socket.name, socket.email)
@@ -176,3 +177,4 @@ const authenticationBinder = (socket) => {
 }
 
 export default authenticationBinder
+

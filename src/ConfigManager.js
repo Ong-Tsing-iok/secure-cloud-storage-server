@@ -1,5 +1,5 @@
 import config from 'config'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 import { logger } from './Logger.js'
 
@@ -13,8 +13,6 @@ const getConfig = (key) => {
 
 class ConfigManager {
   constructor() {
-    // TODO: first check if exist
-    // TODO: if not exist, create
     try {
       this.directoryConfig = getConfig('directories')
       for (const key in this.directoryConfig) {
@@ -25,7 +23,7 @@ class ConfigManager {
     } catch (error) {}
   }
   get cryptoPath() {
-    return join(getConfig('directories.root'), 'src', 'py', 'crypto')
+    return resolve(getConfig('directories.root'), 'src', 'py', 'crypto')
   }
   get uploadDir() {
     return join(getConfig('directories.root'), getConfig('directories.uploads'))

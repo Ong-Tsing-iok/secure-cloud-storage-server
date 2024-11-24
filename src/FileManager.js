@@ -12,9 +12,8 @@ import {
   getFileInfoOfOwnerId,
   updateFileDescPermInDatabase
 } from './StorageDatabase.js'
-import { unlink, stat } from 'fs/promises'
+import { unlink } from 'fs/promises'
 import { join } from 'path'
-import { __upload_dir, __dirname } from './Constants.js'
 import { randomUUID } from 'crypto'
 import { insertUpload } from './LoginDatabase.js'
 import { checkFolderExistsForUser, checkLoggedIn } from './Utils.js'
@@ -104,7 +103,7 @@ const deleteFileBinder = (socket) => {
           cb('permission denied')
         } else {
           deleteFile(uuid)
-          await unlink(join(__dirname, __upload_dir, socket.userId, uuid))
+          await unlink(join(ConfigManager.uploadDir, socket.userId, uuid))
           logger.info(`File deleted`, {
             ip: socket.ip,
             userId: socket.userId,

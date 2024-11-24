@@ -1,5 +1,7 @@
 import { logger } from './Logger.js'
 import { getFolderInfoOfOwnerId } from './StorageDatabase.js'
+const keyFormatRe = /^[a-zA-Z0-9+/=]+$/
+const emailFormatRe = /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/
 
 const checkLoggedIn = (socket) => {
   if (!socket.authed) {
@@ -14,10 +16,7 @@ const checkFolderExistsForUser = (folderId, userId) => {
   if (!folderId) {
     return true
   }
-  if (!getFolderInfoOfOwnerId(folderId, userId)) {
-    return false
-  }
-  return true
+  return !!getFolderInfoOfOwnerId(folderId, userId)
 }
 
-export { checkLoggedIn, checkFolderExistsForUser }
+export { checkLoggedIn, checkFolderExistsForUser, keyFormatRe, emailFormatRe }

@@ -45,8 +45,8 @@ ftpServer.on('login', async ({ connection, username, password }, resolve, reject
     protocol: 'ftps',
     userId: username
   })
-  let uploadInfo = undefined
-  let userInfo = undefined
+  let uploadInfo
+  let userInfo
   try {
     userInfo = checkUserLoggedIn(username)
     if (!userInfo) {
@@ -182,7 +182,3 @@ const connectionBinder = (connection, userInfo, uploadInfo) => {
 }
 
 export default ftpServer
-
-ftpServer.listen().then(() => {
-  logger.info(`Ftp server listening on port ${ConfigManager.ftpsPort}`)
-})
