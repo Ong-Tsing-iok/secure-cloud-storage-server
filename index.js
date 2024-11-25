@@ -89,9 +89,11 @@ const queryDatabase = async () => {
         break
       case 'get-files-of-user':
         {
-          const userId = await input({
-            message: '請輸入使用者ID'
-          })
+          const userId = (
+            await input({
+              message: '請輸入使用者ID'
+            })
+          ).trim()
           const header = [
             { value: 'id', align: 'left' },
             { value: 'name', align: 'left' },
@@ -150,30 +152,34 @@ const deleteAccount = async (userId) => {
 const updateAccount = async (userInfo) => {
   let success = false
   try {
-    const name = await input(
-      {
-        message: '請輸入使用者名稱',
-        type: 'string',
-        required: true,
-        default: userInfo.name
-      },
-      { signal: controller.signal }
-    )
-    const email = await input(
-      {
-        message: '請輸入使用者Email',
-        type: 'string',
-        required: true,
-        default: userInfo.email,
-        validate: (email) => {
-          if (!emailFormatRe.test(email)) {
-            return 'Email格式不正確'
+    const name = (
+      await input(
+        {
+          message: '請輸入使用者名稱',
+          type: 'string',
+          required: true,
+          default: userInfo.name
+        },
+        { signal: controller.signal }
+      )
+    ).trim()
+    const email = (
+      await input(
+        {
+          message: '請輸入使用者Email',
+          type: 'string',
+          required: true,
+          default: userInfo.email,
+          validate: (email) => {
+            if (!emailFormatRe.test(email)) {
+              return 'Email格式不正確'
+            }
+            return true
           }
-          return true
-        }
-      },
-      { signal: controller.signal }
-    )
+        },
+        { signal: controller.signal }
+      )
+    ).trim()
     updateUserInfoById(userInfo.id, name, email)
     console.log('更新成功')
     logger.info('successfully updated account', {
@@ -207,10 +213,12 @@ const manageAccounts = async () => {
   })
   if (adminAction === 'return') return
 
-  const userId = await input({
-    message: '請輸入使用者ID',
-    type: 'string'
-  })
+  const userId = (
+    await input({
+      message: '請輸入使用者ID',
+      type: 'string'
+    })
+  ).trim()
   try {
     const userInfo = getUserById(userId)
     if (!userInfo) {
