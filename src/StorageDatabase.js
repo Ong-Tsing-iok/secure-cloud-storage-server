@@ -202,7 +202,6 @@ const selectPublicFilesNotOwned = storageDb.prepare(
  * @param {string} ivCipher - The cipher for the initialization vector.
  * @param {string} parentFolderId - The ID of the parent folder.
  * @param {number} size - The size of the file in bytes.
- * @param {string} description - The description of the file.
  * @return {void} This function does not return a value.
  */
 export const addFileToDatabase = ({
@@ -213,8 +212,7 @@ export const addFileToDatabase = ({
   keyCipher,
   ivCipher,
   parentFolderId,
-  size,
-  description
+  size
 }) => {
   insertFile.run(
     id,
@@ -226,7 +224,7 @@ export const addFileToDatabase = ({
     parentFolderId,
     0,
     size,
-    description
+    ''
   )
 }
 
@@ -258,7 +256,6 @@ export const getFileInfoOfOwnerId = (uuid, userId) => {
  * @param {string} ivCipher - The cipher for the initialization vector.
  * @param {string} parentFolderId - The ID of the parent folder.
  * @param {number} size - The size of the file in bytes.
- * @param {string} description - The description of the file.
  * @return {void} This function does not return a value.
  */
 export const updateFileInDatabase = (
@@ -266,10 +263,9 @@ export const updateFileInDatabase = (
   keyCipher,
   ivCipher,
   parentFolderId,
-  size,
-  description
+  size
 ) => {
-  updateFileById.run(keyCipher, ivCipher, parentFolderId, size, description, uuid)
+  updateFileById.run(keyCipher, ivCipher, parentFolderId, size, '', uuid)
 }
 
 export const updateFileDescPermInDatabase = (uuid, description, permissions) => {

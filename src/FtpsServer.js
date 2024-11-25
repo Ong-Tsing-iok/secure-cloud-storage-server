@@ -147,8 +147,7 @@ const connectionBinder = (connection, userInfo, uploadInfo) => {
         uploadInfo.keyCipher,
         uploadInfo.ivCipher,
         uploadInfo.parentFolderId,
-        fileSize,
-        null
+        fileSize
       )
       // emitToSocket(username, 'upload-file-res', null)
       logger.info('User uploaded file', {
