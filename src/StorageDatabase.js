@@ -163,6 +163,7 @@ export const AddUserAndGetId = (pk, name, email) => {
 const insertFile = storageDb.prepare(
   'INSERT INTO files (id, name, ownerId, originOwnerId, cipher, spk, parentFolderId, permissions, size, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 )
+const selectAllFiles = storageDb.prepare('SELECT * FROM files')
 const selectFileById = storageDb.prepare('SELECT * FROM files WHERE id = ?')
 const selectFilesByOwner = storageDb.prepare('SELECT * FROM files WHERE ownerId = ?')
 const selectFileByIdOwnerId = storageDb.prepare('SELECT * FROM files WHERE id = ? AND ownerId = ?')
@@ -241,6 +242,10 @@ export const addFileToDatabase = ({
  */
 export const getFileInfo = (uuid) => {
   return selectFileById.get(uuid)
+}
+
+export const getAllFiles = () => {
+  return selectAllFiles.all()
 }
 
 export const getFilesOfOwnerId = (userId) => {

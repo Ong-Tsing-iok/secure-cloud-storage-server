@@ -6,6 +6,9 @@ import { rm } from 'fs/promises'
 import { join } from 'path'
 import {
   deleteUserById,
+  getAllFiles,
+  getAllRequestsResponsesByRequester,
+  getAllRequestsResponsesFilesByOwner,
   getAllUsers,
   getFilesOfOwnerId,
   getUserById,
@@ -17,7 +20,7 @@ import {
 import Table from 'tty-table'
 import { getAllLoginUsers, getSocketId, removeUpload } from './src/LoginDatabase.js'
 import ConfigManager from './src/ConfigManager.js'
-import { emailFormatRe } from './src/Utils.js'
+import { emailFormatRe, uuidFormatRe } from './src/Utils.js'
 
 ftpServer.listen().then(() => {
   logger.info(`Ftp server listening on port ${ConfigManager.ftpsPort}`)
@@ -42,7 +45,27 @@ stdin.on('data', function (key) {
   // write the key to stdout all normal like
   // process.stdout.write(key)
 })
+const fileHeaders = [
+  { value: 'id', align: 'left' },
+  { value: 'name', align: 'left' },
+  { value: 'size', align: 'left' },
+  { value: 'permissions', align: 'left' },
+  { value: 'description', align: 'left' },
+  { value: 'timestamp', alias: 'created time', align: 'left' }
+]
 
+const getUserIdInput = async () => {
+  const userId = (
+    await input({
+      message: '請輸入使用者ID'
+    })
+  ).trim()
+  if (!uuidFormatRe.test(userId)) {
+    console.log('使用者ID格式不正確')
+    return null
+  }
+  return userId
+}
 const queryDatabase = async () => {
   let success = false
   const adminAction = await select({
@@ -51,6 +74,9 @@ const queryDatabase = async () => {
       { name: '列出所有使用者', value: 'get-users' },
       { name: '列出線上使用者', value: 'get-online-users' },
       { name: '列出使用者檔案', value: 'get-files-of-user' },
+      // { name: '列出所有檔案', value: 'get-all-files' },
+      { name: '列出使用者請求', value: 'get-requests' },
+      { name: '列出使用者回覆', value: 'get-responses' },
       { name: '返回', value: 'return' }
     ]
   })
@@ -89,33 +115,69 @@ const queryDatabase = async () => {
         break
       case 'get-files-of-user':
         {
-          const userId = (
-            await input({
-              message: '請輸入使用者ID'
-            })
-          ).trim()
-          const header = [
-            { value: 'id', align: 'left' },
-            { value: 'name', align: 'left' },
-            { value: 'size', align: 'left' },
-            { value: 'permissions', align: 'left' },
-            { value: 'description', align: 'left' },
-            { value: 'timestamp', alias: 'created time', align: 'left' }
-          ]
+          const userId = await getUserIdInput()
+          if (!userId) return
           const files = getFilesOfOwnerId(userId)
-          const p = new Table(header, files).render()
+          const p = new Table(fileHeaders, files).render()
           console.log(p)
           success = true
         }
         break
+      case 'get-all-files':
+        {
+          const files = getAllFiles()
+          console.log(new Table(fileHeaders, files).render())
+          success = true
+        }
+        break
+      case 'get-requests':
+        {
+          const userId = await getUserIdInput()
+          if (!userId) return
+          const requests = getAllRequestsResponsesByRequester(userId)
+          const p = new Table(
+            [
+              { value: 'requestId', align: 'left' },
+              { value: 'fileId', align: 'left' },
+              { value: 'requester', align: 'left' },
+              { value: 'requestDescription', alias: 'description', align: 'left' },
+              { value: 'requestTime', align: 'left' },
+              { value: 'agreed', align: 'left' }
+            ],
+            requests
+          ).render()
+          console.log(p)
+          success = true
+        }
+        break
+      case 'get-responses': {
+        const userId = await getUserIdInput()
+        if (!userId) return
+        const responses = getAllRequestsResponsesFilesByOwner(userId)
+        const p = new Table(
+          [
+            { value: 'requestId', align: 'left' },
+            { value: 'fileId', align: 'left' },
+            { value: 'requester', align: 'left' },
+            { value: 'ownerId', alias: 'responder', align: 'left' },
+            { value: 'agreed', align: 'left' },
+            { value: 'responseDescription', alias: 'description', align: 'left' },
+            { value: 'responseTime', align: 'left' }
+          ],
+          responses
+        ).render()
+        console.log(p)
+        success = true
+      }
       case 'return':
         return
     }
   } catch (error) {
     logger.error(error, { adminAction })
     console.log('指令執行失敗: ' + error)
+  } finally {
+    if (adminAction !== 'return') logger.info('query database', { adminAction, success })
   }
-  logger.info('query database', { adminAction, success })
 }
 
 const deleteAccount = async (userId) => {
@@ -212,14 +274,10 @@ const manageAccounts = async () => {
     ]
   })
   if (adminAction === 'return') return
-
-  const userId = (
-    await input({
-      message: '請輸入使用者ID',
-      type: 'string'
-    })
-  ).trim()
+  let userId = null
   try {
+    userId = await getUserIdInput()
+    if (!userId) return
     const userInfo = getUserById(userId)
     if (!userInfo) {
       console.log('查無此使用者')
@@ -258,28 +316,33 @@ const manageAccounts = async () => {
 }
 
 while (true) {
-  const adminAction = await select({
-    message: '選擇要執行的指令',
-    choices: [
-      { name: '查看資料庫', value: 'database' },
-      { name: '管理帳號', value: 'accounts' },
-      { name: '關閉伺服器', value: 'exit' }
-    ]
-  })
-  switch (adminAction) {
-    case 'database':
-      await queryDatabase()
-      break
-    case 'accounts':
-      await manageAccounts()
-      break
-    case 'exit':
-      {
-        const yes = await confirm({
-          message: '確定要關閉伺服器嗎?'
-        })
-        if (yes) process.exit(0)
-      }
-      break
+  let adminAction = null
+  try {
+    adminAction = await select({
+      message: '選擇要執行的指令',
+      choices: [
+        { name: '查看資料庫', value: 'database' },
+        { name: '管理帳號', value: 'accounts' },
+        { name: '關閉伺服器', value: 'exit' }
+      ]
+    })
+    switch (adminAction) {
+      case 'database':
+        await queryDatabase()
+        break
+      case 'accounts':
+        await manageAccounts()
+        break
+      case 'exit':
+        {
+          const yes = await confirm({
+            message: '確定要關閉伺服器嗎?'
+          })
+          if (yes) process.exit(0)
+        }
+        break
+    }
+  } catch (error) {
+    logger.error(error, { adminAction })
   }
 }
