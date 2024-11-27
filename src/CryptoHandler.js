@@ -4,7 +4,7 @@ import {
   pre_schema1_Encrypt,
   pre_schema1_ReEncrypt
 } from '@aldenml/ecc'
-import { logger } from './Logger'
+import { logger } from './Logger.js'
 
 const base64Re = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
 

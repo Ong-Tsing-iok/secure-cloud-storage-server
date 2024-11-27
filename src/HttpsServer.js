@@ -40,7 +40,15 @@ const storage = multer.diskStorage({
     fileSize: 8000000
   }
 })
-const upload = multer({ storage: storage, limits: { fileSize: 8000000 } })
+const checkFileType = (req, file, cb) => {
+  file.originalname = Buffer.from(file.originalname, 'latin1').toString(
+    'utf8',
+  );
+
+  cb(null, true);
+
+}
+const upload = multer({ storage: storage, fileFilter: checkFileType, limits: { fileSize: 8000000 } })
 
 /**
  * Check authentication of the user based on the provided socket ID.
