@@ -36,4 +36,11 @@ if (process.env.NODE_ENV !== 'production') {
       level: 'debug'
     })
   )
+} else {
+  logger.add(
+    new winston.transports.Console({
+      format: winston.format.simple(),
+      level: 'error'
+    })
+  )
 }
