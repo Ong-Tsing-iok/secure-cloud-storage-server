@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aldenml/ecc": "^1.1.0",
     "@inquirer/prompts": "^7.1.0",
     "better-sqlite3": "^11.0.0",
     "config": "^3.3.12",

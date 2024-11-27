@@ -7,6 +7,7 @@ import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'crypto'
 import ConfigManager from './ConfigManager.js'
+import { pre_schema1_MessageGen } from '@aldenml/ecc'
 
 const checkValidString = (str) => {
   return str && typeof str === 'string' && str.length > 0
@@ -29,26 +30,42 @@ const authenticationBinder = (socket) => {
     }
     try {
       if (getUserByKey(publicKey)) {
-        logger.info(`Client already registered`, { ip: socket.ip, publicKey, name, email })
+        logger.info(`Client already registered`, {
+          ip: socket.ip,
+          publicKey,
+          name,
+          email
+        })
         cb('already registered')
         return
       }
       if (!checkValidName(name)) {
-        logger.warn(`Client register with invalid name`, { ip: socket.ip, publicKey, name, email })
+        logger.warn(`Client register with invalid name`, {
+          ip: socket.ip,
+          publicKey,
+          name,
+          email
+        })
         cb('invalid name')
         return
       }
       if (!checkValidEmail(email)) {
-        logger.warn(`Client register with invalid email`, { ip: socket.ip, publicKey, name, email })
+        logger.warn(`Client register with invalid email`, {
+          ip: socket.ip,
+          publicKey,
+          name,
+          email
+        })
         cb('invalid email')
         return
       }
-      socket.randKey = randomUUID()
+
+      const { message, cipher, spk } = await CryptoHandler.verifyGen(publicKey)
+      socket.randKey = message
       socket.pk = publicKey
       socket.name = name
       socket.email = email
-      const cipher = await CryptoHandler.encrypt(publicKey, socket.randKey)
-      cb(null, cipher)
+      cb(null, cipher, spk)
       // Wait for login-auth
     } catch (error) {
       logger.error(error, { ip: socket.ip, publicKey, name, email })
@@ -69,14 +86,20 @@ const authenticationBinder = (socket) => {
       return
     }
     if (!checkValidKey(publicKey)) {
-      logger.warn(`Client login with invalid public key`, { ip: socket.ip, publicKey })
+      logger.warn(`Client login with invalid public key`, {
+        ip: socket.ip,
+        publicKey
+      })
       cb('invalid public key')
       return
     }
     try {
       const userInfo = getUserByKey(publicKey)
       if (!userInfo) {
-        logger.warn(`Client login with unknown public key`, { ip: socket.ip, publicKey })
+        logger.warn(`Client login with unknown public key`, {
+          ip: socket.ip,
+          publicKey
+        })
         cb('not registered')
         return
       }
@@ -100,17 +123,16 @@ const authenticationBinder = (socket) => {
         cb('too many login attempts')
         return
       }
-
+      const { message, cipher, spk } = await CryptoHandler.verifyGen(publicKey)
       socket.userId = userInfo.id
-      socket.randKey = randomUUID()
+      socket.randKey = message
       socket.pk = publicKey
       socket.name = userInfo.name
       socket.email = userInfo.email
-      const cipher = await CryptoHandler.encrypt(publicKey, socket.randKey)
-      cb(null, cipher)
+      cb(null, cipher, spk)
       // logger.debug(`Asking client to respond with correct auth key`, { ip: socket.ip })
     } catch (error) {
-      logger.error(error, { ip: socket.ip, publicKey })
+      logger.error(error, { ip: socket.ip, publicKey: publicKey })
       cb('Internal server error')
     }
   })
@@ -177,4 +199,3 @@ const authenticationBinder = (socket) => {
 }
 
 export default authenticationBinder
-

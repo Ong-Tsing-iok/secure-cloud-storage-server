@@ -144,8 +144,8 @@ const connectionBinder = (connection, userInfo, uploadInfo) => {
       const fileSize = (await stat(fileName)).size
       updateFileInDatabase(
         basename(fileName),
-        uploadInfo.keyCipher,
-        uploadInfo.ivCipher,
+        uploadInfo.cipher,
+        uploadInfo.spk,
         uploadInfo.parentFolderId,
         fileSize
       )

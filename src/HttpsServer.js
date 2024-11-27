@@ -133,8 +133,8 @@ app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res) =
         id: req.file.filename,
         userId: req.userId,
         originOwnerId: req.userId,
-        keyCipher: req.uploadInfo.keyCipher,
-        ivCipher: req.uploadInfo.ivCipher,
+        cipher: req.uploadInfo.cipher,
+        spk: req.uploadInfo.spk,
         parentFolderId: req.uploadInfo.parentFolderId,
         size: req.file.size
       })

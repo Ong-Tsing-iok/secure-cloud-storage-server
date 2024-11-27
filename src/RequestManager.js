@@ -7,7 +7,8 @@ import {
   getAllRequestsResponsesFilesByOwner,
   deleteRequestOfRequester,
   getRequestNotRespondedByIdOfFileOwner,
-  addResponse
+  addResponse,
+  getUserById
 } from './StorageDatabase.js'
 import { getSocketId } from './LoginDatabase.js'
 import CryptoHandler from './CryptoHandler.js'
@@ -20,11 +21,16 @@ import { emitToSocket } from './SocketIO.js'
 
 const requestBinder = (socket) => {
   //! ask for request
-  socket.on('request-file', ({ fileId, description }, cb) => {
+  socket.on('request-file', (requestInfo, cb) => {
     if (!checkLoggedIn(socket)) {
       cb('not logged in')
       return
     }
+    if (!requestInfo) {
+      cb('request not valid')
+      return
+    }
+    const { fileId, description } = requestInfo
     logger.info('Client asked for request', {
       ip: socket.ip,
       userId: socket.userId,
@@ -99,11 +105,16 @@ const requestBinder = (socket) => {
     }
   })
   //! request respond
-  socket.on('respond-request', async ({ requestId, agreed, description, rekey }, cb) => {
+  socket.on('respond-request', async (requestObj, cb) => {
     if (!checkLoggedIn(socket)) {
       cb('not logged in')
       return
     }
+    if (!requestObj) {
+      cb('request not exist')
+      return
+    }
+    const { requestId, agreed, description, rekey } = requestObj
     logger.info(`Client respond to request`, {
       ip: socket.ip,
       userId: socket.userId,
@@ -111,42 +122,46 @@ const requestBinder = (socket) => {
       agreed
     })
     try {
-      const requestObj = getRequestNotRespondedByIdOfFileOwner(requestId, socket.userId)
-      if (requestObj === undefined) {
+      const requestInfo = getRequestNotRespondedByIdOfFileOwner(requestId, socket.userId)
+      if (requestInfo === undefined) {
         cb('request not exist or already responded')
         return
       }
-      // console.log(requestId, agreed, description)
       addResponse(requestId, agreed ? 1 : 0, description)
       if (agreed) {
-        const fileInfo = getFileInfo(requestObj.fileId)
-        const newKeyCipher = await CryptoHandler.reencrypt(rekey, fileInfo.keyCipher)
-        const newIvCipher = await CryptoHandler.reencrypt(rekey, fileInfo.ivCipher)
+        const fileInfo = getFileInfo(requestInfo.fileId)
+        const userInfo = getUserById(requestInfo.requester)
+        const { recipher: newcipher, spk: newspk } = await CryptoHandler.reencrypt(
+          rekey,
+          fileInfo.cipher,
+          fileInfo.spk,
+          userInfo.pk
+        )
         const newUUID = randomUUID()
         addFileToDatabase({
           name: fileInfo.name,
           id: newUUID,
-          userId: requestObj.requester,
+          userId: requestInfo.requester,
           originOwnerId: fileInfo.ownerId,
-          keyCipher: newKeyCipher,
-          ivCipher: newIvCipher,
+          cipher: newcipher,
+          spk: newspk,
           parentFolderId: null, // null for root
           size: fileInfo.size,
           description: fileInfo.description
         })
         await copyFile(
           join(ConfigManager.uploadDir, fileInfo.ownerId, fileInfo.id),
-          join(ConfigManager.uploadDir, requestObj.requester, newUUID)
+          join(ConfigManager.uploadDir, requestInfo.requester, newUUID)
         )
         logger.info('File re-encrypted', {
           owner: fileInfo.ownerId,
-          requester: requestObj.requester,
+          requester: requestInfo.requester,
           originId: fileInfo.id,
           newId: newUUID
         })
       }
-      const requesterSocketIdObj = getSocketId(requestObj.requester)
-      console.log(requesterSocketIdObj)
+      const requesterSocketIdObj = getSocketId(requestInfo.requester)
+      // console.log(requesterSocketIdObj)
       if (requesterSocketIdObj) {
         emitToSocket(requesterSocketIdObj.socketId, 'new-response')
       }

@@ -36,8 +36,8 @@ try {
       ownerId TEXT not null,
       originOwnerId TEXT,
       permissions INTEGER not null,
-      keyCipher TEXT,
-      ivCipher TEXT,
+      cipher TEXT,
+      spk TEXT,
       parentFolderId TEXT,
       size INTEGER,
       description TEXT not null default '',
@@ -107,7 +107,9 @@ export const userStatusType = Object.freeze({
 const selectUserByKeys = storageDb.prepare('SELECT * FROM users WHERE pk = ?')
 const selectUserById = storageDb.prepare('SELECT * FROM users WHERE id = ?')
 const selectAllUsers = storageDb.prepare('SELECT * FROM users')
-const insertUser = storageDb.prepare('INSERT INTO users (id, pk, name, email, status) VALUES (?, ?, ?, ?, ?)')
+const insertUser = storageDb.prepare(
+  'INSERT INTO users (id, pk, name, email, status) VALUES (?, ?, ?, ?, ?)'
+)
 const updateUserStatus = storageDb.prepare('UPDATE users SET status = ? WHERE id = ?')
 const updateUserInfo = storageDb.prepare('UPDATE users SET name = ?, email = ? WHERE id = ?')
 const deleteUser = storageDb.prepare('DELETE FROM users WHERE id = ?')
@@ -159,13 +161,13 @@ export const AddUserAndGetId = (pk, name, email) => {
  */
 //* prepare queries
 const insertFile = storageDb.prepare(
-  'INSERT INTO files (id, name, ownerId, originOwnerId, keyCipher, ivCipher, parentFolderId, permissions, size, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  'INSERT INTO files (id, name, ownerId, originOwnerId, cipher, spk, parentFolderId, permissions, size, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 )
 const selectFileById = storageDb.prepare('SELECT * FROM files WHERE id = ?')
 const selectFilesByOwner = storageDb.prepare('SELECT * FROM files WHERE ownerId = ?')
 const selectFileByIdOwnerId = storageDb.prepare('SELECT * FROM files WHERE id = ? AND ownerId = ?')
 const updateFileById = storageDb.prepare(
-  'UPDATE files SET keyCipher = ?, ivCipher = ?, parentFolderId = ?, size = ?, description = ? WHERE id = ?'
+  'UPDATE files SET cipher = ?, spk = ?, parentFolderId = ?, size = ?, description = ? WHERE id = ?'
 )
 const updateFileDescPermById = storageDb.prepare(
   'UPDATE files SET description = ?, permissions = ? WHERE id = ?'
@@ -198,8 +200,8 @@ const selectPublicFilesNotOwned = storageDb.prepare(
  * @param {string} id - The UUID of the file.
  * @param {string} userId - The ID of the user.
  * @param {string} originOwnerId - The ID of the orignal owner of the file.
- * @param {string} keyCipher - The cipher for the key.
- * @param {string} ivCipher - The cipher for the initialization vector.
+ * @param {string} cipher - The cipher for the key.
+ * @param {string} spk - The cipher for the initialization vector.
  * @param {string} parentFolderId - The ID of the parent folder.
  * @param {number} size - The size of the file in bytes.
  * @return {void} This function does not return a value.
@@ -209,22 +211,23 @@ export const addFileToDatabase = ({
   id,
   userId,
   originOwnerId,
-  keyCipher,
-  ivCipher,
+  cipher,
+  spk,
   parentFolderId,
-  size
+  size,
+  description
 }) => {
   insertFile.run(
     id,
     name,
     userId,
     originOwnerId,
-    keyCipher,
-    ivCipher,
+    cipher,
+    spk,
     parentFolderId,
     0,
     size,
-    ''
+    description ? description : ''
   )
 }
 
@@ -232,7 +235,7 @@ export const addFileToDatabase = ({
  * Retrieves file information from the database based on the given UUID.
  *
  * @param {string} uuid - The UUID of the file.
- * @return {{id: string, name: string, ownerId: string, originOwnerId:  string, permissions: number, keyCipher: string, ivCipher: string,
+ * @return {{id: string, name: string, ownerId: string, originOwnerId:  string, permissions: number, cipher: string, spk: string,
  * parentFolderId: string, size: number, description: string, timestamp: number}|undefined}
  * An object of the file information if found, or undefined if not found.
  */
@@ -252,20 +255,14 @@ export const getFileInfoOfOwnerId = (uuid, userId) => {
  * Updates the information of a file in the database.
  *
  * @param {string} uuid - The UUID of the file to be updated.
- * @param {string} keyCipher - The cipher for the key.
- * @param {string} ivCipher - The cipher for the initialization vector.
+ * @param {string} cipher - The cipher for the key.
+ * @param {string} spk - The cipher for the initialization vector.
  * @param {string} parentFolderId - The ID of the parent folder.
  * @param {number} size - The size of the file in bytes.
  * @return {void} This function does not return a value.
  */
-export const updateFileInDatabase = (
-  uuid,
-  keyCipher,
-  ivCipher,
-  parentFolderId,
-  size
-) => {
-  updateFileById.run(keyCipher, ivCipher, parentFolderId, size, '', uuid)
+export const updateFileInDatabase = (uuid, cipher, spk, parentFolderId, size) => {
+  updateFileById.run(cipher, spk, parentFolderId, size, '', uuid)
 }
 
 export const updateFileDescPermInDatabase = (uuid, description, permissions) => {
@@ -411,7 +408,7 @@ const selectRequestResponseByRequester = storageDb.prepare(
 const selectRequestResponseFileByFileOwner = storageDb.prepare(
   `SELECT requests.id as requestId, requests.fileId, requests.requester, requests.description as requestDescription, requests.timestamp as requestTime,
   responses.agreed, responses.description as responseDescription, responses.timestamp as responseTime,
-  files.name, files.ownerId, files.originOwnerId, files.permissions, files.parentFolderId, files.size, files.description, files.timestamp,
+  files.name, files.ownerId, files.originOwnerId, files.permissions, files.parentFolderId, files.size, files.description, files.timestamp, files.spk,
   requesters.pk, requesters.name as userName, requesters.email as userEmail
   FROM requests LEFT JOIN responses ON responses.requestId = requests.id JOIN files ON requests.fileId = files.id
   JOIN users as owners ON files.ownerId = owners.id JOIN users as requesters ON requests.requester = requesters.id WHERE files.ownerId = ?`
@@ -444,7 +441,7 @@ export const addUniqueRequest = (fileId, requester, description) => {
 }
 export const addResponse = (requestId, agreed, description) => {
   const responseId = randomUUID().toString()
-  return insertResponse.run(responseId, requestId, agreed, description)
+  return insertResponse.run(responseId, requestId, agreed, description ? description : '')
 }
 
 export const getAllRequestsResponsesFilesByOwner = (userId) => {
