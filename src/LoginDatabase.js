@@ -150,12 +150,10 @@ export const getFailure = (id) => {
 }
 
 setInterval(() => {
-  removeUploadExpiredStmt.run(Date.now())
+  removeUploadExpiredStmt.run(Date.now() - interval)
+  removeFailureExpiredStmt.run(Date.now() - failureExpireInterval)
 }, interval)
 
-setInterval(() => {
-  removeFailureExpiredStmt.run(Date.now())
-}, failureExpireInterval)
 
 export { userDbLogin, checkUserLoggedIn, getSocketId, userDbLogout, insertUpload, getUpload }
 
