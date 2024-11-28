@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { randomUUID } from 'crypto'
 import ConfigManager from './ConfigManager.js'
 import { pre_schema1_MessageGen } from '@aldenml/ecc'
+import { count } from 'node:console'
 
 const checkValidString = (str) => {
   return str && typeof str === 'string' && str.length > 0
@@ -115,10 +116,11 @@ const authenticationBinder = (socket) => {
 
       // Check login attempts
       const failureInfo = getFailure(userInfo.id)
-      if (failureInfo && failureInfo.failures > ConfigManager.loginAttemptsLimit) {
-        logger.warn(`Block client for too many login attempts`, {
+      if (failureInfo && failureInfo.count >= ConfigManager.loginAttemptsLimit) {
+        logger.warn(`Block client for too many login attempt failures`, {
           ip: socket.ip,
-          userId: userInfo.id
+          userId: userInfo.id,
+          count: failureInfo.count
         })
         cb('too many login attempts')
         return

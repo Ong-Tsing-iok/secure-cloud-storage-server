@@ -32,7 +32,7 @@ const createFailureTable = loginDb.prepare(
   `CREATE TABLE IF NOT EXISTS failures (
   id TEXT PRIMARY KEY not null, 
   timestamp INTEGER not null default CURRENT_TIMESTAMP,
-  count INTEGER not null default 0
+  count INTEGER not null default 1
   )`
 )
 
@@ -140,6 +140,11 @@ export const addFailure = (id) => {
   return result
 }
 
+/**
+ * 
+ * @param {string} id 
+ * @returns {{ id: string, count: number, timestamp: number }|undefined}
+ */
 export const getFailure = (id) => {
   return selectFailureStmt.get(id)
 }
