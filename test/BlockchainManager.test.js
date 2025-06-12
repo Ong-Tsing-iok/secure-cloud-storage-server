@@ -164,9 +164,9 @@ describe('BlockchainManager', () => {
       expect(logger.info).toHaveBeenCalledWith(expect.stringContaining(`${fileId}`))
     })
     test('should throw error when transaction error occurs', async () => {
-      mockContractInstance.addAuthorization = jest.fn.mockRejectedValueOnce(
-        new Error('Transaction Error')
-      )
+      mockContractInstance.addAuthorization = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('Transaction Error'))
 
       expect(
         blockchainManager.addAuthRecord(fileId, requestor, authorizer, authInfo)
@@ -206,6 +206,58 @@ describe('BlockchainManager', () => {
       expect(
         blockchainManager.uploadReencryptFile(fileId, fileHash, metadata, requestor)
       ).rejects.toThrow(new Error('Transaction Error'))
+    })
+  })
+
+  describe('getFileInfo', () => {
+    const fileUploadRecord = {
+      args: {
+        fileId: '0x124',
+        fileHash: BigInt('0x456'),
+        metadata: 'file_metadata',
+        uploader: '0x789',
+        timestamp: BigInt('0x486787')
+      }
+    }
+    let result
+    beforeEach(async () => {
+      mockContractInstance.filters.FileUploaded = jest.fn().mockReturnValueOnce({})
+      mockContractInstance.queryFilter.mockResolvedValueOnce([fileUploadRecord])
+      result = await blockchainManager.getFileInfo(
+        fileUploadRecord.args.fileId,
+        fileUploadRecord.args.uploader
+      )
+    })
+
+    test('should call contract.filters.FileUploaded with correct arguments', () => {
+      expect(mockContractInstance.filters.FileUploaded).toHaveBeenCalledTimes(1)
+      expect(mockContractInstance.filters.FileUploaded).toHaveBeenCalledWith(
+        BigInt(fileUploadRecord.args.fileId),
+        BigInt(fileUploadRecord.args.uploader)
+      )
+    })
+
+    test('should call contract.queryFilter with return value from contract.filters.FileUploaded', () => {
+      expect(mockContractInstance.queryFilter).toHaveBeenCalledTimes(1)
+      expect(mockContractInstance.queryFilter).toHaveBeenCalledWith(expect.any(Object))
+    })
+
+    test('should return correct result', () => {
+      expect(result).toEqual(fileUploadRecord)
+    })
+
+    test('should return null if contract.queryFilter return empty array', async () => {
+      mockContractInstance.queryFilter.mockResolvedValueOnce([])
+      result = await blockchainManager.getFileInfo(
+        fileUploadRecord.args.fileId,
+        fileUploadRecord.args.uploader
+      )
+
+      expect(result).toEqual(null)
+    })
+
+    test('should log success message', () => {
+      expect(logger.info).toHaveBeenCalledTimes(1)
     })
   })
 })
