@@ -136,3 +136,4 @@ uploads/
 .scannerwork
 node-ip
 build
+config/local.json

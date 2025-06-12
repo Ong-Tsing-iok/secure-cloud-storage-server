@@ -20,6 +20,12 @@ class ConfigManager {
           mkdirSync(join(this.directoryConfig.root, this.directoryConfig[key]))
         }
       }
+
+      // Blockchain
+      this.blockchain = {}
+      this.blockchain.abi = config.get('blockchain.abi')
+      this.blockchain.jsonRpcUrl = config.get('blockchain.jsonRpcUrl')
+      this.blockchain.contractAddr = config.get('blockchain.contractAddr')
     } catch (error) {}
   }
   get cryptoPath() {

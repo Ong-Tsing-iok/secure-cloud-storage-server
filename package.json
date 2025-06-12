@@ -5,7 +5,7 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "start": "node index.js",
     "build": "node build.js "
   },
@@ -26,11 +26,11 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.9.1",
+    "@eslint/js": "^9.28.0",
     "@types/better-sqlite3": "^7.6.10",
     "esbuild": "^0.25.5",
-    "eslint": "^9.9.1",
-    "globals": "^15.9.0",
+    "eslint": "^9.28.0",
+    "globals": "^15.15.0",
     "jest": "^30.0.0",
     "prettier": "^3.3.1"
   },

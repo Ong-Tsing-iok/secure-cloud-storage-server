@@ -27,5 +27,10 @@
   "loginAttempts": {
     "limit": 5,
     "timeout": 15 // in minutes
+  },
+  "blockchain" :{
+    "jsonRpcUrl" : "",
+    "abi": [],
+    "contractAddr" : ""
   }
 }
