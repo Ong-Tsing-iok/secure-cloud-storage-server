@@ -2,7 +2,13 @@ import { Contract, JsonRpcProvider } from 'ethers'
 import ConfigManager from './ConfigManager'
 import { logger } from './Logger'
 
+/**
+ * Manages smart contract communication
+ */
 class BlockchainManager {
+  /**
+   * Connect to blockchain and smart contract
+   */
   constructor() {
     try {
       const abi = ConfigManager.blockchain.abi
@@ -16,28 +22,70 @@ class BlockchainManager {
   }
 
   // Error should be handled in layer above
+  /**
+   * Set or remove privilege of client in smart contract
+   * @param {string | BigInt} clientAddr blockchain address of the client
+   * @param {boolean} status to add or remove privilege
+   */
   async setClientStatus(clientAddr, status) {
     const tx = await this.contract.setClientStatus(BigInt(clientAddr), status)
     await tx.wait()
     logger.info(`set client ${clientAddr} status to ${status}`)
   }
+
+  /**
+   * Set verification for a file
+   * @param {string | BigInt} fileId UUID of the file
+   * @param {string | BigInt} uploader blockchain address of the uploader
+   * @param {string} verificationInfo verification information in JSON format
+   */
   async setFileVerification(fileId, uploader, verificationInfo) {
-    const tx = await this.contract.setFileVerification(BigInt(fileId), BigInt(uploader), verificationInfo)
+    const tx = await this.contract.setFileVerification(
+      BigInt(fileId),
+      BigInt(uploader),
+      verificationInfo
+    )
     await tx.wait()
     logger.info(`set verification for ${fileId}`)
   }
+
+  /**
+   * Add authorization record for a file, requestor, and authorizer
+   * @param {string | BigInt} fileId UUID of the file
+   * @param {string | BigInt} requestor blockchain address of the requestor
+   * @param {string | BigInt} authorizer blockchain address of the authorizer
+   * @param {string} authInfo authorization information in JSON format
+   */
   async addAuthRecord(fileId, requestor, authorizer, authInfo) {
-    const tx = await this.contract.addAuthorization(BigInt(fileId), BigInt(requestor), BigInt(authorizer), authInfo)
+    const tx = await this.contract.addAuthorization(
+      BigInt(fileId),
+      BigInt(requestor),
+      BigInt(authorizer),
+      authInfo
+    )
     await tx.wait()
     logger.info(`added authorization record for file ${fileId}`)
   }
+
+  /**
+   * Upload file information for a reencrypted file
+   * @param {string | BigInt} fileId UUID of the file
+   * @param {string | BigInt} fileHash sha256 hash of the file
+   * @param {string} metadata file metadata in JSON format
+   * @param {string | BigInt} requestor blockchain address of the requestor
+   */
   async uploadReencryptFile(fileId, fileHash, metadata, requestor) {
-    const tx = await this.contract.uploadReencryptFile(BigInt(fileId), BigInt(fileHash), metadata, BigInt(requestor))
+    const tx = await this.contract.uploadReencryptFile(
+      BigInt(fileId),
+      BigInt(fileHash),
+      metadata,
+      BigInt(requestor)
+    )
     await tx.wait()
     logger.info(`uploaded file hash, metadata for reencrypted file ${fileId}`)
   }
 
-   /**
+  /**
    * Get hash and metadata of a file
    * @param {string | BigInt} fileId UUID of the file
    * @param {string | BigInt} uploader Blockchain address of the file owner
@@ -54,7 +102,6 @@ class BlockchainManager {
       return events[0]
     }
   }
-
 }
 
 export default BlockchainManager
