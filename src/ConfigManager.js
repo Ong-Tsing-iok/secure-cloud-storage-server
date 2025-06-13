@@ -26,6 +26,7 @@ class ConfigManager {
       this.blockchain.abi = config.get('blockchain.abi')
       this.blockchain.jsonRpcUrl = config.get('blockchain.jsonRpcUrl')
       this.blockchain.contractAddr = config.get('blockchain.contractAddr')
+      this.blockchain.walletKeyPath = resolve(config.get('directories.root'), config.get('blockchain.walletKeyPath'))
     } catch (error) {}
   }
   get cryptoPath() {

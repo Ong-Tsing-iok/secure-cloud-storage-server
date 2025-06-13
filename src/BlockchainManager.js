@@ -1,4 +1,5 @@
-import { Contract, JsonRpcProvider } from 'ethers'
+import { Contract, JsonRpcProvider, Wallet } from 'ethers'
+import { readFileSync, writeFileSync } from 'fs'
 import ConfigManager from './ConfigManager'
 import { logger } from './Logger'
 
@@ -15,9 +16,32 @@ class BlockchainManager {
       const url = ConfigManager.blockchain.jsonRpcUrl
       const contractAddr = ConfigManager.blockchain.contractAddr
       const provider = new JsonRpcProvider(url)
-      this.contract = new Contract(contractAddr, abi, provider)
+      const wallet = this.readOrCreateWallet(ConfigManager.blockchain.walletKeyPath, provider)
+      this.contract = new Contract(contractAddr, abi, wallet)
     } catch (error) {
       logger.error(error)
+    }
+  }
+
+  /**
+   * Reads the wallet key and create wallet from path.
+   * If key file not found, create a random wallet and store the key in key file.
+   * @param {string} filepath the file path to the wallet key
+   * @param {JsonRpcProvider} provider the provider of connected blockchain
+   * @returns a wallet connect to the provider
+   */
+  readOrCreateWallet(filepath, provider) {
+    try {
+      const key = readFileSync(filepath, 'utf-8').trim()
+      return new Wallet(key, provider)
+    } catch (error) {
+      if (error.code == 'ENOENT') {
+        const wallet = Wallet.createRandom(provider)
+        writeFileSync(filepath, wallet.privateKey)
+        return wallet
+      } else {
+        throw error
+      }
     }
   }
 

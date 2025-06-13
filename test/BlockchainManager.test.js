@@ -1,20 +1,26 @@
 import { test, expect, jest, describe, beforeEach } from '@jest/globals'
-import { JsonRpcProvider, Contract } from 'ethers'
+import { JsonRpcProvider, Contract, Wallet } from 'ethers'
+import { readFileSync, writeFileSync } from 'fs'
 import { logger } from '../src/Logger'
 import ConfigManager from '../src/ConfigManager'
 import BlockchainManager from '../src/BlockchainManager'
 
 // Mock the external dependencies
+const mockProvider = {}
 jest.mock('ethers', () => ({
-  JsonRpcProvider: jest.fn(() => ({})), // Mock JsonRpcProvider constructor
+  JsonRpcProvider: jest.fn(() => mockProvider), // Mock JsonRpcProvider constructor
   Contract: jest.fn(() => ({
     owner: jest.fn(), // Mock the owner method on the Contract instance
     uploadFile: jest.fn(),
     filters: {},
     queryFilter: jest.fn()
-  }))
+  })),
+  Wallet: jest.fn()
 }))
-
+jest.mock('fs', () => ({
+  readFileSync: jest.fn(),
+  writeFileSync: jest.fn()
+}))
 jest.mock('../src/Logger', () => ({
   logger: {
     info: jest.fn(),
@@ -27,19 +33,25 @@ jest.mock('../src/ConfigManager', () => ({
   blockchain: {
     abi: ['some_abi_definition'],
     jsonRpcUrl: 'http://mock-rpc-url.com',
-    contractAddr: '0xmockContractAddress'
+    contractAddr: '0xmockContractAddress',
+    walletKeyPath: '/some/path'
   }
 }))
 
 describe('BlockchainManager', () => {
+  const mockWallet = { privateKey: '0x7893157677' }
   let blockchainManager
   let mockContractInstance
   let mockTx
+  let readOrCreateWalletSpy
 
   beforeEach(() => {
     // Clear all mocks before each test
     jest.clearAllMocks()
 
+    readOrCreateWalletSpy = jest
+      .spyOn(BlockchainManager.prototype, 'readOrCreateWallet')
+      .mockReturnValueOnce(mockWallet)
     // Initialize BlockchainManager for each test
     blockchainManager = new BlockchainManager()
 
@@ -52,12 +64,16 @@ describe('BlockchainManager', () => {
     test('should initialize JsonRpcProvider and Contract with correct values', () => {
       expect(JsonRpcProvider).toHaveBeenCalledTimes(1)
       expect(JsonRpcProvider).toHaveBeenCalledWith(ConfigManager.blockchain.jsonRpcUrl)
-
+      expect(readOrCreateWalletSpy).toHaveBeenCalledTimes(1)
+      expect(readOrCreateWalletSpy).toHaveBeenCalledWith(
+        ConfigManager.blockchain.walletKeyPath,
+        mockProvider
+      )
       expect(Contract).toHaveBeenCalledTimes(1)
       expect(Contract).toHaveBeenCalledWith(
         ConfigManager.blockchain.contractAddr,
         ConfigManager.blockchain.abi,
-        expect.any(Object) // The provider instance
+        mockWallet
       )
     })
     test('should set the contract property', () => {
@@ -75,6 +91,49 @@ describe('BlockchainManager', () => {
       // expect(() => new BlockchainManager()).toThrow('Connection failed'); // If you re-throw
       // OR
       expect(logger.error).toHaveBeenCalledWith(new Error('Connection failed')) // If you log
+    })
+  })
+
+  describe('readOrCreateWallet', () => {
+    const somePath = '/this/is/some/path'
+    const someWalletKey = '0x8754697845\n\n'
+
+    beforeEach(() => {
+      Wallet.mockReturnValueOnce(mockWallet)
+      readFileSync.mockReturnValueOnce(someWalletKey)
+    })
+
+    test('should read key and create wallet if file exists', () => {
+      const result = blockchainManager.readOrCreateWallet(somePath, mockProvider)
+      expect(readFileSync).toHaveBeenCalledTimes(1)
+      expect(readFileSync).toHaveBeenCalledWith(somePath, 'utf-8')
+      expect(Wallet).toHaveBeenCalledTimes(1)
+      expect(Wallet).toHaveBeenCalledWith(someWalletKey.trim(), mockProvider)
+      expect(result).toBe(mockWallet)
+    })
+    test('should create wallet and write key if file do not exist', () => {
+      readFileSync.mockReset()
+      readFileSync.mockImplementationOnce(() => {
+        const err = new Error('File not found')
+        err.code = 'ENOENT'
+        throw err
+      })
+      Wallet.createRandom = jest.fn().mockReturnValueOnce(mockWallet)
+      const result = blockchainManager.readOrCreateWallet(somePath, mockProvider)
+      expect(Wallet.createRandom).toHaveBeenCalledTimes(1)
+      expect(Wallet.createRandom).toHaveBeenCalledWith(mockProvider)
+      expect(writeFileSync).toHaveBeenCalledTimes(1)
+      expect(writeFileSync).toHaveBeenCalledWith(somePath, mockWallet.privateKey)
+      expect(result).toBe(mockWallet)
+    })
+    test('should throw error when unexpected error occurs', () => {
+      Wallet.mockReset()
+      Wallet.mockImplementationOnce(() => {
+        throw new Error('Unexpected')
+      })
+      expect(() => blockchainManager.readOrCreateWallet(somePath, mockProvider)).toThrow(
+        'Unexpected'
+      )
     })
   })
 
