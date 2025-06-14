@@ -23,12 +23,13 @@ const checkValidName = (name) => {
   return checkValidString(name)
 }
 const authenticationBinder = (socket) => {
-  socket.on('register', async (publicKey, name, email, cb) => {
-    logger.info(`Client asked to register`, { ip: socket.ip, publicKey, name, email })
+  socket.on('register', async (publicKey, blockchainAddress, name, email, cb) => {
+    logger.info(`Client asked to register`, { ip: socket.ip, publicKey, blockchainAddress, name, email })
     if (!checkValidKey(publicKey)) {
       cb('invalid public key')
       return
     }
+    // TODO: check valid address
     try {
       if (getUserByKey(publicKey)) {
         logger.info(`Client already registered`, {
@@ -66,6 +67,7 @@ const authenticationBinder = (socket) => {
       socket.pk = publicKey
       socket.name = name
       socket.email = email
+      socket.blockchainAddress = blockchainAddress
       cb(null, cipher, spk)
       // Wait for login-auth
     } catch (error) {
@@ -167,7 +169,7 @@ const authenticationBinder = (socket) => {
 
       if (!socket.userId) {
         // register
-        const { id, info } = AddUserAndGetId(socket.pk, socket.name, socket.email)
+        const { id, info } = AddUserAndGetId(socket.pk, socket.blockchainAddress, socket.name, socket.email)
         if (info.changes === 0) {
           throw new Error('Failed to add user to database. Might be id collision.')
         }
@@ -177,7 +179,8 @@ const authenticationBinder = (socket) => {
           userId: socket.userId,
           name: socket.name,
           email: socket.email,
-          pk: socket.pk
+          pk: socket.pk,
+          blockchainAddress: socket.blockchainAddress
         })
 
         logger.info('Creating folder for user', { ip: socket.ip, userId: socket.userId })

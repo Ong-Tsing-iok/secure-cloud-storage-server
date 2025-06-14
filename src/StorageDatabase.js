@@ -17,6 +17,7 @@ try {
       `CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY not null, 
       pk TEXT not null,
+      address TEXT not null,
       name TEXT not null,
       email TEXT not null,
       status TEXT not null,
@@ -108,7 +109,7 @@ const selectUserByKeys = storageDb.prepare('SELECT * FROM users WHERE pk = ?')
 const selectUserById = storageDb.prepare('SELECT * FROM users WHERE id = ?')
 const selectAllUsers = storageDb.prepare('SELECT * FROM users')
 const insertUser = storageDb.prepare(
-  'INSERT INTO users (id, pk, name, email, status) VALUES (?, ?, ?, ?, ?)'
+  'INSERT INTO users (id, pk, address, name, email, status) VALUES (?, ?, ?, ?, ?, ?)'
 )
 const updateUserStatus = storageDb.prepare('UPDATE users SET status = ? WHERE id = ?')
 const updateUserInfo = storageDb.prepare('UPDATE users SET name = ?, email = ? WHERE id = ?')
@@ -145,14 +146,15 @@ export const deleteUserById = (id) => {
  * Adds a user to the database and returns the id of the added user.
  *
  * @param {string} pk - The public key of the user.
+ * @param {string} blockchainAddress Blockchain address of the user
  * @param {string} name - The name of the user.
  * @param {string} email - The email of the user.
  * @return {{id: string, info: {changes: number, lastInsertRowid: number}}} An object containing the id of the added user and a boolean indicating if the user already existed.
  * If an error occurred, the id is undefined and the boolean is false.
  */
-export const AddUserAndGetId = (pk, name, email) => {
+export const AddUserAndGetId = (pk, blockchainAddress, name, email) => {
   const id = randomUUID().toString()
-  const info = insertUser.run(id, pk, name, email, userStatusType.activate)
+  const info = insertUser.run(id, pk, blockchainAddress, name, email, userStatusType.activate)
   return { id, info }
 }
 
