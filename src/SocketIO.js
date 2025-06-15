@@ -1,6 +1,6 @@
+import express from 'express'
 // Servers
 import { Server } from 'socket.io'
-import server from './HttpsServer.js'
 // Logger
 import { logger } from './Logger.js'
 // Database
@@ -10,13 +10,31 @@ import { allFileBinder } from './FileManager.js'
 import authenticationBinder from './Authentication.js'
 import { requestBinder } from './RequestManager.js'
 import BlockchainManager from './BlockchainManager.js'
+import ConfigManager from './ConfigManager.js'
+import { createServer } from 'https'
+import { readFileSync } from 'fs'
+
+const app = express()
+app.set('trust proxy', true)
+
+const options = {
+  key: readFileSync(ConfigManager.serverKeyPath),
+  cert: readFileSync(ConfigManager.serverCertPath),
+  maxHttpBufferSize: 1e8 // 100 MB, may need to increase
+}
+//? Redirect http to https?
+const server = createServer(options, app)
+
+server.listen(ConfigManager.httpsPort, () => {
+  logger.log('info', `Server is running on port ${ConfigManager.httpsPort}`)
+})
 
 const io = new Server(server, {
   cors: {
     origin: '*'
   }
 })
-const blockchainManager = new BlockchainManager
+const blockchainManager = new BlockchainManager()
 
 io.on('connection', (socket) => {
   socket.ip = socket.handshake.address
@@ -43,10 +61,10 @@ io.on('connection', (socket) => {
 
 const emitToSocket = (socketId, event, ...data) => {
   return io.to(socketId).emit(event, ...data)
-} 
+}
 const disconnectSocket = (socketId) => {
   return io.sockets.sockets.get(socketId).disconnect(true)
 }
 
 // export default io
-export { emitToSocket, disconnectSocket }
+export { emitToSocket, disconnectSocket, blockchainManager, app }

@@ -97,6 +97,11 @@ const checkUserLoggedIn = (socketId) => {
   return selectUserStmt.get(socketId)
 }
 
+/**
+ * 
+ * @param {string} userId 
+ * @returns {{socketId: string}}
+ */
 const getSocketId = (userId) => {
   return getSocketIdStmt.get(userId)
 }

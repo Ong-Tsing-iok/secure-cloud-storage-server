@@ -1,7 +1,7 @@
 import { Contract, JsonRpcProvider, Wallet } from 'ethers'
 import { readFileSync, writeFileSync } from 'fs'
-import ConfigManager from './ConfigManager'
-import { logger } from './Logger'
+import ConfigManager from './ConfigManager.js'
+import { logger } from './Logger.js'
 
 /**
  * Manages smart contract communication
@@ -43,6 +43,15 @@ class BlockchainManager {
         throw error
       }
     }
+  }
+
+  /**
+   * Bind a listener to a certain event of the contract
+   * @param {string} eventName Name of the event
+   * @param {(...args)=> void | Promise<void>} listener The listener to bind to the contract
+   */
+  bindEventListener(eventName, listener) {
+    this.contract.on(eventName, listener)
   }
 
   // Error should be handled in layer above

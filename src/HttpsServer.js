@@ -1,6 +1,3 @@
-import { readFileSync } from 'fs'
-import express from 'express'
-import { createServer } from 'https'
 import { logger } from './Logger.js'
 import { mkdir, unlink } from 'fs/promises'
 import multer from 'multer'
@@ -14,9 +11,8 @@ import {
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 import ConfigManager from './ConfigManager.js'
-
-const app = express()
-app.set('trust proxy', true)
+import { finishUpload } from './UploadVerifier.js'
+import { app } from './SocketIO.js'
 
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
@@ -41,14 +37,15 @@ const storage = multer.diskStorage({
   }
 })
 const checkFileType = (req, file, cb) => {
-  file.originalname = Buffer.from(file.originalname, 'latin1').toString(
-    'utf8',
-  );
+  file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8')
 
-  cb(null, true);
-
+  cb(null, true)
 }
-const upload = multer({ storage: storage, fileFilter: checkFileType, limits: { fileSize: 8000000 } })
+const upload = multer({
+  storage: storage,
+  fileFilter: checkFileType,
+  limits: { fileSize: 8000000 }
+})
 
 /**
  * Check authentication of the user based on the provided socket ID.
@@ -59,7 +56,7 @@ const upload = multer({ storage: storage, fileFilter: checkFileType, limits: { f
  * @return {void} This function does not return a value.
  */
 const auth = (req, res, next) => {
-  if (!req.headers.socketid || (typeof req.headers.socketid !== 'string')) {
+  if (!req.headers.socketid || typeof req.headers.socketid !== 'string') {
     logger.warn('Socket Id not found in request headers', {
       ip: req.ip,
       protocol: 'https'
@@ -94,7 +91,7 @@ const auth = (req, res, next) => {
   }
 }
 const checkUpload = (req, res, next) => {
-  if (!req.headers.uploadid || (typeof req.headers.uploadid !== 'string')) {
+  if (!req.headers.uploadid || typeof req.headers.uploadid !== 'string') {
     logger.warn(`Upload Id not found in request headers`, {
       ip: req.ip,
       protocol: 'https'
@@ -146,6 +143,7 @@ app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res) =
         parentFolderId: req.uploadInfo.parentFolderId,
         size: req.file.size
       })
+      await finishUpload(req.userId, req.file.filename)
       res.send('File uploaded successfully')
     } else {
       res.status(400).send('No file uploaded')
@@ -174,7 +172,7 @@ app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res) =
 })
 
 app.get('/download', auth, (req, res) => {
-  if (!req.headers.uuid || (typeof req.headers.socketid !== 'string')) {
+  if (!req.headers.uuid || typeof req.headers.socketid !== 'string') {
     logger.info(`File Id not found in request headers`, {
       ip: req.ip,
       protocol: 'https'
@@ -223,18 +221,4 @@ app.get('/download', auth, (req, res) => {
     })
     res.sendStatus(500)
   }
-})
-
-const options = {
-  key: readFileSync(ConfigManager.serverKeyPath),
-  cert: readFileSync(ConfigManager.serverCertPath),
-  maxHttpBufferSize: 1e8 // 100 MB, may need to increase
-}
-//? Redirect http to https?
-const server = createServer(options, app)
-
-export default server
-
-server.listen(ConfigManager.httpsPort, () => {
-  logger.log('info', `Server is running on port ${ConfigManager.httpsPort}`)
 })

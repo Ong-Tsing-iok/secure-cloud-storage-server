@@ -14,6 +14,7 @@ import {
 import { stat } from 'fs/promises'
 import { emitToSocket } from './SocketIO.js'
 import ConfigManager from './ConfigManager.js'
+import { finishUpload } from './UploadVerifier.js'
 
 class CustomFileSystem extends FileSystem {
   constructor(connection, { root, cwd }, uploadId) {
@@ -150,6 +151,7 @@ const connectionBinder = (connection, userInfo, uploadInfo, socketId) => {
         uploadInfo.parentFolderId,
         fileSize
       )
+      await finishUpload(userInfo.userId, basename(fileName))
       // emitToSocket(username, 'upload-file-res', null)
       logger.info('User uploaded file', {
         ip: connection.ip,

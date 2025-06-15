@@ -199,6 +199,7 @@ const authenticationBinder = (socket, blockchainManager) => {
       cb(null, { userId: socket.userId, name: socket.name, email: socket.email })
     } catch (error) {
       logger.error(error, { ip: socket.ip, userId: socket.userId })
+      // TODO: need to revert register if fail
       cb('Internal server error')
     }
   })
