@@ -9,12 +9,14 @@ import { userDbLogout } from './LoginDatabase.js'
 import { allFileBinder } from './FileManager.js'
 import authenticationBinder from './Authentication.js'
 import { requestBinder } from './RequestManager.js'
+import BlockchainManager from './BlockchainManager.js'
 
 const io = new Server(server, {
   cors: {
     origin: '*'
   }
 })
+const blockchainManager = new BlockchainManager
 
 io.on('connection', (socket) => {
   socket.ip = socket.handshake.address
@@ -34,7 +36,7 @@ io.on('connection', (socket) => {
     userDbLogout(socket.id)
   })
 
-  authenticationBinder(socket)
+  authenticationBinder(socket, blockchainManager)
   allFileBinder(socket)
   requestBinder(socket, io)
 })

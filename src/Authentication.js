@@ -22,7 +22,7 @@ const checkValidEmail = (email) => {
 const checkValidName = (name) => {
   return checkValidString(name)
 }
-const authenticationBinder = (socket) => {
+const authenticationBinder = (socket, blockchainManager) => {
   socket.on('register', async (publicKey, blockchainAddress, name, email, cb) => {
     logger.info(`Client asked to register`, { ip: socket.ip, publicKey, blockchainAddress, name, email })
     if (!checkValidKey(publicKey)) {
@@ -169,6 +169,7 @@ const authenticationBinder = (socket) => {
 
       if (!socket.userId) {
         // register
+        await blockchainManager.setClientStatus(socket.blockchainAddress, true)
         const { id, info } = AddUserAndGetId(socket.pk, socket.blockchainAddress, socket.name, socket.email)
         if (info.changes === 0) {
           throw new Error('Failed to add user to database. Might be id collision.')
