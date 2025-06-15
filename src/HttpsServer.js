@@ -34,7 +34,7 @@ const storage = multer.diskStorage({
     }
   },
   filename: (req, file, cb) => {
-    cb(null, randomUUID())
+    cb(null, req.headers.uploadid) // Use uploadId as fileId
   },
   limits: {
     fileSize: 8000000

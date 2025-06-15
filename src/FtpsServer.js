@@ -16,11 +16,12 @@ import { emitToSocket } from './SocketIO.js'
 import ConfigManager from './ConfigManager.js'
 
 class CustomFileSystem extends FileSystem {
-  constructor(connection, { root, cwd }) {
+  constructor(connection, { root, cwd }, uploadId) {
     super(connection, { root, cwd })
+    this.uploadId = uploadId
   }
   write(fileName, { append, start }) {
-    const uuid = randomUUID()
+    const uuid = this.uploadId // Use uploadId as fileId
     const userId = basename(this.root)
     addFileToDatabase({ name: fileName, id: uuid, userId, originOwnerId: userId })
     return super.write(uuid, { append, start })
@@ -39,21 +40,21 @@ const ftpServer = new FtpSrv({
   }
 })
 
-ftpServer.on('login', async ({ connection, username, password }, resolve, reject) => {
+ftpServer.on('login', async ({ connection, username: socketId, password: uploadId }, resolve, reject) => {
   logger.info('User trying to authenticate', {
     ip: connection.ip,
     protocol: 'ftps',
-    userId: username
+    socketId
   })
   let uploadInfo
   let userInfo
   try {
-    userInfo = checkUserLoggedIn(username)
+    userInfo = checkUserLoggedIn(socketId)
     if (!userInfo) {
       logger.warn('User not logged in', {
         ip: connection.ip,
-        userId: username,
-        uploadId: password,
+        socketId,
+        uploadId,
         protocol: 'ftps'
       })
       reject(new Error('User not logged in'))
@@ -65,17 +66,17 @@ ftpServer.on('login', async ({ connection, username, password }, resolve, reject
     logger.info('User logged in', {
       ip: connection.ip,
       userId: userInfo.userId,
-      uploadId: password,
+      uploadId,
       protocol: 'ftps'
     })
-    if (password !== 'guest') {
+    if (uploadId !== 'guest') {
       // meaning this is upload
-      uploadInfo = getUpload(password) // use password as upload id
+      uploadInfo = getUpload(uploadId) // use password as upload id
       if (uploadInfo === undefined) {
         logger.warn('Upload info not found in database', {
           ip: connection.ip,
           userId: userInfo.userId,
-          uploadId: password,
+          uploadId,
           protocol: 'ftps'
         })
         reject(new Error('Upload info not found in database'))
@@ -85,7 +86,7 @@ ftpServer.on('login', async ({ connection, username, password }, resolve, reject
         logger.warn('Parent folder path not found when uploading', {
           ip: connection.ip,
           userId: userInfo.userId,
-          uploadId: password,
+          uploadId,
           protocol: 'ftps'
         })
         reject(new Error('Parent folder path not found when uploading'))
@@ -99,17 +100,17 @@ ftpServer.on('login', async ({ connection, username, password }, resolve, reject
   } catch (error) {
     logger.error(error, {
       ip: connection.ip,
-      userId: username,
-      uploadId: password,
+      socketId,
+      uploadId,
       protocol: 'ftps'
     })
     reject(new Error('Internal server error'))
   }
 
-  connectionBinder(connection, userInfo, uploadInfo)
+  connectionBinder(connection, userInfo, uploadInfo, socketId)
 })
 
-const connectionBinder = (connection, userInfo, uploadInfo) => {
+const connectionBinder = (connection, userInfo, uploadInfo, socketId) => {
   connection.on('RETR', (error, filePath) => {
     // Download file
     if (error) {
@@ -175,7 +176,7 @@ const connectionBinder = (connection, userInfo, uploadInfo) => {
           })
         }
       }
-      emitToSocket(username, 'upload-file-res', 'Internal server error')
+      emitToSocket(socketId, 'upload-file-res', 'Internal server error')
     }
   })
 }
