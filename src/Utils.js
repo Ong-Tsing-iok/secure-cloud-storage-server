@@ -32,19 +32,14 @@ const getFilePath = (userId, fileId) => {
 }
 
 const calculateFileHash = async (filePath, algorithm = 'sha256') => {
-  try {
-    const hash = crypto.createHash(algorithm)
-    const stream = createReadStream(filePath)
+  const hash = crypto.createHash(algorithm)
+  const stream = createReadStream(filePath)
 
-    for await (const chunk of stream) {
-      hash.update(chunk)
-    }
-
-    return hash.digest('hex')
-  } catch (error) {
-    logger.error('Error reading or hashing file:', error)
-    return null
+  for await (const chunk of stream) {
+    hash.update(chunk)
   }
+
+  return hash.digest('hex')
 }
 
 const revertUpload = async (userId, fileId, errorMsg) => {

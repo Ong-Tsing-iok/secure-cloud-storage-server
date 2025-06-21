@@ -379,6 +379,7 @@ const insertRequest = storageDb.prepare(
 const insertResponse = storageDb.prepare(
   'INSERT INTO responses (id, requestId, agreed, description) VALUES (?, ?, ?, ?)'
 )
+const deleteResponse = storageDb.prepare('DELETE from responses where id = ?')
 const selectRequestsByOwner = storageDb.prepare(
   `SELECT requests.id, requests.fileId, requests.timestamp, files.name
   FROM requests 
@@ -448,7 +449,13 @@ export const addUniqueRequest = (fileId, requester, description) => {
 }
 export const addResponse = (requestId, agreed, description) => {
   const responseId = randomUUID().toString()
-  return insertResponse.run(responseId, requestId, agreed, description ? description : '')
+  return {
+    result: insertResponse.run(responseId, requestId, agreed, description ? description : ''),
+    responseId
+  }
+}
+export const deleteResponseById = (responseId) => {
+  return deleteResponse.run(responseId)
 }
 
 export const getAllRequestsResponsesFilesByOwner = (userId) => {

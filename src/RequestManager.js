@@ -1,4 +1,4 @@
-import { checkLoggedIn } from './Utils.js'
+import { calculateFileHash, checkLoggedIn } from './Utils.js'
 import {
   getFileInfo,
   addFileToDatabase,
@@ -8,12 +8,15 @@ import {
   deleteRequestOfRequester,
   getRequestNotRespondedByIdOfFileOwner,
   addResponse,
-  getUserById
+  getUserById,
+  deleteFileOfOwnerId,
+  deleteFile,
+  deleteResponseById
 } from './StorageDatabase.js'
 import { getSocketId } from './LoginDatabase.js'
 import CryptoHandler from './CryptoHandler.js'
 import { randomUUID } from 'crypto'
-import { copyFile } from 'fs/promises'
+import { copyFile, unlink } from 'fs/promises'
 import { join } from 'path'
 import { logger } from './Logger.js'
 import ConfigManager from './ConfigManager.js'
@@ -21,7 +24,7 @@ import { blockchainManager, emitToSocket } from './SocketIO.js'
 
 const requestBinder = (socket) => {
   //! ask for request
-  socket.on('request-file', (requestInfo, cb) => {
+  socket.on('request-file', async (requestInfo, cb) => {
     if (!checkLoggedIn(socket)) {
       cb('not logged in')
       return
@@ -64,7 +67,7 @@ const requestBinder = (socket) => {
       // Add record to blockchain
       const requestorInfo = getUserById(socket.userId)
       const authorizerInfo = getUserById(fileInfo.ownerId)
-      blockchainManager.addAuthRecord(
+      await blockchainManager.addAuthRecord(
         fileId,
         requestorInfo.address,
         authorizerInfo.address,
@@ -141,44 +144,83 @@ const requestBinder = (socket) => {
       requestId,
       agreed
     })
+    let responseId
     try {
       const requestInfo = getRequestNotRespondedByIdOfFileOwner(requestId, socket.userId)
       if (requestInfo === undefined) {
         cb('request not exist or already responded')
         return
       }
-      addResponse(requestId, agreed ? 1 : 0, description)
+      ;({ responseId } = addResponse(requestId, agreed ? 1 : 0, description))
+
+      const authorizerInfo = getUserById(socket.userId)
+      const requestorInfo = getUserById(requestInfo.requester)
+      const fileInfo = getFileInfo(requestInfo.fileId)
       if (agreed) {
-        const fileInfo = getFileInfo(requestInfo.fileId)
-        const userInfo = getUserById(requestInfo.requester)
-        const { recipher: newcipher, spk: newspk } = await CryptoHandler.reencrypt(
-          rekey,
-          fileInfo.cipher,
-          fileInfo.spk,
-          userInfo.pk
+        let newUUID
+        let hasAddToDatabase = false
+        let copiedFilePath
+        let hasCopiedFile = false
+        try {
+          const { recipher: newcipher, spk: newspk } = await CryptoHandler.reencrypt(
+            rekey,
+            fileInfo.cipher,
+            fileInfo.spk,
+            requestorInfo.pk
+          )
+          newUUID = randomUUID()
+          addFileToDatabase({
+            name: fileInfo.name,
+            id: newUUID,
+            userId: requestInfo.requester,
+            originOwnerId: fileInfo.ownerId,
+            cipher: newcipher,
+            spk: newspk,
+            parentFolderId: null, // null for root
+            size: fileInfo.size,
+            description: fileInfo.description
+          })
+          hasAddToDatabase = true
+          copiedFilePath = join(ConfigManager.uploadDir, requestInfo.requester, newUUID)
+          await copyFile(
+            join(ConfigManager.uploadDir, fileInfo.ownerId, fileInfo.id),
+            copiedFilePath
+          )
+          hasCopiedFile = true
+
+          const fileHash = await calculateFileHash(copiedFilePath)
+          await blockchainManager.reencryptFile(
+            fileInfo.id,
+            fileHash,
+            JSON.stringify({ filename: fileInfo.name }),
+            requestorInfo.address,
+            authorizerInfo.address
+          )
+
+          logger.info('File re-encrypted', {
+            owner: fileInfo.ownerId,
+            requester: requestInfo.requester,
+            originId: fileInfo.id,
+            newId: newUUID
+          })
+        } catch (error1) {
+          logger.error(error1, {
+            ip: socket.ip,
+            userId: socket.userId,
+            requestId
+          })
+          // Revert reencrypt
+          if (hasAddToDatabase) deleteFile(newUUID)
+          if (hasCopiedFile) await unlink(copiedFilePath)
+          cb('Internal server error.')
+        }
+      } else {
+        await blockchainManager.addAuthRecord(
+          fileInfo.id,
+          requestorInfo.address,
+          authorizerInfo.address,
+          'rejected'
         )
-        const newUUID = randomUUID()
-        addFileToDatabase({
-          name: fileInfo.name,
-          id: newUUID,
-          userId: requestInfo.requester,
-          originOwnerId: fileInfo.ownerId,
-          cipher: newcipher,
-          spk: newspk,
-          parentFolderId: null, // null for root
-          size: fileInfo.size,
-          description: fileInfo.description
-        })
-        await copyFile(
-          join(ConfigManager.uploadDir, fileInfo.ownerId, fileInfo.id),
-          join(ConfigManager.uploadDir, requestInfo.requester, newUUID)
-        )
-        logger.info('File re-encrypted', {
-          owner: fileInfo.ownerId,
-          requester: requestInfo.requester,
-          originId: fileInfo.id,
-          newId: newUUID
-        })
       }
       const requesterSocketIdObj = getSocketId(requestInfo.requester)
       // console.log(requesterSocketIdObj)
@@ -192,6 +234,7 @@ const requestBinder = (socket) => {
         userId: socket.userId,
         requestId
       })
+      if (responseId) deleteResponseById(responseId)
       cb('Internal server error')
     }
   })

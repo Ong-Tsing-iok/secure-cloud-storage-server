@@ -7,8 +7,13 @@ import { calculateFileHash, getFilePath, revertUpload } from './Utils.js'
 const uploadInfoMap = new EvictingMap(5 * 60 * 1000)
 
 export const finishUpload = async (userId, fileId) => {
-  const hash = await calculateFileHash(getFilePath(userId, fileId))
-  uploadInfoMap.set(fileId, { userId, hash })
+  try {
+    const hash = await calculateFileHash(getFilePath(userId, fileId))
+    uploadInfoMap.set(fileId, { userId, hash })
+  } catch (error) {
+    logger.error(error)
+    uploadInfoMap.set(fileId, { userId, hash: null })
+  }
 }
 
 uploadInfoMap.onExpired((key, value) => {
@@ -17,7 +22,7 @@ uploadInfoMap.onExpired((key, value) => {
 
 blockchainManager.bindEventListener(
   'FileUploaded',
-  (fileId, fileHash, metadata, uploader, timestamp) => {
+  async (fileId, fileHash, metadata, uploader, timestamp) => {
     logger.debug('Contract event FileUploaded emitted', {
       fileId,
       fileHash,
@@ -35,7 +40,7 @@ blockchainManager.bindEventListener(
         uploadInfoMap.delete(fileId)
         const socketId = getSocketId(value.userId)?.socketId
         if (value.hash == fileHash) {
-          blockchainManager.setFileVerification(fileId, uploader, 'success')
+          await blockchainManager.setFileVerification(fileId, uploader, 'success')
           if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId })
         } else {
           logger.warning('File hashes do not meet', {
@@ -43,7 +48,7 @@ blockchainManager.bindEventListener(
             blockchainHash: fileHash,
             fileId
           })
-          blockchainManager.setFileVerification(fileId, uploader, 'fail')
+          await blockchainManager.setFileVerification(fileId, uploader, 'fail')
           revertUpload(value.userId, fileId, 'File hashes do not meet.')
         }
       }
