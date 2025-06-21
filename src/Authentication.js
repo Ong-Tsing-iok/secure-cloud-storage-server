@@ -1,9 +1,9 @@
-import { AddUserAndGetId, getUserByKey, userStatusType } from './StorageDatabase.js'
+import { AddUserAndGetId, deleteUserById, getUserByKey, userStatusType } from './StorageDatabase.js'
 import { addFailure, getFailure, userDbLogin } from './LoginDatabase.js'
 import { keyFormatRe, emailFormatRe } from './Utils.js'
 import { logger } from './Logger.js'
 import CryptoHandler from './CryptoHandler.js'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, rmdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'crypto'
 import ConfigManager from './ConfigManager.js'
@@ -147,33 +147,44 @@ const authenticationBinder = (socket, blockchainManager) => {
 
       if (!socket.userId) {
         // register
-        await blockchainManager.setClientStatus(socket.blockchainAddress, true)
-        const { id, info } = AddUserAndGetId(
-          socket.pk,
-          socket.blockchainAddress,
-          socket.name,
-          socket.email
-        )
-        if (info.changes === 0) {
-          throw new Error('Failed to add user to database. Might be id collision.')
-        }
-        socket.userId = id
-        logger.info('User registered', {
-          ip: socket.ip,
-          userId: socket.userId,
-          name: socket.name,
-          email: socket.email,
-          pk: socket.pk,
-          blockchainAddress: socket.blockchainAddress
-        })
-
-        logger.info('Creating folder for user', { ip: socket.ip, userId: socket.userId })
         try {
-          await mkdir(join(ConfigManager.uploadDir, id))
-        } catch (error) {
-          if (error.code !== 'EEXIST') {
-            throw error
+          await blockchainManager.setClientStatus(socket.blockchainAddress, true)
+          const { id, info } = AddUserAndGetId(
+            socket.pk,
+            socket.blockchainAddress,
+            socket.name,
+            socket.email
+          )
+          if (info.changes === 0) {
+            throw new Error('Failed to add user to database. Might be id collision.')
           }
+          socket.userId = id
+          logger.info('User registered', {
+            ip: socket.ip,
+            userId: socket.userId,
+            name: socket.name,
+            email: socket.email,
+            pk: socket.pk,
+            blockchainAddress: socket.blockchainAddress
+          })
+
+          logger.info('Creating folder for user', { ip: socket.ip, userId: socket.userId })
+          try {
+            await mkdir(join(ConfigManager.uploadDir, id))
+          } catch (error1) {
+            if (error1.code !== 'EEXIST') {
+              throw error1
+            }
+          }
+        } catch (error2) {
+          logger.error(error2, { ip: socket.ip, userId: socket.userId })
+          deleteUserById(socket.userId)
+          try {
+            if (socket.userId) await rmdir(join(ConfigManager.uploadDir, socket.userId))
+          } catch (error2) {
+            if (error2.code !== 'ENOENT') throw error2
+          }
+          cb('Internal server error.')
         }
       }
 
