@@ -9,6 +9,7 @@ import { randomUUID } from 'crypto'
 import ConfigManager from './ConfigManager.js'
 import { pre_schema1_MessageGen } from '@aldenml/ecc'
 import { count } from 'node:console'
+import { RegisterRequestScheme } from './Validation.js'
 
 const checkValidString = (str) => {
   return str && typeof str === 'string' && str.length > 0
@@ -16,20 +17,17 @@ const checkValidString = (str) => {
 const checkValidKey = (key) => {
   return checkValidString(key) && keyFormatRe.test(key)
 }
-const checkValidEmail = (email) => {
-  return checkValidString(email) && emailFormatRe.test(email)
-}
-const checkValidName = (name) => {
-  return checkValidString(name)
-}
+
 const authenticationBinder = (socket, blockchainManager) => {
-  socket.on('register', async (publicKey, blockchainAddress, name, email, cb) => {
-    logger.info(`Client asked to register`, { ip: socket.ip, publicKey, blockchainAddress, name, email })
-    if (!checkValidKey(publicKey)) {
-      cb('invalid public key')
+  socket.on('register', async (request, cb) => {
+    logger.info(`Client asked to register`, { ip: socket.ip, ...request })
+    const result = RegisterRequestScheme.safeParse(request)
+    if (!result.success) {
+      logger.info(`Client register with invalid data.`, { ip: socket.ip, ...request })
+      cb({ errorMsg: 'Invalid request data.' })
       return
     }
-    // TODO: check valid address
+    const { publicKey, blockchainAddress, name, email } = result.data
     try {
       if (getUserByKey(publicKey)) {
         logger.info(`Client already registered`, {
@@ -38,27 +36,7 @@ const authenticationBinder = (socket, blockchainManager) => {
           name,
           email
         })
-        cb('already registered')
-        return
-      }
-      if (!checkValidName(name)) {
-        logger.warn(`Client register with invalid name`, {
-          ip: socket.ip,
-          publicKey,
-          name,
-          email
-        })
-        cb('invalid name')
-        return
-      }
-      if (!checkValidEmail(email)) {
-        logger.warn(`Client register with invalid email`, {
-          ip: socket.ip,
-          publicKey,
-          name,
-          email
-        })
-        cb('invalid email')
+        cb({ errorMsg: 'Already registered.' })
         return
       }
 
@@ -68,11 +46,11 @@ const authenticationBinder = (socket, blockchainManager) => {
       socket.name = name
       socket.email = email
       socket.blockchainAddress = blockchainAddress
-      cb(null, cipher, spk)
+      cb({ cipher, spk })
       // Wait for login-auth
     } catch (error) {
-      logger.error(error, { ip: socket.ip, publicKey, name, email })
-      cb('Internal server error')
+      logger.error(error, { ip: socket.ip, ...request })
+      cb({ errorMsg: 'Internal server error.' })
     }
   })
   /**
@@ -170,7 +148,12 @@ const authenticationBinder = (socket, blockchainManager) => {
       if (!socket.userId) {
         // register
         await blockchainManager.setClientStatus(socket.blockchainAddress, true)
-        const { id, info } = AddUserAndGetId(socket.pk, socket.blockchainAddress, socket.name, socket.email)
+        const { id, info } = AddUserAndGetId(
+          socket.pk,
+          socket.blockchainAddress,
+          socket.name,
+          socket.email
+        )
         if (info.changes === 0) {
           throw new Error('Failed to add user to database. Might be id collision.')
         }
