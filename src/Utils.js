@@ -47,7 +47,7 @@ const calculateFileHash = async (filePath, algorithm = 'sha256') => {
   }
 }
 
-const revertUpload = async (userId, fileId, errorMessage) => {
+const revertUpload = async (userId, fileId, errorMsg) => {
   try {
     // remove file from database
     deleteFileOfOwnerId(fileId, userId)
@@ -56,7 +56,7 @@ const revertUpload = async (userId, fileId, errorMessage) => {
     await unlink(filePath)
     // send message to client if online
     const socketId = getSocketId(userId)?.socketId
-    if (socketId) emitToSocket(socketId, 'upload-file-res', errorMessage)
+    if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId, errorMsg })
   } catch (error) {
     if (error.code != 'ENOENT') {
       logger.error(error)

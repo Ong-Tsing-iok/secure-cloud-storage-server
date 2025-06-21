@@ -33,7 +33,7 @@ blockchainManager.bindEventListener(
         uploadInfoMap.delete(fileId)
         const socketId = getSocketId(value.userId)?.socketId
         if (value.hash == fileHash) {
-          if (socketId) emitToSocket(socketId, 'upload-file-res')
+          if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId })
         } else {
           logger.warning('File hashes do not meet', {
             fileHash: value.hash,
