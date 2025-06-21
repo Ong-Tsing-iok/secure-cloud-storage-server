@@ -22,15 +22,19 @@ import ConfigManager from './ConfigManager.js'
 const uploadExpireTime = 1000 * 60 * 10 // 10 minutes
 
 const downloadFileBinder = (socket) => {
-  socket.on('download-file-pre', (uuid, cb) => {
+  socket.on('download-file-pre', (request, cb) => {
     if (!checkLoggedIn(socket)) {
-      cb('not logged in')
+      cb({ errorMsg: 'Not logged in.' })
       return
     }
+    if (!request || !request.uuid) {
+      cb({ errorMsg: 'No request body.' })
+    }
+    const uuid = request.uuid
     logger.info(`Client asked for file`, {
       ip: socket.ip,
       userId: socket.userId,
-      uuid: uuid
+      uuid
     })
 
     try {
@@ -39,19 +43,19 @@ const downloadFileBinder = (socket) => {
         logger.warn('File not found when downloading file', {
           ip: socket.ip,
           userId: socket.userId,
-          uuid: uuid
+          uuid
         })
-        cb('file not found')
+        cb({ errorMsg: 'File not found.' })
         return
       }
-      cb(null, fileInfo)
+      cb({ fileInfo })
     } catch (error) {
       logger.error(error, {
         ip: socket.ip,
         userId: socket.userId,
         uuid
       })
-      cb('Internal server error')
+      cb({ errorMsg: 'Internal server error.' })
     }
   })
 }
