@@ -436,15 +436,15 @@ const selectRequestNotRespondedByFileIdRequester = storageDb.prepare(
  * @param {string} fileId - The ID of the file in the database.
  * @param {string} requester - The ID of the requester.
  * @param {string} description - The description of the request.
- * @return {boolean} Returns true if the request was added successfully, false otherwise.
+ * @return {string | null} Returns the requestId if the request was added successfully, null otherwise.
  */
 export const addUniqueRequest = (fileId, requester, description) => {
   if (selectRequestNotRespondedByFileIdRequester.get(fileId, requester)) {
-    return false
+    return null
   }
   const requestId = randomUUID().toString()
   insertRequest.run(fileId, requestId, requester, description)
-  return true
+  return requestId
 }
 export const addResponse = (requestId, agreed, description) => {
   const responseId = randomUUID().toString()

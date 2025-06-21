@@ -17,7 +17,7 @@ import { copyFile } from 'fs/promises'
 import { join } from 'path'
 import { logger } from './Logger.js'
 import ConfigManager from './ConfigManager.js'
-import { emitToSocket } from './SocketIO.js'
+import { blockchainManager, emitToSocket } from './SocketIO.js'
 
 const requestBinder = (socket) => {
   //! ask for request
@@ -36,6 +36,7 @@ const requestBinder = (socket) => {
       userId: socket.userId,
       fileId
     })
+    let requestId
     try {
       const fileInfo = getFileInfo(fileId)
       if (!fileInfo) {
@@ -55,11 +56,29 @@ const requestBinder = (socket) => {
         cb('file not found')
         return
       }
-      if (addUniqueRequest(fileId, socket.userId, description)) {
-        cb(null)
-      } else {
-        cb('request already exist')
+      requestId = addUniqueRequest(fileId, socket.userId, description)
+      if (!requestId) {
+        cb('Request already exist.')
+        return
       }
+      // Add record to blockchain
+      const requestorInfo = getUserById(socket.userId)
+      const authorizerInfo = getUserById(fileInfo.ownerId)
+      blockchainManager.addAuthRecord(
+        fileId,
+        requestorInfo.address,
+        authorizerInfo.address,
+        'not-replied'
+      )
+      logger.info(`Successfully added request.`, {
+        ip: socket.ip,
+        userId: socket.userId,
+        fileId
+      })
+
+      cb(null)
+
+      // Forward request to file owner
       const ownerSocketIdObj = getSocketId(fileInfo.ownerId)
       if (ownerSocketIdObj) {
         emitToSocket(ownerSocketIdObj.socketId, 'new-request')
@@ -70,6 +89,7 @@ const requestBinder = (socket) => {
         userId: socket.userId,
         fileId
       })
+      if (requestId) deleteRequestOfRequester(requestId, socket.userId)
       cb('Internal server error')
     }
   })
