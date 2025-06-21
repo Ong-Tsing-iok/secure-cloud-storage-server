@@ -137,3 +137,4 @@ uploads/
 node-ip
 build
 config/local.json
+wallet/key

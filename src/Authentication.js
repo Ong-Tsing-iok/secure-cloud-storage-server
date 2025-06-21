@@ -148,7 +148,6 @@ const authenticationBinder = (socket, blockchainManager) => {
       if (!socket.userId) {
         // register
         try {
-          await blockchainManager.setClientStatus(socket.blockchainAddress, true)
           const { id, info } = AddUserAndGetId(
             socket.pk,
             socket.blockchainAddress,
@@ -159,14 +158,6 @@ const authenticationBinder = (socket, blockchainManager) => {
             throw new Error('Failed to add user to database. Might be id collision.')
           }
           socket.userId = id
-          logger.info('User registered', {
-            ip: socket.ip,
-            userId: socket.userId,
-            name: socket.name,
-            email: socket.email,
-            pk: socket.pk,
-            blockchainAddress: socket.blockchainAddress
-          })
 
           logger.info('Creating folder for user', { ip: socket.ip, userId: socket.userId })
           try {
@@ -176,9 +167,18 @@ const authenticationBinder = (socket, blockchainManager) => {
               throw error1
             }
           }
+          await blockchainManager.setClientStatus(socket.blockchainAddress, true)
+          logger.info('User registered', {
+            ip: socket.ip,
+            userId: socket.userId,
+            name: socket.name,
+            email: socket.email,
+            pk: socket.pk,
+            blockchainAddress: socket.blockchainAddress
+          })
         } catch (error2) {
           logger.error(error2, { ip: socket.ip, userId: socket.userId })
-          deleteUserById(socket.userId)
+          if (socket.userId) deleteUserById(socket.userId)
           try {
             if (socket.userId) await rmdir(join(ConfigManager.uploadDir, socket.userId))
           } catch (error2) {
@@ -193,7 +193,6 @@ const authenticationBinder = (socket, blockchainManager) => {
       cb(null, { userId: socket.userId, name: socket.name, email: socket.email })
     } catch (error) {
       logger.error(error, { ip: socket.ip, userId: socket.userId })
-      // TODO: need to revert register if fail
       cb('Internal server error')
     }
   })

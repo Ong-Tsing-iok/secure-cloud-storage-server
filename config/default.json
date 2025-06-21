@@ -4,7 +4,8 @@
     "uploads": "uploads",
     "certs": "certs",
     "logs": "logs",
-    "database": "database"
+    "database": "database",
+    "wallet" : "wallet"
   },
   "server": {
     "host": "0.0.0.0",

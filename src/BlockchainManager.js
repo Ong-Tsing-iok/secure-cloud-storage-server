@@ -113,12 +113,12 @@ class BlockchainManager {
   // Error should be handled in layer above
   /**
    * Set or remove privilege of client in smart contract
-   * @param {string | BigInt} clientAddr blockchain address of the client
+   * @param {string} clientAddr blockchain address of the client
    * @param {boolean} status to add or remove privilege
    * @throws Any error occurred.
    */
   async setClientStatus(clientAddr, status) {
-    const tx = await this.contract.setClientStatus(BigInt(clientAddr), status)
+    const tx = await this.contract.setClientStatus(clientAddr, status)
     await tx.wait()
     logger.info(`set client ${clientAddr} status to ${status}`)
   }
@@ -126,14 +126,14 @@ class BlockchainManager {
   /**
    * Set verification for a file.
    * @param {string} fileId UUID of the file.
-   * @param {string | BigInt} fileOwnerAddr Blockchain address of the file owner.
+   * @param {string} fileOwnerAddr Blockchain address of the file owner.
    * @param {'success' | 'fail'} verificationInfo Verification information.
    * @throws Any error occurred.
    */
   async setFileVerification(fileId, fileOwnerAddr, verificationInfo) {
     const tx = await this.contract.setFileVerification(
       uuidToBigInt(fileId),
-      BigInt(fileOwnerAddr),
+      fileOwnerAddr,
       verificationInfo
     )
     await tx.wait()
@@ -143,16 +143,16 @@ class BlockchainManager {
   /**
    * Add authorization record for a file, requestor, and authorizer.
    * @param {string} fileId UUID of the file.
-   * @param {string | BigInt} requestorAddr Blockchain address of the requestor.
-   * @param {string | BigInt} authorizerAddr Blockchain address of the authorizer.
+   * @param {string} requestorAddr Blockchain address of the requestor.
+   * @param {string} authorizerAddr Blockchain address of the authorizer.
    * @param {'not-replied' | 'agreed' | 'rejected'} authInfo Authorization information.
    * @throws Any error occurred.
    */
   async addAuthRecord(fileId, requestorAddr, authorizerAddr, authInfo) {
     const tx = await this.contract.addAuthorization(
       uuidToBigInt(fileId),
-      BigInt(requestorAddr),
-      BigInt(authorizerAddr),
+      requestorAddr,
+      authorizerAddr,
       authInfo
     )
     await tx.wait()
@@ -164,8 +164,8 @@ class BlockchainManager {
    * @param {string} fileId UUID of the file.
    * @param {string | BigInt} fileHash SHA256 hash of the file.
    * @param {string} metadata File metadata in JSON format.
-   * @param {string | BigInt} requestorAddr Blockchain address of the requestor.
-   * @param {string | BigInt} authorizerAddr Blockchain address of the authorizer.
+   * @param {string} requestorAddr Blockchain address of the requestor.
+   * @param {string} authorizerAddr Blockchain address of the authorizer.
    * @param {'success'} verificationInfo Verification information.
    * @param {'agreed'} authInfo Authorization information.
    * @throws Any error occurred.
@@ -183,8 +183,8 @@ class BlockchainManager {
       uuidToBigInt(fileId),
       BigInt(fileHash),
       metadata,
-      BigInt(requestorAddr),
-      BigInt(authorizerAddr),
+      requestorAddr,
+      authorizerAddr,
       verificationInfo,
       authInfo
     )
@@ -195,13 +195,13 @@ class BlockchainManager {
   /**
    * Get hash and metadata of a file.
    * @param {string} fileId UUID of the file.
-   * @param {string | BigInt | undefined} fileOwnerAddr Blockchain address of the file owner.
+   * @param {string} fileOwnerAddr Blockchain address of the file owner.
    * @returns Latest event arguments or null if not found.
    * @throws Any error occurred.
    */
   async getFileInfo(fileId, fileOwnerAddr) {
     const events = await this.contract.queryFilter(
-      this.contract.filters.FileUploaded(uuidToBigInt(fileId), BigInt(fileOwnerAddr))
+      this.contract.filters.FileUploaded(uuidToBigInt(fileId), fileOwnerAddr)
     )
     logger.info(`retrived fileInfo for fileId ${fileId}`)
     if (events.length == 0) {
