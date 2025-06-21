@@ -26,13 +26,16 @@ blockchainManager.bindEventListener(
       timestamp
     })
     // TODO: maybe need to check uploader
+    let userId
     try {
       if (uploadInfoMap.has(fileId)) {
         // compare hash. If same, send success message to client. If not, remove file and send fail message to client.
         const value = uploadInfoMap.get(fileId)
+        userId = value.userId
         uploadInfoMap.delete(fileId)
         const socketId = getSocketId(value.userId)?.socketId
         if (value.hash == fileHash) {
+          blockchainManager.setFileVerification(fileId, uploader, 'success')
           if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId })
         } else {
           logger.warning('File hashes do not meet', {
@@ -40,11 +43,13 @@ blockchainManager.bindEventListener(
             blockchainHash: fileHash,
             fileId
           })
+          blockchainManager.setFileVerification(fileId, uploader, 'fail')
           revertUpload(value.userId, fileId, 'File hashes do not meet.')
         }
       }
     } catch (error) {
       logger.error(error)
+      revertUpload(userId, fileId, 'Internal server error.')
     }
   }
 )
