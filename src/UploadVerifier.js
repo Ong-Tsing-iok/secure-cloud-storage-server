@@ -1,3 +1,4 @@
+import { bigIntToUuid } from './BlockchainManager.js'
 import EvictingMap from './EvictingMap.js'
 import { logger } from './Logger.js'
 import { getSocketId } from './LoginDatabase.js'
@@ -10,6 +11,7 @@ export const finishUpload = async (userId, fileId) => {
   try {
     const hash = await calculateFileHash(getFilePath(userId, fileId))
     uploadInfoMap.set(fileId, { userId, hash })
+    logger.debug(`upload info map set for fileId ${fileId}`, { userId, hash })
   } catch (error) {
     logger.error(error)
     uploadInfoMap.set(fileId, { userId, hash: null })
@@ -22,12 +24,13 @@ uploadInfoMap.onExpired((key, value) => {
 
 blockchainManager.bindEventListener(
   'FileUploaded',
-  async (fileId, fileHash, metadata, uploader, timestamp) => {
+  async (fileId, uploader, fileHash, metadata, timestamp) => {
+    fileId = bigIntToUuid(fileId)
     logger.debug('Contract event FileUploaded emitted', {
       fileId,
+      uploader,
       fileHash,
       metadata,
-      uploader,
       timestamp
     })
     // TODO: maybe need to check uploader
@@ -39,11 +42,11 @@ blockchainManager.bindEventListener(
         userId = value.userId
         uploadInfoMap.delete(fileId)
         const socketId = getSocketId(value.userId)?.socketId
-        if (value.hash == fileHash) {
+        if (BigInt(value.hash) == BigInt(fileHash)) {
           await blockchainManager.setFileVerification(fileId, uploader, 'success')
           if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId })
         } else {
-          logger.warning('File hashes do not meet', {
+          logger.warn('File hashes do not meet', {
             fileHash: value.hash,
             blockchainHash: fileHash,
             fileId
@@ -51,6 +54,8 @@ blockchainManager.bindEventListener(
           await blockchainManager.setFileVerification(fileId, uploader, 'fail')
           revertUpload(value.userId, fileId, 'File hashes do not meet.')
         }
+      } else {
+        logger.warn(`Blockchain upload event did not find matching upload info.`, { fileId })
       }
     } catch (error) {
       logger.error(error)

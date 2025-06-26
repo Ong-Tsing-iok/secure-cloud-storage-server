@@ -31,7 +31,7 @@ function uuidToBigInt(uuidString) {
  * @returns {string} The UUID string in standard format.
  * @throws {Error} If the BigInt is too large to be a 128-bit UUID.
  */
-function bigIntToUuid(uuidBigInt) {
+export function bigIntToUuid(uuidBigInt) {
   // A 128-bit number's maximum value in hexadecimal is 16^32 - 1.
   // The maximum BigInt for a 128-bit UUID is 2^128 - 1, which is (2^64)^2 - 1.
   // This translates to 'ffffffffffffffffffffffffffffffff' in hex.
@@ -72,6 +72,7 @@ class BlockchainManager {
       const provider = new JsonRpcProvider(url)
       const wallet = this.readOrCreateWallet(ConfigManager.blockchain.walletKeyPath, provider)
       this.contract = new Contract(contractAddr, abi, wallet)
+      logger.info(`Blockchain Manager initialized with wallet address: ${wallet.address}.`)
     } catch (error) {
       logger.error(error)
     }
@@ -210,9 +211,9 @@ class BlockchainManager {
       const eventArgs = events[events.length - 1].args
       return {
         fileId: bigIntToUuid(eventArgs.fileId),
+        fileOwnerAddr: String(eventArgs.fileOwner),
         fileHash: BigInt(eventArgs.fileHash),
         metadata: String(eventArgs.metadata),
-        fileOwnerAddr: String(eventArgs.fileOwner),
         timestamp: BigInt(eventArgs.timestamp)
       }
     }
