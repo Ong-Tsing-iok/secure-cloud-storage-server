@@ -222,3 +222,4 @@ app.get('/download', auth, (req, res) => {
     res.sendStatus(500)
   }
 })
+logger.info(`Https POST GET path set.`)

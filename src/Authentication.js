@@ -23,7 +23,7 @@ const authenticationBinder = (socket, blockchainManager) => {
     logger.info(`Client asked to register`, { ip: socket.ip, ...request })
     const result = RegisterRequestScheme.safeParse(request)
     if (!result.success) {
-      logger.info(`Client register with invalid data.`, { ip: socket.ip, ...request })
+      logger.warn(`Client register with invalid data.`, { ip: socket.ip, ...request })
       cb({ errorMsg: 'Invalid request data.' })
       return
     }

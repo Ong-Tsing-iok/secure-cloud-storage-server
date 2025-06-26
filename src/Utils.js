@@ -39,10 +39,11 @@ const calculateFileHash = async (filePath, algorithm = 'sha256') => {
     hash.update(chunk)
   }
 
-  return hash.digest('hex')
+  return '0x' + hash.digest('hex')
 }
 
 const revertUpload = async (userId, fileId, errorMsg) => {
+  logger.info(`reverting upload.`, { userId, fileId, errorMsg })
   try {
     // remove file from database
     deleteFileOfOwnerId(fileId, userId)
@@ -57,6 +58,15 @@ const revertUpload = async (userId, fileId, errorMsg) => {
       logger.error(error)
     }
   }
+}
+
+/**
+ *
+ * @param {BigInt} value
+ * @returns Hex representation of the value.
+ */
+export const BigIntToHex = (value) => {
+  return '0x' + value.toString(16)
 }
 
 export {

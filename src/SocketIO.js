@@ -16,6 +16,7 @@ import { readFileSync } from 'fs'
 
 const app = express()
 app.set('trust proxy', true)
+logger.info(`Express app created.`)
 
 const options = {
   key: readFileSync(ConfigManager.serverKeyPath),

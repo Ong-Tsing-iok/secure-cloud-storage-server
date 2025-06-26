@@ -21,6 +21,7 @@ import Table from 'tty-table'
 import { getAllLoginUsers, getSocketId, removeUpload } from './src/LoginDatabase.js'
 import ConfigManager from './src/ConfigManager.js'
 import { emailFormatRe, uuidFormatRe } from './src/Utils.js'
+import './src/HttpsServer.js'
 
 ftpServer.listen().then(() => {
   logger.info(`Ftp server listening on port ${ConfigManager.ftpsPort}`)

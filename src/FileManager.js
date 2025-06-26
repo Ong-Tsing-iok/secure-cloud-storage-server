@@ -18,6 +18,7 @@ import { randomUUID } from 'crypto'
 import { insertUpload } from './LoginDatabase.js'
 import { checkFolderExistsForUser, checkLoggedIn } from './Utils.js'
 import ConfigManager from './ConfigManager.js'
+import { DownloadFileHashErrorRequestSchema } from './Validation.js'
 
 const uploadExpireTime = 1000 * 60 * 10 // 10 minutes
 
@@ -56,6 +57,22 @@ const downloadFileBinder = (socket) => {
         uuid
       })
       cb({ errorMsg: 'Internal server error.' })
+    }
+  })
+  socket.on('download-file-hash-error', (request) => {
+    const result = DownloadFileHashErrorRequestSchema.safeParse(request)
+    if (!result.success) {
+      logger.warn(`Client reports download file hash error with invalid arguments.`, {
+        ip: socket.ip,
+        userId: socket.userId,
+        ...request
+      })
+    } else {
+      logger.warn(`Client reports download file hash error.`, {
+        ip: socket.ip,
+        userId: socket.userId,
+        ...request
+      })
     }
   })
 }
