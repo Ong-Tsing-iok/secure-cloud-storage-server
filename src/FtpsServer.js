@@ -96,7 +96,7 @@ ftpServer.on('login', async ({ connection, username: socketId, password: uploadI
     }
     resolve({
       root: rootPath,
-      fs: new CustomFileSystem(connection, { root: rootPath, cwd: '/' })
+      fs: new CustomFileSystem(connection, { root: rootPath, cwd: '/' }, uploadId)
     })
   } catch (error) {
     logger.error(error, {
@@ -156,7 +156,7 @@ const connectionBinder = (connection, userInfo, uploadInfo, socketId) => {
       logger.info('User uploaded file', {
         ip: connection.ip,
         userId: userInfo.userId,
-        fileName,
+        fileName: basename(fileName),
         size: fileSize,
         protocol: 'ftps'
       })

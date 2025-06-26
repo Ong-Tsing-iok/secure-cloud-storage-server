@@ -190,7 +190,7 @@ const requestBinder = (socket) => {
 
           const fileHash = await calculateFileHash(copiedFilePath)
           await blockchainManager.reencryptFile(
-            fileInfo.id,
+            newUUID,
             fileHash,
             JSON.stringify({ filename: fileInfo.name }),
             requestorInfo.address,
