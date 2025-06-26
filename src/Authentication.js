@@ -1,7 +1,18 @@
 import { AddUserAndGetId, deleteUserById, getUserByKey, userStatusType } from './StorageDatabase.js'
 import { addFailure, getFailure, userDbLogin } from './LoginDatabase.js'
-import { keyFormatRe, emailFormatRe } from './Utils.js'
-import { logger } from './Logger.js'
+import {
+  keyFormatRe,
+  emailFormatRe,
+  invalidArgumentErrorMsg,
+  internalServerErrorMsg
+} from './Utils.js'
+import {
+  logger,
+  logInvalidSchemaWarning,
+  logSocketError,
+  logSocketInfo,
+  logSocketWarning
+} from './Logger.js'
 import CryptoHandler from './CryptoHandler.js'
 import { mkdir, rmdir } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -9,24 +20,22 @@ import { randomUUID } from 'crypto'
 import ConfigManager from './ConfigManager.js'
 import { pre_schema1_MessageGen } from '@aldenml/ecc'
 import { count } from 'node:console'
-import { RegisterRequestScheme } from './Validation.js'
+import { checkAgainstSchema, LoginRequestSchema, RegisterRequestSchema } from './Validation.js'
 
 const checkValidString = (str) => {
   return str && typeof str === 'string' && str.length > 0
-}
-const checkValidKey = (key) => {
-  return checkValidString(key) && keyFormatRe.test(key)
 }
 
 const authenticationBinder = (socket, blockchainManager) => {
   socket.on('register', async (request, cb) => {
     logger.info(`Client asked to register`, { ip: socket.ip, ...request })
-    const result = RegisterRequestScheme.safeParse(request)
+    const result = RegisterRequestSchema.safeParse(request)
     if (!result.success) {
       logger.warn(`Client register with invalid data.`, { ip: socket.ip, ...request })
       cb({ errorMsg: 'Invalid request data.' })
       return
     }
+
     const { publicKey, blockchainAddress, name, email } = result.data
     try {
       if (getUserByKey(publicKey)) {
@@ -58,64 +67,60 @@ const authenticationBinder = (socket, blockchainManager) => {
    * If the client is already logged in, it sends a message to the client.
    * Otherwise, it generates a random key, encrypts it, and sends the encrypted key to the client.
    *
-   * @param {string} publicKey - The public key of the client.
+   * @param {{publicKey: string}} request - The public key of the client.
    */
-  socket.on('login', async (publicKey, cb) => {
-    logger.info(`Client asked to login`, { ip: socket.ip, publicKey })
+  socket.on('login', async (request, cb) => {
+    logSocketInfo(socket, 'Client asked to login.', request)
+
+    const result = LoginRequestSchema.safeParse(request)
+    if (!result.success) {
+      logInvalidSchemaWarning(socket, 'Client login', request)
+      cb({ errorMsg: invalidArgumentErrorMsg })
+      return
+    }
+    const { publicKey } = result.data
+
     if (socket.authed) {
-      cb('already logged in')
+      cb({ errorMsg: 'Already logged in.' })
       return
     }
-    if (!checkValidKey(publicKey)) {
-      logger.warn(`Client login with invalid public key`, {
-        ip: socket.ip,
-        publicKey
-      })
-      cb('invalid public key')
-      return
-    }
+
     try {
       const userInfo = getUserByKey(publicKey)
       if (!userInfo) {
-        logger.warn(`Client login with unknown public key`, {
-          ip: socket.ip,
-          publicKey
-        })
-        cb('not registered')
+        logSocketWarning(socket, `Non-registered client trying to login.`, request)
+        cb({ errorMsg: 'Not registered.' })
         return
       }
+      socket.userId = userInfo.id
       if (userInfo.status === userStatusType.stopped) {
-        logger.warn(`Stopped client tried to login`, {
-          ip: socket.ip,
-          publicKey,
-          userId: userInfo.id
-        })
-        cb('user account is stopped')
+        logSocketWarning(socket, 'Stopped client trying to login.', request)
+        cb({ errorMsg: 'Account is stopped.' })
         return
       }
 
       // Check login attempts
       const failureInfo = getFailure(userInfo.id)
       if (failureInfo && failureInfo.count >= ConfigManager.loginAttemptsLimit) {
-        logger.warn(`Block client for too many login attempt failures`, {
-          ip: socket.ip,
-          userId: userInfo.id,
-          count: failureInfo.count
+        logSocketWarning(socket, `Client failed too many login attempts.`, {
+          ...request,
+          failedLoginAttempts: failureInfo.count
         })
-        cb('too many login attempts')
+        cb({ errorMsg: 'Too many login attempts.' })
         return
       }
+
       const { message, cipher, spk } = await CryptoHandler.verifyGen(publicKey)
       socket.userId = userInfo.id
       socket.randKey = message
       socket.pk = publicKey
       socket.name = userInfo.name
       socket.email = userInfo.email
-      cb(null, cipher, spk)
-      // logger.debug(`Asking client to respond with correct auth key`, { ip: socket.ip })
+      logSocketInfo(socket, `Asking client to respond with correct authentication key.`, request)
+      cb({ cipher, spk })
     } catch (error) {
-      logger.error(error, { ip: socket.ip, publicKey: publicKey })
-      cb('Internal server error')
+      logSocketError(socket, error, request)
+      cb({ errorMsg: internalServerErrorMsg })
     }
   })
 
