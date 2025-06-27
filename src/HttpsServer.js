@@ -133,7 +133,7 @@ app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res) =
         uuid: req.file.filename,
         protocol: 'https'
       })
-      addFileToDatabase({
+      await finishUpload({
         name: req.file.originalname,
         id: req.file.filename,
         userId: req.userId,
@@ -143,7 +143,6 @@ app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res) =
         parentFolderId: req.uploadInfo.parentFolderId,
         size: req.file.size
       })
-      await finishUpload(req.userId, req.file.filename)
       res.send('File uploaded successfully')
     } else {
       res.status(400).send('No file uploaded')

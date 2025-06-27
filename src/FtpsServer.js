@@ -23,8 +23,9 @@ class CustomFileSystem extends FileSystem {
   }
   write(fileName, { append, start }) {
     const uuid = this.uploadId // Use uploadId as fileId
-    const userId = basename(this.root)
-    addFileToDatabase({ name: fileName, id: uuid, userId, originOwnerId: userId })
+    // const userId = basename(this.root)
+    // addFileToDatabase({ name: fileName, id: uuid, userId, originOwnerId: userId })
+    this.connection.originalFileName = fileName
     return super.write(uuid, { append, start })
   }
 }
@@ -151,7 +152,16 @@ const connectionBinder = (connection, userInfo, uploadInfo, socketId) => {
         uploadInfo.parentFolderId,
         fileSize
       )
-      await finishUpload(userInfo.userId, basename(fileName))
+      await finishUpload({
+        name: connection.originalFileName,
+        id: basename(fileName),
+        userId: userInfo.userId,
+        originOwnerId: userInfo.userId,
+        cipher: uploadInfo.cipher,
+        spk: uploadInfo.spk,
+        parentFolderId: uploadInfo.parentFolderId,
+        size: fileSize
+      })
       // emitToSocket(username, 'upload-file-res', null)
       logger.info('User uploaded file', {
         ip: connection.ip,
