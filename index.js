@@ -1,4 +1,4 @@
-import { disconnectSocket } from './src/SocketIO.js'
+import { blockchainManager, disconnectSocket } from './src/SocketIO.js'
 import ftpServer from './src/FtpsServer.js'
 import { logger } from './src/Logger.js'
 import { input, select, confirm } from '@inquirer/prompts'
@@ -170,6 +170,7 @@ const queryDatabase = async () => {
         console.log(p)
         success = true
       }
+      break
       case 'return':
         return
     }
@@ -205,7 +206,9 @@ const deleteAccount = async (userId) => {
     removeUpload(loginInfo.userId)
   }
   await rm(join(ConfigManager.uploadDir, userId), { recursive: true, force: true })
+  const userInfo = getUserById(userId)
   deleteUserById(userId)
+  await blockchainManager.setClientStatus(userInfo.blockchainAddress, false)
   success = true
   console.log('刪除成功')
 
