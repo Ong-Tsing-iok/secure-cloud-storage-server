@@ -11,8 +11,8 @@ const keyFormatRe = /^[a-zA-Z0-9+/=]+$/
 const emailFormatRe = /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/
 const uuidFormatRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
 
-export const invalidArgumentErrorMsg = 'Invalid arguments.'
-export const internalServerErrorMsg = 'Internal server error.'
+export const InvalidArgumentErrorMsg = 'Invalid arguments.'
+export const InternalServerErrorMsg = 'Internal server error.'
 
 const checkLoggedIn = (socket) => {
   if (!socket.authed) {

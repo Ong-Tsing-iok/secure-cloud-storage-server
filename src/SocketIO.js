@@ -41,6 +41,10 @@ io.on('connection', (socket) => {
   socket.ip = socket.handshake.address
   // May need to get address from header if server is behind a proxy
   // See https://socket.io/how-to/get-the-ip-address-of-the-client
+  socket.use(([event], next) => {
+    socket.event = event
+    next()
+  })
   logger.info('Client connected', { socketId: socket.id, ip: socket.ip })
   // io.to(socket.id).emit('message', 'Welcome to server')
 

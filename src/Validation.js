@@ -1,6 +1,5 @@
-import { email, z, ZodType } from 'zod/v4'
+import { z } from 'zod/v4'
 import { isAddress } from 'ethers'
-import { Schema } from 'zod'
 
 const EthereumAddressSchema = z.string().refine((val) => isAddress(val), {
   message: 'Invalid Ethereum address. Check format and checksum.'
@@ -28,16 +27,6 @@ export const LoginRequestSchema = z.object({
   publicKey: PublicKeySchema
 })
 
-/**
- *
- * @param {Object} obj
- * @param {ZodType} schema
- */
-export const checkAgainstSchema = (obj, schema) => {
-  const result = schema.safeParse(obj)
-  if (result.success) return result.data
-  else {
-    // log
-    return null
-  }
-}
+export const AuthResRequestSchema = z.object({
+  decryptedValue: z.string()
+})

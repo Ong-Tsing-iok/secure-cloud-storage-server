@@ -1,13 +1,7 @@
 import { AddUserAndGetId, deleteUserById, getUserByKey, userStatusType } from './StorageDatabase.js'
 import { addFailure, getFailure, userDbLogin } from './LoginDatabase.js'
+import { InvalidArgumentErrorMsg, InternalServerErrorMsg } from './Utils.js'
 import {
-  keyFormatRe,
-  emailFormatRe,
-  invalidArgumentErrorMsg,
-  internalServerErrorMsg
-} from './Utils.js'
-import {
-  logger,
   logInvalidSchemaWarning,
   logSocketError,
   logSocketInfo,
@@ -15,36 +9,29 @@ import {
 } from './Logger.js'
 import CryptoHandler from './CryptoHandler.js'
 import { mkdir, rmdir } from 'node:fs/promises'
-import { join } from 'node:path'
-import { randomUUID } from 'crypto'
+import { resolve } from 'node:path'
 import ConfigManager from './ConfigManager.js'
-import { pre_schema1_MessageGen } from '@aldenml/ecc'
-import { count } from 'node:console'
-import { checkAgainstSchema, LoginRequestSchema, RegisterRequestSchema } from './Validation.js'
-
-const checkValidString = (str) => {
-  return str && typeof str === 'string' && str.length > 0
-}
+import { AuthResRequestSchema, LoginRequestSchema, RegisterRequestSchema } from './Validation.js'
 
 const authenticationBinder = (socket, blockchainManager) => {
+  // Register event
   socket.on('register', async (request, cb) => {
-    logger.info(`Client asked to register`, { ip: socket.ip, ...request })
+    const actionStr = 'Client asked to register'
+    logSocketInfo(socket, actionStr + '.', request)
+
     const result = RegisterRequestSchema.safeParse(request)
     if (!result.success) {
-      logger.warn(`Client register with invalid data.`, { ip: socket.ip, ...request })
-      cb({ errorMsg: 'Invalid request data.' })
+      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+      cb({ errorMsg: InvalidArgumentErrorMsg })
       return
     }
-
     const { publicKey, blockchainAddress, name, email } = result.data
+
     try {
-      if (getUserByKey(publicKey)) {
-        logger.info(`Client already registered`, {
-          ip: socket.ip,
-          publicKey,
-          name,
-          email
-        })
+      const userInfo = getUserByKey(publicKey)
+      if (userInfo) {
+        socket.userId = userInfo.id
+        logSocketInfo(socket, 'Client already registered.')
         cb({ errorMsg: 'Already registered.' })
         return
       }
@@ -55,32 +42,30 @@ const authenticationBinder = (socket, blockchainManager) => {
       socket.name = name
       socket.email = email
       socket.blockchainAddress = blockchainAddress
+      logSocketInfo(socket, 'Asking client to respond with correct authentication key.')
       cb({ cipher, spk })
-      // Wait for login-auth
+      // Wait for auth-res
     } catch (error) {
-      logger.error(error, { ip: socket.ip, ...request })
-      cb({ errorMsg: 'Internal server error.' })
+      logSocketError(socket, error, request)
+      cb({ errorMsg: InternalServerErrorMsg })
     }
   })
-  /**
-   * Handles the 'login-ask' event from a client.
-   * If the client is already logged in, it sends a message to the client.
-   * Otherwise, it generates a random key, encrypts it, and sends the encrypted key to the client.
-   *
-   * @param {{publicKey: string}} request - The public key of the client.
-   */
+
+  // Login event
   socket.on('login', async (request, cb) => {
-    logSocketInfo(socket, 'Client asked to login.', request)
+    const actionStr = 'Client asks to login'
+    logSocketInfo(socket, actionStr + '.', request)
 
     const result = LoginRequestSchema.safeParse(request)
     if (!result.success) {
-      logInvalidSchemaWarning(socket, 'Client login', request)
-      cb({ errorMsg: invalidArgumentErrorMsg })
+      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+      cb({ errorMsg: InvalidArgumentErrorMsg })
       return
     }
     const { publicKey } = result.data
 
     if (socket.authed) {
+      logSocketInfo(socket, 'Client already logged in.')
       cb({ errorMsg: 'Already logged in.' })
       return
     }
@@ -88,13 +73,13 @@ const authenticationBinder = (socket, blockchainManager) => {
     try {
       const userInfo = getUserByKey(publicKey)
       if (!userInfo) {
-        logSocketWarning(socket, `Non-registered client trying to login.`, request)
+        logSocketWarning(socket, 'Non-registered client trying to login.', request)
         cb({ errorMsg: 'Not registered.' })
         return
       }
       socket.userId = userInfo.id
       if (userInfo.status === userStatusType.stopped) {
-        logSocketWarning(socket, 'Stopped client trying to login.', request)
+        logSocketWarning(socket, 'Stopped client trying to login.')
         cb({ errorMsg: 'Account is stopped.' })
         return
       }
@@ -102,8 +87,7 @@ const authenticationBinder = (socket, blockchainManager) => {
       // Check login attempts
       const failureInfo = getFailure(userInfo.id)
       if (failureInfo && failureInfo.count >= ConfigManager.loginAttemptsLimit) {
-        logSocketWarning(socket, `Client failed too many login attempts.`, {
-          ...request,
+        logSocketWarning(socket, 'Client failed too many login attempts.', {
           failedLoginAttempts: failureInfo.count
         })
         cb({ errorMsg: 'Too many login attempts.' })
@@ -116,42 +100,49 @@ const authenticationBinder = (socket, blockchainManager) => {
       socket.pk = publicKey
       socket.name = userInfo.name
       socket.email = userInfo.email
-      logSocketInfo(socket, `Asking client to respond with correct authentication key.`, request)
+      logSocketInfo(socket, 'Asking client to respond with correct authentication key.')
       cb({ cipher, spk })
     } catch (error) {
       logSocketError(socket, error, request)
-      cb({ errorMsg: internalServerErrorMsg })
+      cb({ errorMsg: InternalServerErrorMsg })
     }
   })
 
-  socket.on('auth-res', async (decodeValue, cb) => {
-    logger.info(`Client responding with authentication key`, { ip: socket.ip, decodeValue })
+  // Authentication response event for register and login
+  socket.on('auth-res', async (request, cb) => {
+    const actionStr = 'Client responds to authentication'
+    logSocketInfo(socket, actionStr + '.', request)
+
+    const result = AuthResRequestSchema.safeParse(request)
+    if (!result.success) {
+      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+      cb({ errorMsg: InvalidArgumentErrorMsg })
+      return
+    }
+    const { decryptedValue } = result.data
+
     if (!socket.pk || !socket.randKey || !(socket.userId || (socket.name && socket.email))) {
-      logger.warn(`Client authenticate without asking`, { ip: socket.ip, decodeValue })
-      cb("didn't ask to log in or register first")
+      logSocketWarning(socket, actionStr + ' without asking to login or register.', request)
+      cb({ errorMsg: 'Did not ask to log in or register first.' })
       return
     }
-    if (!checkValidString(decodeValue)) {
-      logger.warn(`Client sent invalid auth key`, { ip: socket.ip, decodeValue })
-      cb('invalid authentication key')
-      return
-    }
+
     try {
-      if (socket.randKey !== decodeValue) {
-        logger.warn(`Client sent incorrect auth key`, {
-          ip: socket.ip,
-          decodeValue,
+      if (socket.randKey !== decryptedValue) {
+        logSocketWarning(socket, actionStr + ' with incorrect authentication key.', {
+          ...request,
           randKey: socket.randKey
         })
         if (socket.userId) addFailure(socket.userId)
-        cb('incorrect authentication key')
+        cb({ errorMsg: 'Incorrect authentication key.' })
         return
       }
+      logSocketInfo(socket, 'Authentication key correct. Client is authenticated.')
 
-      logger.info(`Client is authenticated`, { ip: socket.ip, userId: socket.userId })
-
-      if (!socket.userId) {
+      if (!socket.userId && socket.pk && socket.name && socket.email && socket.blockchainAddress) {
         // register
+        let folderCreated = false
+        let databaseAdded = false
         try {
           const { id, info } = AddUserAndGetId(
             socket.pk,
@@ -163,42 +154,53 @@ const authenticationBinder = (socket, blockchainManager) => {
             throw new Error('Failed to add user to database. Might be id collision.')
           }
           socket.userId = id
+          databaseAdded = true
 
-          logger.info('Creating folder for user', { ip: socket.ip, userId: socket.userId })
+          logSocketInfo(socket, 'Creating folder for user.')
           try {
-            await mkdir(join(ConfigManager.uploadDir, id))
+            await mkdir(resolve(ConfigManager.uploadDir, id))
           } catch (error1) {
             if (error1.code !== 'EEXIST') {
               throw error1
             }
           }
+          folderCreated = true
+
           await blockchainManager.setClientStatus(socket.blockchainAddress, true)
-          logger.info('User registered', {
-            ip: socket.ip,
-            userId: socket.userId,
+
+          logSocketInfo(socket, 'User registered.', {
             name: socket.name,
             email: socket.email,
             pk: socket.pk,
             blockchainAddress: socket.blockchainAddress
           })
         } catch (error2) {
-          logger.error(error2, { ip: socket.ip, userId: socket.userId })
-          if (socket.userId) deleteUserById(socket.userId)
+          // Error when registering
+          logSocketError(socket, error2, {
+            name: socket.name,
+            email: socket.email,
+            pk: socket.pk,
+            blockchainAddress: socket.blockchainAddress
+          })
+          // Reverting register
+          if (socket.userId && databaseAdded) deleteUserById(socket.userId)
           try {
-            if (socket.userId) await rmdir(join(ConfigManager.uploadDir, socket.userId))
+            if (socket.userId && folderCreated)
+              await rmdir(resolve(ConfigManager.uploadDir, socket.userId))
           } catch (error2) {
             if (error2.code !== 'ENOENT') throw error2
           }
-          cb('Internal server error.')
+          cb({ errorMsg: InternalServerErrorMsg })
+          return
         }
       }
 
       userDbLogin(socket.id, socket.userId)
       socket.authed = true
-      cb(null, { userId: socket.userId, name: socket.name, email: socket.email })
+      cb({ userInfo: { userId: socket.userId, name: socket.name, email: socket.email } })
     } catch (error) {
-      logger.error(error, { ip: socket.ip, userId: socket.userId })
-      cb('Internal server error')
+      logSocketError(socket, error)
+      cb({ errorMsg: InternalServerErrorMsg })
     }
   })
 }

@@ -46,14 +46,18 @@ if (process.env.NODE_ENV !== 'production') {
   )
 }
 
+const getSocketMeta = (socket, metaObj) => {
+  return { ip: socket.ip, userId: socket.userId, event: socket.event, ...metaObj }
+}
+
 /**
  * Log info in socket events.
  * @param {Socket} socket
  * @param {String} message
- * @param {Object} metadObj
+ * @param {Object} metaObj
  */
-export const logSocketInfo = (socket, message, metadObj) => {
-  logger.info(message, { ip: socket.ip, userId: socket.userId, ...metadObj })
+export const logSocketInfo = (socket, message, metaObj = {}) => {
+  logger.info(message, getSocketMeta(socket, metaObj))
 }
 
 /**
@@ -62,8 +66,8 @@ export const logSocketInfo = (socket, message, metadObj) => {
  * @param {String} message
  * @param {Object} metaObj
  */
-export const logSocketWarning = (socket, message, metaObj) => {
-  logger.warn(message, { ip: socket.ip, userId: socket.userId, ...metaObj })
+export const logSocketWarning = (socket, message, metaObj = {}) => {
+  logger.warn(message, getSocketMeta(socket, metaObj))
 }
 
 /**
@@ -72,17 +76,23 @@ export const logSocketWarning = (socket, message, metaObj) => {
  * @param {Error} error
  * @param {Object} metaObj
  */
-export const logSocketError = (socket, error, metaObj) => {
-  logger.error(error, { ip: socket.ip, userId: socket.userId, ...metaObj })
+export const logSocketError = (socket, error, metaObj = {}) => {
+  logger.error(error, getSocketMeta(socket, metaObj))
 }
 
 /**
  * Log invalid schema warning after checking against a schema.
  * @param {Socket} socket
  * @param {string} action The action is happening.
+ * @param {Array} issues The issue of the parse result.
  * @param {Object} metaObj
- * @example if(!result.success) { logInvalidSchemaWarn(socket, 'Client login', request) }
+ * @example
+ * if(!result.success) {
+ *   logInvalidSchemaWarn(socket, 'Client login', result.error.issues, request)
+ *   cb({ errorMsg: InvalidArgumentErrorMsg })
+ *   return
+ * }
  */
-export const logInvalidSchemaWarning = (socket, action, metaObj) => {
-  logSocketWarning(socket, action + ' with invalid arguments.', metaObj)
+export const logInvalidSchemaWarning = (socket, action, issues, metaObj = {}) => {
+  logSocketWarning(socket, action + ' with invalid arguments.', { issues, ...metaObj })
 }
