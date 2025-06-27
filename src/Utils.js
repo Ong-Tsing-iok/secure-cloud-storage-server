@@ -13,6 +13,8 @@ const uuidFormatRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{
 
 export const InvalidArgumentErrorMsg = 'Invalid arguments.'
 export const InternalServerErrorMsg = 'Internal server error.'
+export const NotLoggedInErrorMsg = 'Not logged in.'
+export const FileNotFoundErrorMsg = 'File not found.'
 
 const checkLoggedIn = (socket) => {
   if (!socket.authed) {

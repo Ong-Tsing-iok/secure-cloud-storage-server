@@ -34,5 +34,8 @@
     "abi": [],
     "contractAddr" : "",
     "walletKeyPath": "wallet/key"
+  },
+  "settings" :{
+    "uploadExpireTimeMin": 10
   }
 }

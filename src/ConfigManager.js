@@ -12,6 +12,9 @@ const getConfig = (key) => {
 }
 
 class ConfigManager {
+  settings = {
+    uploadExpireTimeMin: 10
+  }
   constructor() {
     try {
       this.directoryConfig = getConfig('directories')
@@ -26,7 +29,13 @@ class ConfigManager {
       this.blockchain.abi = config.get('blockchain.abi')
       this.blockchain.jsonRpcUrl = config.get('blockchain.jsonRpcUrl')
       this.blockchain.contractAddr = config.get('blockchain.contractAddr')
-      this.blockchain.walletKeyPath = resolve(config.get('directories.root'), config.get('blockchain.walletKeyPath'))
+      this.blockchain.walletKeyPath = resolve(
+        config.get('directories.root'),
+        config.get('blockchain.walletKeyPath')
+      )
+
+      // Settings
+      this.settings.uploadExpireTimeMin = parseInt(config.get('settings.uploadExpireTimeMin'))
     } catch (error) {}
   }
   get cryptoPath() {

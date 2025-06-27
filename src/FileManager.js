@@ -1,4 +1,10 @@
-import { logger } from './Logger.js'
+import {
+  logger,
+  logInvalidSchemaWarning,
+  logSocketError,
+  logSocketInfo,
+  logSocketWarning
+} from './Logger.js'
 import {
   getFileInfo,
   deleteFile,
@@ -13,374 +19,384 @@ import {
   updateFileDescPermInDatabase
 } from './StorageDatabase.js'
 import { unlink } from 'fs/promises'
-import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { insertUpload } from './LoginDatabase.js'
-import { checkFolderExistsForUser, checkLoggedIn } from './Utils.js'
+import {
+  checkFolderExistsForUser,
+  checkLoggedIn,
+  FileNotFoundErrorMsg,
+  getFilePath,
+  InternalServerErrorMsg,
+  InvalidArgumentErrorMsg,
+  NotLoggedInErrorMsg
+} from './Utils.js'
 import ConfigManager from './ConfigManager.js'
-import { DownloadFileHashErrorRequestSchema } from './Validation.js'
+import {
+  DeleteFileRequestSchema,
+  DeleteFolderRequestSchema,
+  DownloadFileHashErrorRequestSchema,
+  DownloadFileRequestSchema,
+  GetFileListRequestSchema,
+  MoveFileRequestSchema,
+  UpdateFileRequestSchema,
+  UploadFileRequestSchema
+} from './Validation.js'
 
-const uploadExpireTime = 1000 * 60 * 10 // 10 minutes
+const uploadExpireTime = ConfigManager.settings.uploadExpireTimeMin * 60 * 1000
 
+// Download file related events
 const downloadFileBinder = (socket) => {
   socket.on('download-file-pre', (request, cb) => {
-    if (!checkLoggedIn(socket)) {
-      cb({ errorMsg: 'Not logged in.' })
+    const actionStr = 'Client asks to download file'
+    logSocketInfo(socket, actionStr + '.', request)
+
+    const result = DownloadFileRequestSchema.safeParse(request)
+    if (!result.success) {
+      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+      cb({ errorMsg: InvalidArgumentErrorMsg })
       return
     }
-    if (!request || !request.uuid) {
-      cb({ errorMsg: 'No request body.' })
+    const { fileId } = result.data
+
+    if (!checkLoggedIn(socket)) {
+      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+      cb({ errorMsg: NotLoggedInErrorMsg })
+      return
     }
-    const uuid = request.uuid
-    logger.info(`Client asked for file`, {
-      ip: socket.ip,
-      userId: socket.userId,
-      uuid
-    })
 
     try {
-      const fileInfo = getFileInfo(uuid)
+      const fileInfo = getFileInfo(fileId)
       if (fileInfo === undefined || fileInfo.ownerId !== socket.userId) {
-        logger.warn('File not found when downloading file', {
-          ip: socket.ip,
-          userId: socket.userId,
-          uuid
-        })
-        cb({ errorMsg: 'File not found.' })
+        logSocketWarning(socket, actionStr + ' which does not exist.', request)
+        cb({ errorMsg: FileNotFoundErrorMsg })
         return
       }
+      logSocketInfo(socket, 'File found.', request)
       cb({ fileInfo })
     } catch (error) {
-      logger.error(error, {
-        ip: socket.ip,
-        userId: socket.userId,
-        uuid
-      })
-      cb({ errorMsg: 'Internal server error.' })
+      logSocketError(socket, error, request)
+      cb({ errorMsg: InternalServerErrorMsg })
     }
   })
+
   socket.on('download-file-hash-error', (request) => {
-    const result = DownloadFileHashErrorRequestSchema.safeParse(request)
-    if (!result.success) {
-      logger.warn(`Client reports download file hash error with invalid arguments.`, {
-        ip: socket.ip,
-        userId: socket.userId,
-        ...request
-      })
-    } else {
-      logger.warn(`Client reports download file hash error.`, {
-        ip: socket.ip,
-        userId: socket.userId,
-        ...request
-      })
-    }
+    logSocketWarning(socket, 'Client reports download file hash error.', request)
   })
 }
+
+// Upload file related events
 const uploadFileBinder = (socket) => {
-  socket.on('upload-file-pre', (cipher, spk, parentFolderId, cb) => {
-    logger.info(`Client ask to prepare upload file`, {
-      ip: socket.ip
-    })
-    if (!socket.authed) {
-      cb('not logged in')
+  socket.on('upload-file-pre', (request, cb) => {
+    const actionStr = 'Client asks to upload file'
+    logSocketInfo(socket, actionStr + '.', request)
+
+    const result = UploadFileRequestSchema.safeParse(request)
+    if (!result.success) {
+      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+      cb({ errorMsg: InvalidArgumentErrorMsg })
       return
     }
+    const { cipher, spk, parentFolderId } = result.data
+
+    if (!checkLoggedIn(socket)) {
+      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+      cb({ errorMsg: NotLoggedInErrorMsg })
+      return
+    }
+
     try {
       if (!checkFolderExistsForUser(parentFolderId, socket.userId)) {
-        logger.warn(`Client tried to upload file to non-existent folder`, {
-          ip: socket.ip,
-          userId: socket.userId,
-          parentFolderId
-        })
-        cb('parent folder not found')
+        logSocketWarning(socket, actionStr + ' to a non-existing folder.', request)
+        cb({ errorMsg: 'Parent folder not found.' })
         return
       }
-      // create random id
-      const id = randomUUID()
-      // store with key and iv in database with expires time
-      insertUpload(id, cipher, spk, parentFolderId, Date.now() + uploadExpireTime)
-      cb(null, id)
-    } catch (error) {
-      logger.error(error, {
-        ip: socket.ip,
-        userId: socket.userId
+      // Create random id as fileId
+      const fileId = randomUUID()
+      // Store with key and iv in database with expires time
+      insertUpload(fileId, cipher, spk, parentFolderId, Date.now() + uploadExpireTime)
+      logSocketInfo(socket, 'Pre-upload information stored in upload database.', {
+        ...request,
+        fileId
       })
-      cb('Internal server error')
+      cb({ fileId })
+    } catch (error) {
+      logSocketError(socket, error, request)
+      cb({ errorMsg: InternalServerErrorMsg })
     }
   })
 }
 
+// Delete file event
 const deleteFileBinder = (socket) => {
-  socket.on('delete-file', async (uuid, cb) => {
-    if (!socket.authed) {
-      cb('not logged in')
+  socket.on('delete-file', async (request, cb) => {
+    const actionStr = 'Client asks to delete file'
+    logSocketInfo(socket, actionStr + '.', request)
+
+    const result = DeleteFileRequestSchema.safeParse(request)
+    if (!result.success) {
+      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+      cb({ errorMsg: InvalidArgumentErrorMsg })
       return
     }
-    logger.info(`Client requested to delete file`, { ip: socket.ip, uuid })
+    const { fileId } = result.data
+
+    if (!checkLoggedIn(socket)) {
+      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+      cb({ errorMsg: NotLoggedInErrorMsg })
+      return
+    }
+
     try {
-      const fileInfo = getFileInfo(uuid)
-      if (fileInfo !== undefined) {
-        if (fileInfo.ownerId !== socket.userId) {
-          cb('permission denied')
-        } else {
-          deleteFile(uuid)
-          await unlink(join(ConfigManager.uploadDir, socket.userId, uuid))
-          logger.info(`File deleted`, {
-            ip: socket.ip,
-            userId: socket.userId,
-            uuid
-          })
-          cb(null)
-        }
-      } else {
-        cb('file not found')
+      const fileInfo = getFileInfo(fileId)
+      if (!fileInfo) {
+        logSocketWarning(socket, actionStr + ' which does not exist.')
+        cb({ errorMsg: FileNotFoundErrorMsg })
+        return
+      }
+
+      if (fileInfo.ownerId !== socket.userId) {
+        logSocketWarning(socket, actionStr + ' which is not owned by the client.', request)
+        cb({ errorMsg: 'File not owned.' })
+        return
+      }
+      try {
+        deleteFile(fileId)
+        await unlink(getFilePath(socket.userId, fileId))
+        logSocketInfo(socket, 'File deleted.', request)
+        cb({})
+      } catch (error1) {
+        if (error1.code != 'ENOENT') throw error1
       }
     } catch (error) {
-      if (error.code !== 'ENOENT') {
-        logger.error(error, {
-          ip: socket.ip,
-          userId: socket.userId,
-          uuid
-        })
-      }
-      cb('Internal server error')
+      logSocketError(socket, error, request)
+      cb({ errorMsg: InternalServerErrorMsg })
     }
   })
 }
 
+// Get file list event
 const getFileListBinder = (socket) => {
-  socket.on('get-file-list', (parentFolderId, cb) => {
-    if (!checkLoggedIn(socket)) {
-      cb(null, 'not logged in')
+  socket.on('get-file-list', (request, cb) => {
+    const actionStr = 'Client asks to get file list'
+    logSocketInfo(socket, actionStr + '.', request)
+
+    const result = GetFileListRequestSchema.safeParse(request)
+    if (!result.success) {
+      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+      cb({ errorMsg: InvalidArgumentErrorMsg })
       return
     }
-    logger.info(`Client requested to get file list`, {
-      ip: socket.ip,
-      parentFolderId,
-      userId: socket.userId
-    })
+    const { parentFolderId } = result.data
+
+    if (!checkLoggedIn(socket)) {
+      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+      cb({ errorMsg: NotLoggedInErrorMsg })
+      return
+    }
+
     try {
       const files = getAllFilesByParentFolderIdUserId(parentFolderId, socket.userId)
       const folders = getAllFoldersByParentFolderIdUserId(parentFolderId, socket.userId)
+      logSocketInfo(socket, 'Responding file list to client.', request)
       // console.log({ files, folders })
-      cb({ files: JSON.stringify(files), folders: JSON.stringify(folders) })
+      cb({ fileList: { files: JSON.stringify(files), folders: JSON.stringify(folders) } })
     } catch (error) {
-      logger.error(error, {
-        ip: socket.ip,
-        userId: socket.userId
-      })
-      cb(null, 'Internal server error')
+      logSocketError(socket, error, request)
+      cb({ errorMsg: InternalServerErrorMsg })
     }
   })
 }
 
+// Folder related events
 const folderBinder = (socket) => {
   // Add folder
-  socket.on('add-folder', (parentFolderId, name, cb) => {
-    if (!checkLoggedIn(socket)) {
-      cb('not logged in')
+  socket.on('add-folder', (request, cb) => {
+    const actionStr = 'Client asks to add folder'
+    logSocketInfo(socket, actionStr + '.', request)
+
+    const result = DeleteFileRequestSchema.safeParse(request)
+    if (!result.success) {
+      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+      cb({ errorMsg: InvalidArgumentErrorMsg })
       return
     }
-    logger.info(`Client requested to add folder`, {
-      ip: socket.ip,
-      parentFolderId,
-      name,
-      userId: socket.userId
-    })
+    const { parentFolderId, folderName } = result.data
+
+    if (!checkLoggedIn(socket)) {
+      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+      cb({ errorMsg: NotLoggedInErrorMsg })
+      return
+    }
+
     try {
-      addFolderToDatabase(name, parentFolderId, socket.userId)
-      logger.info(`Folder added`, {
-        ip: socket.ip,
-        userId: socket.userId,
-        parentFolderId,
-        name
-      })
-      cb(null)
+      addFolderToDatabase(folderName, parentFolderId, socket.userId)
+      logSocketInfo(socket, 'Folder added to database.', request)
+      cb({})
     } catch (error) {
-      logger.error(error, {
-        ip: socket.ip,
-        userId: socket.userId
-      })
-      cb('Internal server error')
+      logSocketError(socket, error, request)
+      cb({ errorMsg: InternalServerErrorMsg })
     }
   })
+
   // Delete folder
-  socket.on('delete-folder', (folderId, cb) => {
-    if (!checkLoggedIn(socket)) {
-      cb('not logged in')
+  socket.on('delete-folder', (request, cb) => {
+    const actionStr = 'Client asks to delete folder'
+    logSocketInfo(socket, actionStr + '.', request)
+
+    const result = DeleteFolderRequestSchema.safeParse(request)
+    if (!result.success) {
+      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+      cb({ errorMsg: InvalidArgumentErrorMsg })
       return
     }
-    logger.info(`Client requested to delete folder`, {
-      ip: socket.ip,
-      folderId,
-      userId: socket.userId
-    })
+    const { folderId } = result.data
+
+    if (!checkLoggedIn(socket)) {
+      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+      cb({ errorMsg: NotLoggedInErrorMsg })
+      return
+    }
+
     try {
       const files = getAllFilesByParentFolderIdUserId(folderId, socket.userId)
       const folders = getAllFoldersByParentFolderIdUserId(folderId, socket.userId)
       if (files.length > 0 || folders.length > 0) {
-        cb('folder not empty')
+        logSocketWarning(socket, actionStr + ' which is not empty.', request)
+        cb({ errorMsg: 'Folder not empty.' })
         return
       }
-      if (deleteFolder(folderId).changes > 0) {
-        cb(null)
-        logger.info(`Folder deleted`, {
-          ip: socket.ip,
-          userId: socket.userId,
-          folderId
-        })
-      } else {
-        cb("folder don't exists")
-        logger.warn(`Client tried to delete a non existing folder`, {
-          ip: socket.ip,
-          userId: socket.userId,
-          folderId
-        })
+      if (deleteFolder(folderId).changes <= 0) {
+        logSocketWarning(socket, actionStr + ' which does not exist.', request)
+        cb({ errorMsg: 'Folder not found.' })
+        return
       }
+      logSocketInfo(socket, 'Folder deleted.', request)
+      cb({})
     } catch (error) {
-      logger.error(error, {
-        ip: socket.ip,
-        userId: socket.userId
-      })
-      cb('Internal server error')
+      logSocketError(socket, error, request)
+      cb({ errorMsg: InternalServerErrorMsg })
     }
   })
-  // get all folder
+
+  // Get all folder
   socket.on('get-all-folders', (cb) => {
+    const actionStr = 'Client asks to get all folders'
+    logSocketInfo(socket, actionStr + '.')
+
     if (!checkLoggedIn(socket)) {
-      cb('not logged in')
+      logSocketWarning(socket, actionStr + ' but is not logged in.')
+      cb({ errorMsg: NotLoggedInErrorMsg })
       return
     }
-    logger.info(`Client requested to get all folders`, {
-      ip: socket.ip,
-      userId: socket.userId
-    })
+
     try {
       const folders = getAllFoldersByUserId(socket.userId)
-      cb(JSON.stringify(folders))
+      logSocketInfo(socket, 'Responding all folders to client.')
+      cb({ folders: JSON.stringify(folders) })
     } catch (error) {
-      logger.error(error, {
-        ip: socket.ip,
-        userId: socket.userId
-      })
-      cb('Internal server error')
+      logSocketError(socket, error)
+      cb({ errorMsg: InternalServerErrorMsg })
     }
   })
 }
 
 const moveFileBinder = (socket) => {
-  socket.on('move-file', (fileId, targetFolderId, cb) => {
-    if (!checkLoggedIn(socket)) {
-      cb('not logged in')
+  socket.on('move-file', (request, cb) => {
+    const actionStr = 'Client asks to move file to target folder'
+    logSocketInfo(socket, actionStr + '.', request)
+
+    const result = MoveFileRequestSchema.safeParse(request)
+    if (!result.success) {
+      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+      cb({ errorMsg: InvalidArgumentErrorMsg })
       return
     }
-    logger.info(`Client requested to move file`, {
-      ip: socket.ip,
-      fileId,
-      targetFolderId,
-      userId: socket.userId
-    })
+    const { fileId, targetFolderId } = result.data
+
+    if (!checkLoggedIn(socket)) {
+      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+      cb({ errorMsg: NotLoggedInErrorMsg })
+      return
+    }
+
     try {
       if (!checkFolderExistsForUser(targetFolderId, socket.userId)) {
-        logger.warn(`Target folder not found when moving file`, {
-          ip: socket.ip,
-          userId: socket.userId,
-          fileId,
-          targetFolderId
-        })
-        cb('target folder not found')
+        logSocketWarning(socket, actionStr + ' but target folder does not exist.', request)
+        cb({ errorMsg: 'Target folder not found.' })
         return
       }
       if (moveFileToFolder(fileId, targetFolderId).changes === 0) {
-        logger.warn(`File not found when moving file`, {
-          ip: socket.ip,
-          userId: socket.userId,
-          fileId,
-          targetFolderId
-        })
-        cb('file not found')
+        logSocketWarning(socket, actionStr + ' but file does not exist.', request)
+        cb({ errorMsg: FileNotFoundErrorMsg })
         return
       }
-      cb(null)
+      logSocketInfo(socket, 'File moved to target folder.', request)
+      cb({})
     } catch (error) {
-      logger.error(error, {
-        ip: socket.ip,
-        userId: socket.userId,
-        fileId,
-        targetFolderId
-      })
-      cb('Internal server error')
+      logSocketError(socket, error)
+      cb({ errorMsg: InternalServerErrorMsg })
     }
   })
 }
 
 const getPublicFilesBinder = (socket) => {
   socket.on('get-public-files', (cb) => {
+    const actionStr = 'Client asks to get public files'
+    logSocketInfo(socket, actionStr + '.')
+
     if (!checkLoggedIn(socket)) {
-      cb('not logged in')
+      logSocketWarning(socket, actionStr + ' but is not logged in.')
+      cb({ errorMsg: NotLoggedInErrorMsg })
       return
     }
-    logger.info(`Client requested to get public files`, {
-      ip: socket.ip,
-      userId: socket.userId
-    })
+
     try {
       const files = getAllPublicFilesNotOwned(socket.userId)
-      cb(null, JSON.stringify(files))
+      logSocketInfo(socket, 'Responding public files to client.')
+      cb({ files: JSON.stringify(files) })
     } catch (error) {
-      logger.error(error, {
-        ip: socket.ip,
-        userId: socket.userId
-      })
-      cb('Internal server error')
+      logSocketError(socket, error)
+      cb({ errorMsg: InternalServerErrorMsg })
     }
   })
 }
 
 const updateFileBinder = (socket) => {
-  socket.on('update-file-desc-perm', (fileId, description, permission, cb) => {
+  socket.on('update-file-desc-perm', (request, cb) => {
+    const actionStr = 'Client asks to update description and permission for file'
+    logSocketInfo(socket, actionStr + '.', request)
+
+    const result = UpdateFileRequestSchema.safeParse(request)
+    if (!result.success) {
+      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+      cb({ errorMsg: InvalidArgumentErrorMsg })
+      return
+    }
+    const { fileId, description, permission } = result.data
+
     if (!checkLoggedIn(socket)) {
-      cb('not logged in')
+      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+      cb({ errorMsg: NotLoggedInErrorMsg })
       return
     }
-    logger.info(`Client requested to update file description and permission`, {
-      ip: socket.ip,
-      userId: socket.userId,
-      fileId
-    })
-    if (!getFileInfoOfOwnerId(fileId, socket.userId)) {
-      logger.warn(`File not found when updating file description and permission`, {
-        ip: socket.ip,
-        userId: socket.userId,
-        fileId
-      })
-      cb('file not found')
-      return
-    }
-    permission = parseInt(permission)
-    if (![0, 1, 2].includes(permission)) {
-      logger.warn(`Invalid permission when updating file description and permission`, {
-        ip: socket.ip,
-        userId: socket.userId,
-        fileId,
-        permission
-      })
-      cb('invalid permission')
-      return
-    }
-    description = String(description)
-    if (description.length > ConfigManager.databaseLengthLimit) {
-      description = description.substring(0, ConfigManager.databaseLengthLimit)
-    }
+
     try {
-      updateFileDescPermInDatabase(fileId, description, permission)
-      cb(null)
+      if (!getFileInfoOfOwnerId(fileId, socket.userId)) {
+        logSocketWarning(socket, actionStr + ' but file does not exist.', request)
+        cb({ errorMsg: FileNotFoundErrorMsg })
+        return
+      }
+
+      let desc = description
+      if (description.length > ConfigManager.databaseLengthLimit) {
+        desc = description.substring(0, ConfigManager.databaseLengthLimit)
+      }
+      updateFileDescPermInDatabase(fileId, desc, permission)
+      logSocketInfo(socket, 'Description and permission updated for file.', request)
+      cb({})
     } catch (error) {
-      logger.error(error, {
-        ip: socket.ip,
-        userId: socket.userId
-      })
-      cb('Internal server error')
+      logSocketError(socket, error)
+      cb({ errorMsg: InternalServerErrorMsg })
     }
   })
 }
@@ -390,9 +406,7 @@ const allFileBinder = (socket) => {
   downloadFileBinder(socket)
   deleteFileBinder(socket)
   getFileListBinder(socket)
-  // getRequestListBinder(socket)
   folderBinder(socket)
-  // deleteRequestBinder(socket)
   moveFileBinder(socket)
   getPublicFilesBinder(socket)
   updateFileBinder(socket)

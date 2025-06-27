@@ -16,7 +16,7 @@ import { AuthResRequestSchema, LoginRequestSchema, RegisterRequestSchema } from 
 const authenticationBinder = (socket, blockchainManager) => {
   // Register event
   socket.on('register', async (request, cb) => {
-    const actionStr = 'Client asked to register'
+    const actionStr = 'Client asks to register'
     logSocketInfo(socket, actionStr + '.', request)
 
     const result = RegisterRequestSchema.safeParse(request)
