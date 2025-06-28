@@ -122,18 +122,24 @@ export const logFtpsError = (data, error, metaObj = {}) => {
 }
 
 // HttpsServer.js
-const logHttps = (level, message, metaObj) => {
-  logger.log(level, message, { protocol: 'https', ...metaObj })
+const getHttpsMeta = (req, metaObj) => {
+  return {
+    ip: req.ip,
+    userId: req.userId,
+    protocol: 'https',
+    fileId: req.headers.fileid,
+    ...metaObj
+  }
 }
 
-export const logHttpsInfo = (message, metaObj = {}) => {
-  logHttps('info', message, metaObj)
+export const logHttpsInfo = (req, message, metaObj = {}) => {
+  logger.info(message, getHttpsMeta(req, metaObj))
 }
 
-export const logHttpsWarning = (message, metaObj = {}) => {
-  logHttps('warn', message, metaObj)
+export const logHttpsWarning = (req, message, metaObj = {}) => {
+  logger.warn(message, getHttpsMeta(req, metaObj))
 }
 
-export const logHttpsError = (error, metaObj = {}) => {
-  logger.error(error, { protocol: 'https', ...metaObj })
+export const logHttpsError = (req, error, metaObj = {}) => {
+  logger.error(error, getHttpsMeta(req, metaObj))
 }

@@ -113,8 +113,8 @@ const connectionBinder = (data, uploadInfo, socketId) => {
         fileName: data.connection.originalFileName,
         userId: data.userId
       })
-    } catch (error) {
-      logFtpsError(data, error)
+    } catch (error1) {
+      logFtpsError(data, error1)
       emitToSocket(socketId, 'upload-file-res', { errorMsg: InternalServerErrorMsg })
     }
   })

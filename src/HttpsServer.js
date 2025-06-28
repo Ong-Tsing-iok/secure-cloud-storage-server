@@ -1,4 +1,4 @@
-import { logger } from './Logger.js'
+import { logger, logHttpsError, logHttpsInfo, logHttpsWarning } from './Logger.js'
 import { mkdir, unlink } from 'fs/promises'
 import multer from 'multer'
 import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
@@ -8,29 +8,26 @@ import {
   getFileInfo,
   deleteFileOfOwnerId
 } from './StorageDatabase.js'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import { randomUUID } from 'crypto'
 import ConfigManager from './ConfigManager.js'
 import { finishUpload } from './UploadVerifier.js'
 import { app } from './SocketIO.js'
+import { FileIdSchema, SocketIDSchema } from './Validation.js'
 
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
-    const folderPath = join(ConfigManager.uploadDir, req.userId)
+    const folderPath = resolve(ConfigManager.uploadDir, req.userId)
     try {
       await mkdir(folderPath, { recursive: true })
       cb(null, folderPath)
     } catch (error) {
-      logger.error(error, {
-        userId: req.userId,
-        ip: req.ip,
-        protocol: 'https'
-      })
+      logHttpsError(req, error)
       cb(error)
     }
   },
   filename: (req, file, cb) => {
-    cb(null, req.headers.uploadid) // Use uploadId as fileId
+    cb(null, req.headers.fileid)
   },
   limits: {
     fileSize: 8000000
@@ -56,83 +53,64 @@ const upload = multer({
  * @return {void} This function does not return a value.
  */
 const auth = (req, res, next) => {
-  if (!req.headers.socketid || typeof req.headers.socketid !== 'string') {
-    logger.warn('Socket Id not found in request headers', {
-      ip: req.ip,
-      protocol: 'https'
-    })
-    res.status(400).send('Socket Id not found or invalid')
+  const result = SocketIDSchema.safeParse(req.headers.socketid)
+  if (!result.success) {
+    logHttpsWarning(req, 'SocketId not found or invalid', { issues: result.issues })
+    res.status(400).send('SocketId not found or invalid')
     return
   }
+
   try {
     const user = checkUserLoggedIn(req.headers.socketid)
     // logger.debug(`User with socket id ${req.headers.socketid} is authenticating`)
-    if (user !== undefined) {
-      logger.info(`User is authenticated`, {
-        ip: req.ip,
-        userId: user.userId,
-        protocol: 'https'
-      })
-      req.userId = user.userId
-      next()
-    } else {
-      logger.warn(`User is not authenticated`, {
-        ip: req.ip,
-        protocol: 'https'
-      })
+    if (!user) {
+      logHttpsWarning(req, 'Client is not logged in.')
       res.sendStatus(401)
+      return
     }
+
+    logHttpsInfo(req, 'Client is logged in.')
+    req.userId = user.userId
+    next()
   } catch (error) {
-    logger.error(error, {
-      ip: req.ip,
-      protocol: 'https'
-    })
+    logHttpsError(req, error)
     res.sendStatus(500)
   }
 }
+
 const checkUpload = (req, res, next) => {
-  if (!req.headers.uploadid || typeof req.headers.uploadid !== 'string') {
-    logger.warn(`Upload Id not found in request headers`, {
-      ip: req.ip,
-      protocol: 'https'
-    })
-    res.status(400).send('Upload Id not found or invalid')
+  const actionStr = 'Client asks to upload file'
+  logHttpsInfo(req, actionStr + '.')
+
+  const result = FileIdSchema.safeParse(req.headers.fileid)
+  if (!result.success) {
+    logHttpsWarning(req, actionStr + ' but fileId is invalid.', { issues: result.issues })
+    res.status(400).send('FileId is invalid.')
     return
   }
-  const uploadInfo = getUpload(req.headers.uploadid)
-  if (uploadInfo === undefined) {
-    logger.warn(`Upload Id not found in database`, {
-      ip: req.ip,
-      userId: req.userId,
-      protocol: 'https'
-    })
-    res.status(400).send('Upload Id not found or invalid')
+  const uploadInfo = getUpload(req.headers.fileid)
+  if (!uploadInfo) {
+    logHttpsWarning(req, actionStr + ' but upload info does not exist.')
+    res.status(400).send('Upload info not found.')
     return
   }
   // check if path exists
   if (uploadInfo.parentFolderId && !getFolderInfo(uploadInfo.parentFolderId)) {
-    logger.warn(`Parent folder path not found when uploading`, {
-      ip: req.ip,
-      userId: req.userId,
-      protocol: 'https'
+    logHttpsWarning(req, actionStr + 'but parent folder does not exist.', {
+      parentFolderId: uploadInfo.parentFolderId
     })
-    res.status(400).send('Parent folder path not found or invalid')
+    res.status(400).send('Parent folder not found.')
     return
   }
   req.uploadInfo = uploadInfo
   next()
 }
+
 app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res) => {
   try {
     if (req.file) {
-      logger.info(`User uploaded a file`, {
-        ip: req.ip,
-        userId: req.userId,
-        filename: req.file.originalname,
-        size: req.file.size,
-        uuid: req.file.filename,
-        protocol: 'https'
-      })
+      logHttpsInfo(req, 'Client uploaded file.', { filename: req.file.originalname })
+
       await finishUpload({
         name: req.file.originalname,
         id: req.file.filename,
@@ -143,82 +121,58 @@ app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res) =
         parentFolderId: req.uploadInfo.parentFolderId,
         size: req.file.size
       })
-      res.send('File uploaded successfully')
+      res.send('File uploaded successfully.')
     } else {
-      res.status(400).send('No file uploaded')
+      res.status(400).send('No file uploaded.')
     }
   } catch (error) {
-    logger.error(error, {
-      ip: req.ip,
-      userId: req.userId,
-      protocol: 'https'
-    })
+    logHttpsError(req, error)
     try {
-      deleteFileOfOwnerId(req.file.filename, req.userId)
       await unlink(req.file.path)
     } catch (error) {
       if (error.code !== 'ENOENT') {
-        logger.error(error, {
-          ip: req.ip,
-          userId: req.userId,
-          protocol: 'https'
-        })
+        logHttpsError(req, error)
       }
     }
-
     res.sendStatus(500)
   }
 })
 
 app.get('/download', auth, (req, res) => {
-  if (!req.headers.uuid || typeof req.headers.socketid !== 'string') {
-    logger.info(`File Id not found in request headers`, {
-      ip: req.ip,
-      protocol: 'https'
-    })
-    res.status(400).send('File Id not found or invalid')
+  const actionStr = 'Client asks to download file'
+  logHttpsInfo(req, actionStr + '.')
+
+  const result = FileIdSchema.safeParse(req.headers.fileid)
+  if (!result.success) {
+    logHttpsWarning(req, actionStr + ' but fileId is invalid.', { issues: result.issues })
+    res.status(400).send('FileId is invalid.')
+    return
   }
+
   try {
-    const uuid = req.headers.uuid
-    logger.info(`User is asking for file`, {
-      ip: req.ip,
-      userId: req.userId,
-      uuid: uuid,
-      protocol: 'https'
-    })
-    const fileInfo = getFileInfo(uuid)
+    const fileId = req.headers.fileid
+    const fileInfo = getFileInfo(fileId)
+
     if (!fileInfo) {
-      logger.info(`File not found`, {
-        ip: req.ip,
-        userId: req.userId,
-        uuid: uuid,
-        protocol: 'https'
-      })
+      logHttpsWarning(req, actionStr + ' which does not exist.')
       res.status(404).send('File not found')
     } else if (fileInfo.ownerId !== req.userId) {
-      logger.warn(`User don't have permission to download file`, {
-        ip: req.ip,
-        userId: req.userId,
-        uuid: uuid,
-        protocol: 'https'
-      })
-      res.status(403).send('File not permitted')
+      logHttpsWarning(req, actionStr + ' which is not owned by the client.')
+      res.status(403).send('File not owned.')
     } else {
-      logger.info(`User downloading file`, {
-        ip: req.ip,
-        userId: req.userId,
-        uuid: uuid,
-        protocol: 'https'
-      })
-      res.download(join(ConfigManager.uploadDir, req.userId, fileInfo.id), fileInfo.name)
+      logHttpsInfo(req, 'Client downloading file.')
+      res.download(resolve(ConfigManager.uploadDir, req.userId, fileInfo.id), fileInfo.name)
     }
   } catch (error) {
-    logger.error(error, {
-      ip: req.ip,
-      uuid: req.headers.uuid,
-      protocol: 'https'
-    })
+    logHttpsError(req, error)
     res.sendStatus(500)
   }
 })
+
+// Error handler
+app.use((err, req, res) => {
+  logHttpsError(req, err)
+  res.sendStatus(500)
+})
+
 logger.info(`Https POST GET path set.`)

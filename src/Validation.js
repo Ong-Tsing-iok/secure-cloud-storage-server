@@ -9,6 +9,7 @@ const NonEmptyStringSchema = z.string().min(1, { message: 'Name cannot be empty.
 
 const PublicKeySchema = z.string().regex(/^[a-zA-Z0-9+/=]+$/)
 const FolderIdSchema = z.uuidv4().nullable()
+export const FileIdSchema = z.uuidv4()
 
 // CryptoHandler.js
 export const Base64Schema = z.base64()
@@ -31,12 +32,12 @@ export const AuthResRequestSchema = z.object({
 
 // FileManager.js
 export const DownloadFileRequestSchema = z.object({
-  fileId: z.uuidv4()
+  fileId: FileIdSchema
 })
 
 // TODO: maybe transform bigint to hex
 export const DownloadFileHashErrorRequestSchema = z.object({
-  fileId: z.uuidv4(),
+  fileId: FileIdSchema,
   blockchainHash: z.bigint(),
   fileHash: z.bigint()
 })
@@ -48,7 +49,7 @@ export const UploadFileRequestSchema = z.object({
 })
 
 export const DeleteFileRequestSchema = z.object({
-  fileId: z.uuidv4()
+  fileId: FileIdSchema
 })
 
 export const GetFileListRequestSchema = z.object({
@@ -65,12 +66,12 @@ export const DeleteFolderRequestSchema = z.object({
 })
 
 export const MoveFileRequestSchema = z.object({
-  fileId: z.uuidv4(),
+  fileId: FileIdSchema,
   targetFolderId: FolderIdSchema
 })
 
 export const UpdateFileRequestSchema = z.object({
-  fileId: z.uuidv4(),
+  fileId: FileIdSchema,
   description: z.string(),
   // Maybe should conenct to storage database via Config Manager
   permission: z.union([z.literal(0), z.literal(1), z.literal(2)])
@@ -78,7 +79,7 @@ export const UpdateFileRequestSchema = z.object({
 
 // RequestManager.js
 export const ReqeustFileRequestSchema = z.object({
-  fileId: z.uuidv4(),
+  fileId: FileIdSchema,
   description: z.string()
 })
 
@@ -92,3 +93,6 @@ export const RespondRequestRequestSchema = z.object({
   description: z.string(),
   rekey: z.string().nullable()
 })
+
+// HttpsServer.js
+export const SocketIDSchema = z.string()

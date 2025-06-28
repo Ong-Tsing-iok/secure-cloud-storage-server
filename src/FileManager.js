@@ -65,12 +65,19 @@ const downloadFileBinder = (socket) => {
 
     try {
       const fileInfo = getFileInfo(fileId)
-      if (fileInfo === undefined || fileInfo.ownerId !== socket.userId) {
+      if (!fileInfo) {
         logSocketWarning(socket, actionStr + ' which does not exist.', request)
         cb({ errorMsg: FileNotFoundErrorMsg })
         return
       }
-      logSocketInfo(socket, 'File found.', request)
+
+      if (fileInfo.ownerId !== socket.userId) {
+        logSocketWarning(socket, actionStr + ' which is not owned by the client.', request)
+        cb({ errorMsg: 'File not owned.' })
+        return
+      }
+      
+      logSocketInfo(socket, 'Responding file info to client.', request)
       cb({ fileInfo })
     } catch (error) {
       logSocketError(socket, error, request)
@@ -149,7 +156,7 @@ const deleteFileBinder = (socket) => {
     try {
       const fileInfo = getFileInfo(fileId)
       if (!fileInfo) {
-        logSocketWarning(socket, actionStr + ' which does not exist.')
+        logSocketWarning(socket, actionStr + ' which does not exist.', request)
         cb({ errorMsg: FileNotFoundErrorMsg })
         return
       }
