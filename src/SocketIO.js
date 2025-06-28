@@ -2,7 +2,7 @@ import express from 'express'
 // Servers
 import { Server } from 'socket.io'
 // Logger
-import { logger } from './Logger.js'
+import { logger, logSocketInfo } from './Logger.js'
 // Database
 import { userDbLogout } from './LoginDatabase.js'
 // File operation binders
@@ -27,7 +27,7 @@ const options = {
 const server = createServer(options, app)
 
 server.listen(ConfigManager.httpsPort, () => {
-  logger.log('info', `Server is running on port ${ConfigManager.httpsPort}`)
+  logger.info(`Server is running on port ${ConfigManager.httpsPort}`)
 })
 
 const io = new Server(server, {
@@ -45,16 +45,15 @@ io.on('connection', (socket) => {
     socket.event = event
     next()
   })
-  logger.info('Client connected', { socketId: socket.id, ip: socket.ip })
-  // io.to(socket.id).emit('message', 'Welcome to server')
+  logSocketInfo(socket, 'Client connected.')
 
   socket.on('message', (message) => {
-    logger.info(`Received message: ${message}`, { socketId: socket.id, ip: socket.ip })
-    socket.emit('message', message + ' from server')
+    logger.info(socket, 'Received message.', { message })
+    socket.emit('message', message + ' received by server.')
   })
 
   socket.on('disconnect', () => {
-    logger.info('Client disconnected', { socketId: socket.id, ip: socket.ip })
+    logSocketInfo(socket, 'Client disconnected.', { event: undefined })
     // Maybe move to Authentication.js?
     userDbLogout(socket.id)
   })
