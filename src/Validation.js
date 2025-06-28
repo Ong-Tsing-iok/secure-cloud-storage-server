@@ -10,6 +10,9 @@ const NonEmptyStringSchema = z.string().min(1, { message: 'Name cannot be empty.
 const PublicKeySchema = z.string().regex(/^[a-zA-Z0-9+/=]+$/)
 const FolderIdSchema = z.uuidv4().nullable()
 
+// CryptoHandler.js
+export const Base64Schema = z.base64()
+
 // Authentication.js
 export const RegisterRequestSchema = z.object({
   publicKey: PublicKeySchema,

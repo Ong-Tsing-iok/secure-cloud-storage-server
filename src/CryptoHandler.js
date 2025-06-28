@@ -5,32 +5,20 @@ import {
   pre_schema1_ReEncrypt
 } from '@aldenml/ecc'
 import { logger } from './Logger.js'
-
-const base64Re = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
-
-const checkKeyValid = (publicKey) => {
-  return base64Re.test(publicKey)
-}
+import { Base64Schema } from './Validation.js'
 
 const reencrypt = async (rekey, cipher, aSpk, bPk) => {
-  if (!checkKeyValid(rekey)) {
-    throw new Error('Invalid rekey format')
-  }
-  if (!checkKeyValid(cipher)) {
-    throw new Error('Invalid cipher format')
-  }
-  if (!checkKeyValid(aSpk)) {
-    throw new Error('Invalid aSpk format')
-  }
-  if (!checkKeyValid(bPk)) {
-    throw new Error('Invalid bPk format')
-  }
-  logger.debug(`rekey: ${rekey}, cipher: ${cipher}, aSpk: ${aSpk}, bPk: ${bPk}`)
+  const parsedRekey = Base64Schema.parse(rekey)
+  const parsedCipher = Base64Schema.parse(cipher)
+  const parsedASpk = Base64Schema.parse(aSpk)
+  const parsedBPk = Base64Schema.parse(bPk)
+
+  logger.debug(`rekey: ${parsedRekey}, cipher: ${parsedCipher}, aSpk: ${parsedASpk}, bPk: ${parsedBPk}`)
   const signingArray = await pre_schema1_SigningKeyGen()
-  const rekeyArray = new Uint8Array(Buffer.from(rekey, 'base64'))
-  const cipherArray = new Uint8Array(Buffer.from(cipher, 'base64'))
-  const aSpkArray = new Uint8Array(Buffer.from(aSpk, 'base64'))
-  const bPkArray = new Uint8Array(Buffer.from(bPk, 'base64'))
+  const rekeyArray = new Uint8Array(Buffer.from(parsedRekey, 'base64'))
+  const cipherArray = new Uint8Array(Buffer.from(parsedCipher, 'base64'))
+  const aSpkArray = new Uint8Array(Buffer.from(parsedASpk, 'base64'))
+  const bPkArray = new Uint8Array(Buffer.from(parsedBPk, 'base64'))
   const recipherArray = await pre_schema1_ReEncrypt(
     cipherArray,
     rekeyArray,
@@ -42,7 +30,7 @@ const reencrypt = async (rekey, cipher, aSpk, bPk) => {
   logger.debug(`ssk: ${Buffer.from(signingArray.ssk).toString('base64')}`)
   logger.debug(`recipher: ${Buffer.from(recipherArray).toString('base64')}`)
   if (recipherArray === null) {
-    throw new Error('Failed to reencrypt')
+    throw new Error('Failed to reencrypt.')
   }
   return {
     recipher: Buffer.from(recipherArray).toString('base64'),
@@ -65,12 +53,13 @@ const messageGen = async () => {
  * @returns {Promise<{message: string, cipher: string, spk: string}>}
  */
 const verifyGen = async (publicKey) => {
-  const publicKeyArray = new Uint8Array(Buffer.from(publicKey, 'base64'))
+  const parsedPublicKey = Base64Schema.parse(publicKey)
+  const publicKeyArray = new Uint8Array(Buffer.from(parsedPublicKey, 'base64'))
   const messageArray = await pre_schema1_MessageGen()
   const signKeyArray = await pre_schema1_SigningKeyGen()
   const cipherArray = await pre_schema1_Encrypt(messageArray, publicKeyArray, signKeyArray)
   if (cipherArray === null) {
-    throw new Error('Failed to create verity message')
+    throw new Error('Failed to create verify message.')
   }
   // const messageStr = Buffer.from(message).toString('base64')
   return {
