@@ -31,7 +31,7 @@ const authenticationBinder = (socket, blockchainManager) => {
       const userInfo = getUserByKey(publicKey)
       if (userInfo) {
         socket.userId = userInfo.id
-        logSocketInfo(socket, 'Client already registered.')
+        logSocketWarning(socket, actionStr + ' but is already registered.', request)
         cb({ errorMsg: 'Already registered.' })
         return
       }
@@ -65,7 +65,7 @@ const authenticationBinder = (socket, blockchainManager) => {
     const { publicKey } = result.data
 
     if (socket.authed) {
-      logSocketInfo(socket, 'Client already logged in.')
+      logSocketWarning(socket, actionStr + ' but is already logged in.', request)
       cb({ errorMsg: 'Already logged in.' })
       return
     }
@@ -73,13 +73,13 @@ const authenticationBinder = (socket, blockchainManager) => {
     try {
       const userInfo = getUserByKey(publicKey)
       if (!userInfo) {
-        logSocketWarning(socket, 'Non-registered client trying to login.', request)
+        logSocketWarning(socket, actionStr + ' but is not registered.', request)
         cb({ errorMsg: 'Not registered.' })
         return
       }
       socket.userId = userInfo.id
       if (userInfo.status === userStatusType.stopped) {
-        logSocketWarning(socket, 'Stopped client trying to login.')
+        logSocketWarning(socket, actionStr + ' but the account is stopped.', request)
         cb({ errorMsg: 'Account is stopped.' })
         return
       }
@@ -87,8 +87,9 @@ const authenticationBinder = (socket, blockchainManager) => {
       // Check login attempts
       const failureInfo = getFailure(userInfo.id)
       if (failureInfo && failureInfo.count >= ConfigManager.loginAttemptsLimit) {
-        logSocketWarning(socket, 'Client failed too many login attempts.', {
-          failedLoginAttempts: failureInfo.count
+        logSocketWarning(socket, actionStr + ' but failed too many login attempts.', {
+          failedLoginAttempts: failureInfo.count,
+          ...request
         })
         cb({ errorMsg: 'Too many login attempts.' })
         return
@@ -137,7 +138,6 @@ const authenticationBinder = (socket, blockchainManager) => {
         cb({ errorMsg: 'Incorrect authentication key.' })
         return
       }
-      logSocketInfo(socket, 'Authentication key correct. Client is authenticated.')
 
       if (!socket.userId && socket.pk && socket.name && socket.email && socket.blockchainAddress) {
         // register
@@ -197,6 +197,7 @@ const authenticationBinder = (socket, blockchainManager) => {
 
       userDbLogin(socket.id, socket.userId)
       socket.authed = true
+      logSocketInfo(socket, 'Authentication key correct. Client is authenticated.')
       cb({ userInfo: { userId: socket.userId, name: socket.name, email: socket.email } })
     } catch (error) {
       logSocketError(socket, error)

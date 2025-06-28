@@ -72,3 +72,20 @@ export const UpdateFileRequestSchema = z.object({
   // Maybe should conenct to storage database via Config Manager
   permission: z.union([z.literal(0), z.literal(1), z.literal(2)])
 })
+
+// RequestManager.js
+export const ReqeustFileRequestSchema = z.object({
+  fileId: z.uuidv4(),
+  description: z.string()
+})
+
+export const DeleteRequestRequestSchema = z.object({
+  requestId: z.uuidv4()
+})
+
+export const RespondRequestRequestSchema = z.object({
+  requestId: z.uuidv4(),
+  aggreed: z.boolean(),
+  description: z.string(),
+  rekey: z.string().nullable()
+})

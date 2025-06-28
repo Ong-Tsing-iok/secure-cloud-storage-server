@@ -1,5 +1,4 @@
 import {
-  logger,
   logInvalidSchemaWarning,
   logSocketError,
   logSocketInfo,
