@@ -96,3 +96,44 @@ export const logSocketError = (socket, error, metaObj = {}) => {
 export const logInvalidSchemaWarning = (socket, action, issues, metaObj = {}) => {
   logSocketWarning(socket, action + ' with invalid arguments.', { issues, ...metaObj })
 }
+
+// FtpsServer.js
+const getFtpsMeta = (data, metaObj) => {
+  return {
+    ip: data.connection.ip,
+    userId: data.userId,
+    protocol: 'ftps',
+    ...(data.password != 'guest' && {fileId: data.password}),
+    ...metaObj
+  }
+}
+
+
+export const logFtpsInfo = (data, message, metaObj = {}) => {
+  logger.info(message, getFtpsMeta(data, metaObj))
+}
+
+export const logFtpsWarning = (data, message, metaObj = {}) => {
+  logger.warn(message, getFtpsMeta(data, metaObj))
+}
+
+export const logFtpsError = (data, error, metaObj = {}) => {
+  logger.error(error, getFtpsMeta(data, metaObj))
+}
+
+// HttpsServer.js
+const logHttps = (level, message, metaObj) => {
+  logger.log(level, message, { protocol: 'https', ...metaObj })
+}
+
+export const logHttpsInfo = (message, metaObj = {}) => {
+  logHttps('info', message, metaObj)
+}
+
+export const logHttpsWarning = (message, metaObj = {}) => {
+  logHttps('warn', message, metaObj)
+}
+
+export const logHttpsError = (error, metaObj = {}) => {
+  logger.error(error, { protocol: 'https', ...metaObj })
+}

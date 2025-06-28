@@ -87,7 +87,8 @@ const downloadFileBinder = (socket) => {
 const uploadFileBinder = (socket) => {
   socket.on('upload-file-pre', (request, cb) => {
     const actionStr = 'Client asks to upload file'
-    logSocketInfo(socket, actionStr + '.', request)
+    // cipher and spk do not need to be logged
+    logSocketInfo(socket, actionStr + '.', { parentFolderId: request.parentFolderId })
 
     const result = UploadFileRequestSchema.safeParse(request)
     if (!result.success) {
@@ -114,7 +115,7 @@ const uploadFileBinder = (socket) => {
       // Store with key and iv in database with expires time
       insertUpload(fileId, cipher, spk, parentFolderId, Date.now() + uploadExpireTime)
       logSocketInfo(socket, 'Pre-upload information stored in upload database.', {
-        ...request,
+        parentFolderId: request.parentFolderId,
         fileId
       })
       cb({ fileId })

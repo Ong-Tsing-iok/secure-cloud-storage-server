@@ -89,6 +89,9 @@ class ConfigManager {
   get loginAttemptsTimeout() {
     return parseFloat(getConfig('loginAttempts.timeout')) * 60 * 1000
   }
+  get uploadExpireTimMiliSec() {
+    return this.settings.uploadExpireTimeMin * 60 * 1000
+  }
 }
 
 export default new ConfigManager()

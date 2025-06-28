@@ -181,7 +181,7 @@ const authenticationBinder = (socket, blockchainManager) => {
             email: socket.email,
             pk: socket.pk,
             blockchainAddress: socket.blockchainAddress
-          })
+          }) // Did not re-throw because need to log extra information
           // Reverting register
           if (socket.userId && databaseAdded) deleteUserById(socket.userId)
           try {

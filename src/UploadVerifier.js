@@ -25,7 +25,7 @@ export const finishUpload = async (uploadInfo) => {
   try {
     const hash = await calculateFileHash(getFilePath(uploadInfo.userId, uploadInfo.id))
     uploadInfoMap.set(uploadInfo.id, { uploadInfo, hash })
-    logger.info(`upload info map set.`, { uploadInfo, hash })
+    logger.info(`upload info map set.`, { fileId: uploadInfo.id, hash })
   } catch (error) {
     logger.error(error)
     uploadInfoMap.set(uploadInfo.id, { uploadInfo, hash: null })

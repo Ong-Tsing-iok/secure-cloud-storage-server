@@ -16,7 +16,6 @@ import {
   getRequestNotRespondedByIdOfFileOwner,
   addResponse,
   getUserById,
-  deleteFileOfOwnerId,
   deleteFile,
   deleteResponseById
 } from './StorageDatabase.js'
