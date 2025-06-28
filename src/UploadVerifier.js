@@ -4,7 +4,7 @@ import { logger } from './Logger.js'
 import { getSocketId } from './LoginDatabase.js'
 import { blockchainManager, emitToSocket } from './SocketIO.js'
 import { addFileToDatabase } from './StorageDatabase.js'
-import { calculateFileHash, getFilePath, revertUpload } from './Utils.js'
+import { calculateFileHash, getFilePath, InternalServerErrorMsg, revertUpload } from './Utils.js'
 
 const uploadInfoMap = new EvictingMap(5 * 60 * 1000)
 
@@ -60,22 +60,26 @@ blockchainManager.bindEventListener(
           addFileToDatabase(value.uploadInfo)
           await blockchainManager.setFileVerification(fileId, uploader, 'success')
           if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId })
-          logger.info('File uploaded and verified.', { fileId: value.uploadInfo.id })
+          logger.info('File uploaded and verified.', { fileId, userId })
         } else {
           logger.warn('File hashes do not meet', {
             fileHash: value.hash,
             blockchainHash: fileHash,
-            fileId
+            fileId,
+            userId
           })
           await blockchainManager.setFileVerification(fileId, uploader, 'fail')
           revertUpload(userId, fileId, 'File hashes do not meet.')
         }
       } else {
-        logger.warn(`Blockchain upload event did not find matching upload info.`, { fileId })
+        logger.warn(`Blockchain upload event did not find matching upload info.`, {
+          fileId,
+          userId
+        })
       }
     } catch (error) {
-      logger.error(error)
-      revertUpload(userId, fileId, 'Internal server error.')
+      logger.error(error, { fileId, userId })
+      revertUpload(userId, fileId, InternalServerErrorMsg)
     }
   }
 )
