@@ -8,6 +8,10 @@ import { calculateFileHash, getFilePath, InternalServerErrorMsg, revertUpload } 
 
 const uploadInfoMap = new EvictingMap(5 * 60 * 1000)
 
+const BigIntToHex = (value) => {
+  return '0x' + value.toString(16)
+}
+
 /**
  *
  * @param {{
@@ -39,7 +43,6 @@ uploadInfoMap.onExpired((key, value) => {
 blockchainManager.bindEventListener(
   'FileUploaded',
   async (fileId, uploader, fileHash, metadata, timestamp) => {
-    let userId
     try {
       fileId = bigIntToUuid(fileId)
       logger.debug('Contract event FileUploaded emitted', {
@@ -51,35 +54,41 @@ blockchainManager.bindEventListener(
       })
       // TODO: maybe need to check uploader
       if (uploadInfoMap.has(fileId)) {
-        // compare hash. If same, send success message to client. If not, remove file and send fail message to client.
-        const value = uploadInfoMap.get(fileId)
-        userId = value.uploadInfo.userId
-        uploadInfoMap.delete(fileId)
-        const socketId = getSocketId(userId)?.socketId
-        if (BigInt(value.hash) == BigInt(fileHash)) {
-          addFileToDatabase(value.uploadInfo)
-          await blockchainManager.setFileVerification(fileId, uploader, 'success')
-          if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId })
-          logger.info('File uploaded and verified.', { fileId, userId })
-        } else {
-          logger.warn('File hashes do not meet', {
-            fileHash: value.hash,
-            blockchainHash: fileHash,
-            fileId,
-            userId
-          })
-          await blockchainManager.setFileVerification(fileId, uploader, 'fail')
-          revertUpload(userId, fileId, 'File hashes do not meet.')
+        let userId
+        let uploadInfoDeleted = false
+        try {
+          // compare hash. If same, send success message to client. If not, remove file and send fail message to client.
+          const value = uploadInfoMap.get(fileId)
+          userId = value.uploadInfo.userId
+          uploadInfoMap.delete(fileId)
+          uploadInfoDeleted = true
+          if (BigInt(value.hash) == BigInt(fileHash)) {
+            const socketId = getSocketId(userId)?.socketId
+            addFileToDatabase(value.uploadInfo)
+            await blockchainManager.setFileVerification(fileId, uploader, 'success')
+            if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId })
+            logger.info('File uploaded and verified.', { fileId, userId })
+          } else {
+            logger.warn('File hashes do not meet', {
+              fileHash: value.hash,
+              blockchainHash: BigIntToHex(fileHash),
+              fileId,
+              userId
+            })
+            await blockchainManager.setFileVerification(fileId, uploader, 'fail')
+            revertUpload(userId, fileId, 'File hashes do not meet.')
+          }
+        } catch (error1) {
+          if (uploadInfoDeleted) revertUpload(userId, fileId, InternalServerErrorMsg)
+          throw error1
         }
       } else {
         logger.warn(`Blockchain upload event did not find matching upload info.`, {
-          fileId,
-          userId
+          fileId
         })
       }
     } catch (error) {
-      logger.error(error, { fileId, userId })
-      revertUpload(userId, fileId, InternalServerErrorMsg)
+      logger.error(error, { fileId, uploader: BigIntToHex(uploader) })
     }
   }
 )
