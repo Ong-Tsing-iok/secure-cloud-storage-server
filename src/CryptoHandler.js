@@ -13,7 +13,9 @@ const reencrypt = async (rekey, cipher, aSpk, bPk) => {
   const parsedASpk = Base64Schema.parse(aSpk)
   const parsedBPk = Base64Schema.parse(bPk)
 
-  logger.debug(`rekey: ${parsedRekey}, cipher: ${parsedCipher}, aSpk: ${parsedASpk}, bPk: ${parsedBPk}`)
+  logger.debug(
+    `rekey: ${parsedRekey}, cipher: ${parsedCipher}, aSpk: ${parsedASpk}, bPk: ${parsedBPk}`
+  )
   const signingArray = await pre_schema1_SigningKeyGen()
   const rekeyArray = new Uint8Array(Buffer.from(parsedRekey, 'base64'))
   const cipherArray = new Uint8Array(Buffer.from(parsedCipher, 'base64'))
@@ -26,12 +28,12 @@ const reencrypt = async (rekey, cipher, aSpk, bPk) => {
     bPkArray,
     signingArray
   )
-  logger.debug(`spk: ${Buffer.from(signingArray.spk).toString('base64')}`)
-  logger.debug(`ssk: ${Buffer.from(signingArray.ssk).toString('base64')}`)
-  logger.debug(`recipher: ${Buffer.from(recipherArray).toString('base64')}`)
   if (recipherArray === null) {
     throw new Error('Failed to reencrypt.')
   }
+  logger.debug(`spk: ${Buffer.from(signingArray.spk).toString('base64')}`)
+  logger.debug(`ssk: ${Buffer.from(signingArray.ssk).toString('base64')}`)
+  logger.debug(`recipher: ${Buffer.from(recipherArray).toString('base64')}`)
   return {
     recipher: Buffer.from(recipherArray).toString('base64'),
     spk: Buffer.from(signingArray.spk).toString('base64')
