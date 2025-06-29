@@ -169,11 +169,11 @@ const deleteFileBinder = (socket) => {
       try {
         deleteFile(fileId)
         await unlink(getFilePath(socket.userId, fileId))
-        logSocketInfo(socket, 'File deleted.', request)
-        cb({})
       } catch (error1) {
         if (error1.code != 'ENOENT') throw error1
       }
+      logSocketInfo(socket, 'File deleted.', request)
+      cb({})
     } catch (error) {
       logSocketError(socket, error, request)
       cb({ errorMsg: InternalServerErrorMsg })
