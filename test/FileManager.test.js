@@ -110,7 +110,7 @@ import {
   UploadFileRequestSchema
 } from '../src/Validation.js'
 
-describe.only('File Binders', () => {
+describe('File Binders', () => {
   let mockSocket
   let mockCb // Callback function for socket events
   const mockUserId = 'user123'
