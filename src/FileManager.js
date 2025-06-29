@@ -46,24 +46,24 @@ const uploadExpireTime = ConfigManager.settings.uploadExpireTimeMin * 60 * 1000
 // Download file related events
 const downloadFileBinder = (socket) => {
   socket.on('download-file-pre', (request, cb) => {
-    const actionStr = 'Client asks to download file'
-    logSocketInfo(socket, actionStr + '.', request)
-
-    const result = DownloadFileRequestSchema.safeParse(request)
-    if (!result.success) {
-      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
-      cb({ errorMsg: InvalidArgumentErrorMsg })
-      return
-    }
-    const { fileId } = result.data
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     try {
+      const actionStr = 'Client asks to download file'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = DownloadFileRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { fileId } = result.data
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       const fileInfo = getFileInfo(fileId)
       if (!fileInfo) {
         logSocketWarning(socket, actionStr + ' which does not exist.', request)
@@ -76,7 +76,7 @@ const downloadFileBinder = (socket) => {
         cb({ errorMsg: 'File not owned.' })
         return
       }
-      
+
       logSocketInfo(socket, 'Responding file info to client.', request)
       cb({ fileInfo })
     } catch (error) {
@@ -93,25 +93,25 @@ const downloadFileBinder = (socket) => {
 // Upload file related events
 const uploadFileBinder = (socket) => {
   socket.on('upload-file-pre', (request, cb) => {
-    const actionStr = 'Client asks to upload file'
-    // cipher and spk do not need to be logged
-    logSocketInfo(socket, actionStr + '.', { parentFolderId: request.parentFolderId })
-
-    const result = UploadFileRequestSchema.safeParse(request)
-    if (!result.success) {
-      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
-      cb({ errorMsg: InvalidArgumentErrorMsg })
-      return
-    }
-    const { cipher, spk, parentFolderId } = result.data
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     try {
+      const actionStr = 'Client asks to upload file'
+      // cipher and spk do not need to be logged
+      logSocketInfo(socket, actionStr + '.', { parentFolderId: request.parentFolderId })
+
+      const result = UploadFileRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { cipher, spk, parentFolderId } = result.data
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       if (!checkFolderExistsForUser(parentFolderId, socket.userId)) {
         logSocketWarning(socket, actionStr + ' to a non-existing folder.', request)
         cb({ errorMsg: 'Parent folder not found.' })
@@ -136,24 +136,24 @@ const uploadFileBinder = (socket) => {
 // Delete file event
 const deleteFileBinder = (socket) => {
   socket.on('delete-file', async (request, cb) => {
-    const actionStr = 'Client asks to delete file'
-    logSocketInfo(socket, actionStr + '.', request)
-
-    const result = DeleteFileRequestSchema.safeParse(request)
-    if (!result.success) {
-      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
-      cb({ errorMsg: InvalidArgumentErrorMsg })
-      return
-    }
-    const { fileId } = result.data
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     try {
+      const actionStr = 'Client asks to delete file'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = DeleteFileRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { fileId } = result.data
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       const fileInfo = getFileInfo(fileId)
       if (!fileInfo) {
         logSocketWarning(socket, actionStr + ' which does not exist.', request)
@@ -184,24 +184,24 @@ const deleteFileBinder = (socket) => {
 // Get file list event
 const getFileListBinder = (socket) => {
   socket.on('get-file-list', (request, cb) => {
-    const actionStr = 'Client asks to get file list'
-    logSocketInfo(socket, actionStr + '.', request)
-
-    const result = GetFileListRequestSchema.safeParse(request)
-    if (!result.success) {
-      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
-      cb({ errorMsg: InvalidArgumentErrorMsg })
-      return
-    }
-    const { parentFolderId } = result.data
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     try {
+      const actionStr = 'Client asks to get file list'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = GetFileListRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { parentFolderId } = result.data
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       const files = getAllFilesByParentFolderIdUserId(parentFolderId, socket.userId)
       const folders = getAllFoldersByParentFolderIdUserId(parentFolderId, socket.userId)
       logSocketInfo(socket, 'Responding file list to client.', request)
@@ -218,24 +218,24 @@ const getFileListBinder = (socket) => {
 const folderBinder = (socket) => {
   // Add folder
   socket.on('add-folder', (request, cb) => {
-    const actionStr = 'Client asks to add folder'
-    logSocketInfo(socket, actionStr + '.', request)
-
-    const result = DeleteFileRequestSchema.safeParse(request)
-    if (!result.success) {
-      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
-      cb({ errorMsg: InvalidArgumentErrorMsg })
-      return
-    }
-    const { parentFolderId, folderName } = result.data
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     try {
+      const actionStr = 'Client asks to add folder'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = DeleteFileRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { parentFolderId, folderName } = result.data
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       addFolderToDatabase(folderName, parentFolderId, socket.userId)
       logSocketInfo(socket, 'Folder added to database.', request)
       cb({})
@@ -247,24 +247,24 @@ const folderBinder = (socket) => {
 
   // Delete folder
   socket.on('delete-folder', (request, cb) => {
-    const actionStr = 'Client asks to delete folder'
-    logSocketInfo(socket, actionStr + '.', request)
-
-    const result = DeleteFolderRequestSchema.safeParse(request)
-    if (!result.success) {
-      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
-      cb({ errorMsg: InvalidArgumentErrorMsg })
-      return
-    }
-    const { folderId } = result.data
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     try {
+      const actionStr = 'Client asks to delete folder'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = DeleteFolderRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { folderId } = result.data
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       const files = getAllFilesByParentFolderIdUserId(folderId, socket.userId)
       const folders = getAllFoldersByParentFolderIdUserId(folderId, socket.userId)
       if (files.length > 0 || folders.length > 0) {
@@ -287,16 +287,16 @@ const folderBinder = (socket) => {
 
   // Get all folder
   socket.on('get-all-folders', (cb) => {
-    const actionStr = 'Client asks to get all folders'
-    logSocketInfo(socket, actionStr + '.')
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.')
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     try {
+      const actionStr = 'Client asks to get all folders'
+      logSocketInfo(socket, actionStr + '.')
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.')
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       const folders = getAllFoldersByUserId(socket.userId)
       logSocketInfo(socket, 'Responding all folders to client.')
       cb({ folders: JSON.stringify(folders) })
@@ -309,24 +309,24 @@ const folderBinder = (socket) => {
 
 const moveFileBinder = (socket) => {
   socket.on('move-file', (request, cb) => {
-    const actionStr = 'Client asks to move file to target folder'
-    logSocketInfo(socket, actionStr + '.', request)
-
-    const result = MoveFileRequestSchema.safeParse(request)
-    if (!result.success) {
-      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
-      cb({ errorMsg: InvalidArgumentErrorMsg })
-      return
-    }
-    const { fileId, targetFolderId } = result.data
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     try {
+      const actionStr = 'Client asks to move file to target folder'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = MoveFileRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { fileId, targetFolderId } = result.data
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       if (!checkFolderExistsForUser(targetFolderId, socket.userId)) {
         logSocketWarning(socket, actionStr + ' but target folder does not exist.', request)
         cb({ errorMsg: 'Target folder not found.' })
@@ -348,16 +348,16 @@ const moveFileBinder = (socket) => {
 
 const getPublicFilesBinder = (socket) => {
   socket.on('get-public-files', (cb) => {
-    const actionStr = 'Client asks to get public files'
-    logSocketInfo(socket, actionStr + '.')
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.')
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     try {
+      const actionStr = 'Client asks to get public files'
+      logSocketInfo(socket, actionStr + '.')
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.')
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       const files = getAllPublicFilesNotOwned(socket.userId)
       logSocketInfo(socket, 'Responding public files to client.')
       cb({ files: JSON.stringify(files) })
@@ -370,24 +370,24 @@ const getPublicFilesBinder = (socket) => {
 
 const updateFileBinder = (socket) => {
   socket.on('update-file-desc-perm', (request, cb) => {
-    const actionStr = 'Client asks to update description and permission for file'
-    logSocketInfo(socket, actionStr + '.', request)
-
-    const result = UpdateFileRequestSchema.safeParse(request)
-    if (!result.success) {
-      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
-      cb({ errorMsg: InvalidArgumentErrorMsg })
-      return
-    }
-    const { fileId, description, permission } = result.data
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     try {
+      const actionStr = 'Client asks to update description and permission for file'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = UpdateFileRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { fileId, description, permission } = result.data
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       if (!getFileInfoOfOwnerId(fileId, socket.userId)) {
         logSocketWarning(socket, actionStr + ' but file does not exist.', request)
         cb({ errorMsg: FileNotFoundErrorMsg })

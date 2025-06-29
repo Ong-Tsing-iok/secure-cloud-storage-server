@@ -39,17 +39,17 @@ uploadInfoMap.onExpired((key, value) => {
 blockchainManager.bindEventListener(
   'FileUploaded',
   async (fileId, uploader, fileHash, metadata, timestamp) => {
-    fileId = bigIntToUuid(fileId)
-    logger.debug('Contract event FileUploaded emitted', {
-      fileId,
-      uploader,
-      fileHash,
-      metadata,
-      timestamp
-    })
-    // TODO: maybe need to check uploader
     let userId
     try {
+      fileId = bigIntToUuid(fileId)
+      logger.debug('Contract event FileUploaded emitted', {
+        fileId,
+        uploader,
+        fileHash,
+        metadata,
+        timestamp
+      })
+      // TODO: maybe need to check uploader
       if (uploadInfoMap.has(fileId)) {
         // compare hash. If same, send success message to client. If not, remove file and send fail message to client.
         const value = uploadInfoMap.get(fileId)

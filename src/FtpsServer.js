@@ -34,11 +34,11 @@ const ftpServer = new FtpSrv({
 })
 
 ftpServer.on('login', async (data, resolve, reject) => {
-  const { connection, username: socketId, password: fileId } = data // use password as file id
-  let actionStr = 'Client tries to authenticate'
-  logFtpsInfo(data, actionStr + '.', { socketId })
-
   try {
+    const { connection, username: socketId, password: fileId } = data // use password as file id
+    let actionStr = 'Client tries to authenticate'
+    logFtpsInfo(data, actionStr + '.', { socketId })
+
     const userInfo = checkUserLoggedIn(socketId)
     let uploadInfo
     if (!userInfo) {
@@ -92,12 +92,12 @@ const connectionBinder = (data, uploadInfo, socketId) => {
 
   data.connection.on('STOR', async (error, fileName) => {
     // Upload file
-    if (error) {
-      logFtpsError(data, error)
-      return
-    }
-
     try {
+      if (error) {
+        logFtpsError(data, error)
+        return
+      }
+
       const fileSize = (await stat(fileName)).size
       await finishUpload({
         name: data.connection.originalFileName,

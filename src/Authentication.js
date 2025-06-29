@@ -16,18 +16,18 @@ import { AuthResRequestSchema, LoginRequestSchema, RegisterRequestSchema } from 
 const authenticationBinder = (socket, blockchainManager) => {
   // Register event
   socket.on('register', async (request, cb) => {
-    const actionStr = 'Client asks to register'
-    logSocketInfo(socket, actionStr + '.', request)
-
-    const result = RegisterRequestSchema.safeParse(request)
-    if (!result.success) {
-      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
-      cb({ errorMsg: InvalidArgumentErrorMsg })
-      return
-    }
-    const { publicKey, blockchainAddress, name, email } = result.data
-
     try {
+      const actionStr = 'Client asks to register'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = RegisterRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { publicKey, blockchainAddress, name, email } = result.data
+
       const userInfo = getUserByKey(publicKey)
       if (userInfo) {
         socket.userId = userInfo.id
@@ -53,24 +53,24 @@ const authenticationBinder = (socket, blockchainManager) => {
 
   // Login event
   socket.on('login', async (request, cb) => {
-    const actionStr = 'Client asks to login'
-    logSocketInfo(socket, actionStr + '.', request)
-
-    const result = LoginRequestSchema.safeParse(request)
-    if (!result.success) {
-      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
-      cb({ errorMsg: InvalidArgumentErrorMsg })
-      return
-    }
-    const { publicKey } = result.data
-
-    if (socket.authed) {
-      logSocketWarning(socket, actionStr + ' but is already logged in.', request)
-      cb({ errorMsg: 'Already logged in.' })
-      return
-    }
-
     try {
+      const actionStr = 'Client asks to login'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = LoginRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { publicKey } = result.data
+
+      if (socket.authed) {
+        logSocketWarning(socket, actionStr + ' but is already logged in.', request)
+        cb({ errorMsg: 'Already logged in.' })
+        return
+      }
+
       const userInfo = getUserByKey(publicKey)
       if (!userInfo) {
         logSocketWarning(socket, actionStr + ' but is not registered.', request)
@@ -111,24 +111,24 @@ const authenticationBinder = (socket, blockchainManager) => {
 
   // Authentication response event for register and login
   socket.on('auth-res', async (request, cb) => {
-    const actionStr = 'Client responds to authentication'
-    logSocketInfo(socket, actionStr + '.', request)
-
-    const result = AuthResRequestSchema.safeParse(request)
-    if (!result.success) {
-      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
-      cb({ errorMsg: InvalidArgumentErrorMsg })
-      return
-    }
-    const { decryptedValue } = result.data
-
-    if (!socket.pk || !socket.randKey || !(socket.userId || (socket.name && socket.email))) {
-      logSocketWarning(socket, actionStr + ' without asking to login or register.', request)
-      cb({ errorMsg: 'Did not ask to log in or register first.' })
-      return
-    }
-
     try {
+      const actionStr = 'Client responds to authentication'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = AuthResRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { decryptedValue } = result.data
+
+      if (!socket.pk || !socket.randKey || !(socket.userId || (socket.name && socket.email))) {
+        logSocketWarning(socket, actionStr + ' without asking to login or register.', request)
+        cb({ errorMsg: 'Did not ask to log in or register first.' })
+        return
+      }
+
       if (socket.randKey !== decryptedValue) {
         logSocketWarning(socket, actionStr + ' with incorrect authentication key.', {
           ...request,

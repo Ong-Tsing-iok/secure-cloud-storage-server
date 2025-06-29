@@ -48,8 +48,8 @@ const calculateFileHash = async (filePath, algorithm = 'sha256') => {
 }
 
 const revertUpload = async (userId, fileId, errorMsg) => {
-  logger.info(`reverting upload.`, { userId, fileId, errorMsg })
   try {
+    logger.info(`reverting upload.`, { userId, fileId, errorMsg })
     // remove file from database
     deleteFileOfOwnerId(fileId, userId)
     // remove file from disc

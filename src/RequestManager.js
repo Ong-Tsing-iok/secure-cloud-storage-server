@@ -42,25 +42,25 @@ import {
 const requestBinder = (socket) => {
   //! Ask for request
   socket.on('request-file', async (request, cb) => {
-    const actionStr = 'Client asks to request file'
-    logSocketInfo(socket, actionStr + '.', request)
-
-    const result = ReqeustFileRequestSchema.safeParse(request)
-    if (!result.success) {
-      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
-      cb({ errorMsg: InvalidArgumentErrorMsg })
-      return
-    }
-    const { fileId, description } = result.data
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     let requestId
     try {
+      const actionStr = 'Client asks to request file'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = ReqeustFileRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { fileId, description } = result.data
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       const fileInfo = getFileInfo(fileId)
       if (!fileInfo) {
         logSocketWarning(socket, actionStr + ' which does not exist.', request)
@@ -110,24 +110,24 @@ const requestBinder = (socket) => {
 
   //! Delete request
   socket.on('delete-request', (request, cb) => {
-    const actionStr = 'Client asks to delete request'
-    logSocketInfo(socket, actionStr + '.', request)
-
-    const result = DeleteRequestRequestSchema.safeParse(request)
-    if (!result.success) {
-      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
-      cb({ errorMsg: InvalidArgumentErrorMsg })
-      return
-    }
-    const { requestId } = result.data
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     try {
+      const actionStr = 'Client asks to delete request'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = DeleteRequestRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { requestId } = result.data
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       if (deleteRequestOfRequester(requestId, socket.userId).changes <= 0) {
         logSocketWarning(socket, actionStr + ' which does not exist.', request)
         cb({ errorMsg: 'Request not found.' })
@@ -143,26 +143,26 @@ const requestBinder = (socket) => {
 
   //! Respond request
   socket.on('respond-request', async (request, cb) => {
-    const actionStr = 'Client asks to respond to request'
-    logSocketInfo(socket, actionStr + '.', request)
-
-    const result = RespondRequestRequestSchema.safeParse(request)
-    if (!result.success) {
-      logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
-      cb({ errorMsg: InvalidArgumentErrorMsg })
-      return
-    }
-
-    const { requestId, agreed, description, rekey } = request
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.', request)
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     let responseId
     try {
+      const actionStr = 'Client asks to respond to request'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = RespondRequestRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+
+      const { requestId, agreed, description, rekey } = request
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       const requestInfo = getRequestNotRespondedByIdOfFileOwner(requestId, socket.userId)
       if (requestInfo === undefined) {
         logSocketWarning(socket, actionStr + ' which does not exist or already responded.', request)
@@ -208,16 +208,16 @@ const requestBinder = (socket) => {
 
   //! Get request list
   socket.on('get-request-list', (cb) => {
-    const actionStr = 'Client asks to get request list requested by this client'
-    logSocketInfo(socket, actionStr + '.')
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.')
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     try {
+      const actionStr = 'Client asks to get request list requested by this client'
+      logSocketInfo(socket, actionStr + '.')
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.')
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       const requests = getAllRequestsResponsesByRequester(socket.userId)
       // console.log({ files, folders })
       logSocketInfo(socket, 'Responding request list to client.')
@@ -230,16 +230,16 @@ const requestBinder = (socket) => {
 
   //! Get requested list
   socket.on('get-requested-list', (cb) => {
-    const actionStr = 'Client asks to get request list requested by other clients'
-    logSocketInfo(socket, actionStr + '.')
-
-    if (!checkLoggedIn(socket)) {
-      logSocketWarning(socket, actionStr + ' but is not logged in.')
-      cb({ errorMsg: NotLoggedInErrorMsg })
-      return
-    }
-
     try {
+      const actionStr = 'Client asks to get request list requested by other clients'
+      logSocketInfo(socket, actionStr + '.')
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.')
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
       const requests = getAllRequestsResponsesFilesByOwner(socket.userId)
       requests.forEach((request) => {
         if (request.agreed != null) {
@@ -248,7 +248,7 @@ const requestBinder = (socket) => {
       })
       // console.log({ files, folders })
       logSocketInfo(socket, 'Responding requested list to client.')
-      cb({requests: JSON.stringify(requests)})
+      cb({ requests: JSON.stringify(requests) })
     } catch (error) {
       logSocketError(socket, error)
       cb({ errorMsg: InternalServerErrorMsg })

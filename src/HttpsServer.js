@@ -17,8 +17,8 @@ import { FileIdSchema, SocketIDSchema } from './Validation.js'
 
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
-    const folderPath = resolve(ConfigManager.uploadDir, req.userId)
     try {
+      const folderPath = resolve(ConfigManager.uploadDir, req.userId)
       await mkdir(folderPath, { recursive: true })
       cb(null, folderPath)
     } catch (error) {
@@ -54,13 +54,13 @@ const upload = multer({
  */
 const auth = (req, res, next) => {
   const result = SocketIDSchema.safeParse(req.headers.socketid)
-  if (!result.success) {
-    logHttpsWarning(req, 'SocketId not found or invalid', { issues: result.issues })
-    res.status(400).send('SocketId not found or invalid')
-    return
-  }
-
   try {
+    if (!result.success) {
+      logHttpsWarning(req, 'SocketId not found or invalid', { issues: result.issues })
+      res.status(400).send('SocketId not found or invalid')
+      return
+    }
+
     const user = checkUserLoggedIn(req.headers.socketid)
     // logger.debug(`User with socket id ${req.headers.socketid} is authenticating`)
     if (!user) {
@@ -143,13 +143,13 @@ app.get('/download', auth, (req, res) => {
   logHttpsInfo(req, actionStr + '.')
 
   const result = FileIdSchema.safeParse(req.headers.fileid)
-  if (!result.success) {
-    logHttpsWarning(req, actionStr + ' but fileId is invalid.', { issues: result.issues })
-    res.status(400).send('FileId is invalid.')
-    return
-  }
-
   try {
+    if (!result.success) {
+      logHttpsWarning(req, actionStr + ' but fileId is invalid.', { issues: result.issues })
+      res.status(400).send('FileId is invalid.')
+      return
+    }
+
     const fileId = req.headers.fileid
     const fileInfo = getFileInfo(fileId)
 

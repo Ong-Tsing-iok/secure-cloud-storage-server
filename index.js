@@ -205,10 +205,10 @@ const deleteAccount = async (userId) => {
     // delete all upload table info
     removeUpload(loginInfo.userId)
   }
-  await rm(join(ConfigManager.uploadDir, userId), { recursive: true, force: true })
   const userInfo = getUserById(userId)
+  await blockchainManager.setClientStatus(userInfo.address, false)
+  await rm(join(ConfigManager.uploadDir, userId), { recursive: true, force: true })
   deleteUserById(userId)
-  await blockchainManager.setClientStatus(userInfo.blockchainAddress, false)
   success = true
   console.log('刪除成功')
 
