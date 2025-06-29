@@ -53,8 +53,8 @@ const upload = multer({
  * @return {void} This function does not return a value.
  */
 const auth = (req, res, next) => {
-  const result = SocketIDSchema.safeParse(req.headers.socketid)
   try {
+    const result = SocketIDSchema.safeParse(req.headers.socketid)
     if (!result.success) {
       logHttpsWarning(req, 'SocketId not found or invalid', { issues: result.issues })
       res.status(400).send('SocketId not found or invalid')
@@ -73,40 +73,43 @@ const auth = (req, res, next) => {
     req.userId = user.userId
     next()
   } catch (error) {
-    logHttpsError(req, error)
-    res.sendStatus(500)
+    next(error)
   }
 }
 
 const checkUpload = (req, res, next) => {
-  const actionStr = 'Client asks to upload file'
-  logHttpsInfo(req, actionStr + '.')
+  try {
+    const actionStr = 'Client asks to upload file'
+    logHttpsInfo(req, actionStr + '.')
 
-  const result = FileIdSchema.safeParse(req.headers.fileid)
-  if (!result.success) {
-    logHttpsWarning(req, actionStr + ' but fileId is invalid.', { issues: result.issues })
-    res.status(400).send('FileId is invalid.')
-    return
+    const result = FileIdSchema.safeParse(req.headers.fileid)
+    if (!result.success) {
+      logHttpsWarning(req, actionStr + ' but fileId is invalid.', { issues: result.issues })
+      res.status(400).send('FileId is invalid.')
+      return
+    }
+    const uploadInfo = getUpload(req.headers.fileid)
+    if (!uploadInfo) {
+      logHttpsWarning(req, actionStr + ' but upload info does not exist.')
+      res.status(400).send('Upload info not found.')
+      return
+    }
+    // check if path exists
+    if (uploadInfo.parentFolderId && !getFolderInfo(uploadInfo.parentFolderId)) {
+      logHttpsWarning(req, actionStr + 'but parent folder does not exist.', {
+        parentFolderId: uploadInfo.parentFolderId
+      })
+      res.status(400).send('Parent folder not found.')
+      return
+    }
+    req.uploadInfo = uploadInfo
+    next()
+  } catch (error) {
+    next(error)
   }
-  const uploadInfo = getUpload(req.headers.fileid)
-  if (!uploadInfo) {
-    logHttpsWarning(req, actionStr + ' but upload info does not exist.')
-    res.status(400).send('Upload info not found.')
-    return
-  }
-  // check if path exists
-  if (uploadInfo.parentFolderId && !getFolderInfo(uploadInfo.parentFolderId)) {
-    logHttpsWarning(req, actionStr + 'but parent folder does not exist.', {
-      parentFolderId: uploadInfo.parentFolderId
-    })
-    res.status(400).send('Parent folder not found.')
-    return
-  }
-  req.uploadInfo = uploadInfo
-  next()
 }
 
-app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res) => {
+app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res, next) => {
   try {
     if (req.file) {
       logHttpsInfo(req, 'Client uploaded file.', { filename: req.file.originalname })
@@ -126,7 +129,6 @@ app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res) =
       res.status(400).send('No file uploaded.')
     }
   } catch (error) {
-    logHttpsError(req, error)
     try {
       await unlink(req.file.path)
     } catch (error) {
@@ -134,16 +136,16 @@ app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res) =
         logHttpsError(req, error)
       }
     }
-    res.sendStatus(500)
+    next(error)
   }
 })
 
-app.get('/download', auth, (req, res) => {
-  const actionStr = 'Client asks to download file'
-  logHttpsInfo(req, actionStr + '.')
-
-  const result = FileIdSchema.safeParse(req.headers.fileid)
+app.get('/download', auth, (req, res, next) => {
   try {
+    const actionStr = 'Client asks to download file'
+    logHttpsInfo(req, actionStr + '.')
+
+    const result = FileIdSchema.safeParse(req.headers.fileid)
     if (!result.success) {
       logHttpsWarning(req, actionStr + ' but fileId is invalid.', { issues: result.issues })
       res.status(400).send('FileId is invalid.')
@@ -164,8 +166,7 @@ app.get('/download', auth, (req, res) => {
       res.download(resolve(ConfigManager.uploadDir, req.userId, fileInfo.id), fileInfo.name)
     }
   } catch (error) {
-    logHttpsError(req, error)
-    res.sendStatus(500)
+    next(error)
   }
 })
 
