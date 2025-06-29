@@ -11,7 +11,7 @@ import { logger } from './Logger.js'
  * @returns {bigint} The BigInt representation of the UUID.
  * @throws {Error} If the UUID string format is invalid.
  */
-function uuidToBigInt(uuidString) {
+export function uuidToBigInt(uuidString) {
   // Basic validation for UUID format
   const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
   if (!uuidRegex.test(uuidString)) {

@@ -1,322 +1,526 @@
-import { test, expect, jest, describe, beforeEach } from '@jest/globals'
-import { JsonRpcProvider, Contract, Wallet } from 'ethers'
-import { readFileSync, writeFileSync } from 'fs'
-import { logger } from '../src/Logger'
-import ConfigManager from '../src/ConfigManager'
-import BlockchainManager from '../src/BlockchainManager'
+import { test, expect, jest, describe, beforeEach, beforeAll } from '@jest/globals'
+// Mock external dependencies
+const mockTxWait = jest.fn().mockResolvedValue({ status: 1 }) // Simulate successful transaction
+const mockContractInstance = {
+  on: jest.fn(),
+  setClientStatus: jest.fn(() => ({ wait: mockTxWait })),
+  setFileVerification: jest.fn(() => ({ wait: mockTxWait })),
+  addAuthorization: jest.fn(() => ({ wait: mockTxWait })),
+  reencryptFile: jest.fn(() => ({ wait: mockTxWait })),
+  queryFilter: jest.fn(),
+  filters: {
+    // Mock contract filters for queryFilter
+    FileUploaded: jest.fn((fileId, ownerAddr) => ({ fileId, ownerAddr }))
+  }
+}
 
-// Mock the external dependencies
-const mockProvider = {}
-jest.mock('ethers', () => ({
-  JsonRpcProvider: jest.fn(() => mockProvider), // Mock JsonRpcProvider constructor
-  Contract: jest.fn(() => ({
-    owner: jest.fn(), // Mock the owner method on the Contract instance
-    uploadFile: jest.fn(),
-    filters: {},
-    queryFilter: jest.fn()
-  })),
-  Wallet: jest.fn()
-}))
+const mockWalletAddress = '0xMockWalletAddress'
+const mockWalletPrivateKey = '0xmockprivatekey'
+const mockFileId = 'f029755a-e19c-4a21-b856-59bb84f2afb2'
+const mockBigIntFileId = BigInt('0xf029755ae19c4a21b85659bb84f2afb2')
+
+const mockWalletInstance = {
+  address: mockWalletAddress,
+  privateKey: mockWalletPrivateKey
+}
+
+jest.mock('ethers', () => {
+  const originalEthers = jest.requireActual('ethers') // Get actual ethers for utility classes if needed
+
+  // Define the mock Wallet constructor behavior
+  const MockWalletConstructor = jest.fn(function (key, provider) {
+    this.address = '0xMockWalletAddressFromKey'
+    this.privateKey = key
+    this.provider = provider
+    if (key === mockWalletPrivateKey) {
+      // If it's our mocked valid key
+      this.address = mockWalletAddress
+    }
+    return this
+  })
+
+  // Assign the static createRandom method to the mocked Wallet constructor
+  MockWalletConstructor.createRandom = jest.fn(() => mockWalletInstance)
+
+  return {
+    // Mock the classes directly
+    Contract: jest.fn(() => mockContractInstance),
+    JsonRpcProvider: jest.fn(function () {
+      this.send = jest.fn() // Mock send for provider if ever called directly
+    }),
+    Wallet: MockWalletConstructor, // Use the consolidated mock Wallet
+    // Expose original BigInt for direct use if necessary, or just use global BigInt
+    // Or just make sure to use global BigInt() constructor where needed.
+    BigNumber: originalEthers.BigNumber // Keep BigNumber for compatibility if used
+  }
+})
+
 jest.mock('fs', () => ({
   readFileSync: jest.fn(),
   writeFileSync: jest.fn()
 }))
-jest.mock('../src/Logger', () => ({
+
+jest.mock('../src/ConfigManager.js', () => ({
+  __esModule: true,
+  default: {
+    blockchain: {
+      abi: ['mockAbi'],
+      jsonRpcUrl: 'http://mock-rpc-url.com',
+      contractAddr: '0xMockContractAddress',
+      walletKeyPath: '/test/wallet.key'
+    }
+  }
+}))
+
+jest.mock('../src/Logger.js', () => ({
   logger: {
     info: jest.fn(),
-    debug: jest.fn(),
     error: jest.fn()
   }
 }))
 
-jest.mock('../src/ConfigManager', () => ({
-  blockchain: {
-    abi: ['some_abi_definition'],
-    jsonRpcUrl: 'http://mock-rpc-url.com',
-    contractAddr: '0xmockContractAddress',
-    walletKeyPath: '/some/path'
-  }
-}))
+// Import the module under test (this will trigger the BlockchainManager constructor)
+import BlockchainManager, { bigIntToUuid } from '../src/BlockchainManager.js'
 
-describe('BlockchainManager', () => {
-  const mockWallet = { privateKey: '0x7893157677' }
-  let blockchainManager
-  let mockContractInstance
-  let mockTx
-  let readOrCreateWalletSpy
+// Import mocked dependencies for easier access and assertions
+import { Contract, JsonRpcProvider, Wallet } from 'ethers'
+import { readFileSync, writeFileSync } from 'fs'
+import ConfigManager from '../src/ConfigManager.js'
+import { logger } from '../src/Logger.js'
 
-  beforeEach(() => {
-    // Clear all mocks before each test
-    jest.clearAllMocks()
+describe('UUID Conversion Functions', () => {
+  describe('uuidToBigInt', () => {
+    // Dynamically import the function here to ensure it's from the actual module
+    let uuidToBigInt
+    beforeAll(() => {
+      // Assuming uuidToBigInt is also exported from BlockchainManager.js
+      // If it's not exported, you might need to use a more advanced mocking setup
+      // or directly test it by importing the module with `require` and accessing its internal functions.
+      // For now, assuming it's exported for testability.
+      // Or, as it's not exported, we test it directly from the imported module under test.
+      // It's defined in the same file, so no separate import needed, we can test it directly.
+      // For this particular setup, `uuidToBigInt` is not exported, so it's only called internally
+      // by the BlockchainManager class. I'll define a local helper here for direct testing.
+      // In a real scenario, this helper would ideally be imported if it was exported.
 
-    readOrCreateWalletSpy = jest
-      .spyOn(BlockchainManager.prototype, 'readOrCreateWallet')
-      .mockReturnValueOnce(mockWallet)
-    // Initialize BlockchainManager for each test
-    blockchainManager = new BlockchainManager()
+      // Define a local helper that mirrors the uuidToBigInt logic for isolated testing
+      const { uuidToBigInt: actualUuidToBigInt } = jest.requireActual('../src/BlockchainManager.js')
+      uuidToBigInt = actualUuidToBigInt
+    })
 
-    mockContractInstance = Contract.mock.results[0].value
+    test('should convert a valid UUID string to BigInt', () => {
+      const uuid = '12345678-abcd-ef01-2345-6789abcdef01'
+      const expectedBigInt = BigInt('0x12345678abcdef0123456789abcdef01')
+      expect(uuidToBigInt(uuid)).toEqual(expectedBigInt)
+    })
 
-    mockTx = { wait: jest.fn() }
+    test('should throw an error for an invalid UUID format', () => {
+      const invalidUuid = 'invalid-uuid-string'
+      expect(() => uuidToBigInt(invalidUuid)).toThrow(
+        'Invalid UUID string format: invalid-uuid-string'
+      )
+    })
+
+    test('should handle UUIDs with uppercase letters', () => {
+      const uuid = 'ABCDEF12-abcd-EF01-2345-6789ABCDEF01'
+      const expectedBigInt = BigInt('0xABCDEF12abcdef0123456789ABCDEF01')
+      expect(uuidToBigInt(uuid)).toEqual(expectedBigInt)
+    })
   })
 
-  describe('constructor', () => {
-    test('should initialize JsonRpcProvider and Contract with correct values', () => {
-      expect(JsonRpcProvider).toHaveBeenCalledTimes(1)
-      expect(JsonRpcProvider).toHaveBeenCalledWith(ConfigManager.blockchain.jsonRpcUrl)
-      expect(readOrCreateWalletSpy).toHaveBeenCalledTimes(1)
-      expect(readOrCreateWalletSpy).toHaveBeenCalledWith(
-        ConfigManager.blockchain.walletKeyPath,
-        mockProvider
+  describe('bigIntToUuid', () => {
+    test('should convert a BigInt to a valid UUID string', () => {
+      const bigInt = BigInt('0x12345678abcdef0123456789abcdef01')
+      const expectedUuid = '12345678-abcd-ef01-2345-6789abcdef01'
+      expect(bigIntToUuid(bigInt)).toEqual(expectedUuid)
+    })
+
+    test('should handle BigInts with leading zeros correctly', () => {
+      const bigInt = BigInt('0x00000000000000000000000000000001')
+      const expectedUuid = '00000000-0000-0000-0000-000000000001'
+      expect(bigIntToUuid(bigInt)).toEqual(expectedUuid)
+    })
+
+    test('should throw an error for a negative BigInt', () => {
+      const negativeBigInt = -1n
+      expect(() => bigIntToUuid(negativeBigInt)).toThrow(
+        'BigInt -1 is out of the valid range for a 128-bit UUID.'
       )
-      expect(Contract).toHaveBeenCalledTimes(1)
+    })
+
+    test('should throw an error for a BigInt too large for 128 bits', () => {
+      const tooLargeBigInt = 1n << 128n // 2^128
+      expect(() => bigIntToUuid(tooLargeBigInt)).toThrow(
+        'BigInt 340282366920938463463374607431768211456 is out of the valid range for a 128-bit UUID.'
+      )
+    })
+  })
+})
+
+describe('BlockchainManager', () => {
+  let blockchainManager
+
+  beforeEach(() => {
+    jest.clearAllMocks() // Clear mocks before each test
+    // Reset the `ethers` mocks' internal states if they were modified
+    Contract.mockClear()
+    JsonRpcProvider.mockClear()
+    Wallet.mockClear() // Now Wallet is a single mock, clear it directly
+    mockContractInstance.on.mockClear()
+    mockContractInstance.setClientStatus
+      .mockClear()
+      .mockImplementation(() => ({ wait: mockTxWait }))
+    mockContractInstance.setFileVerification
+      .mockClear()
+      .mockImplementation(() => ({ wait: mockTxWait }))
+    mockContractInstance.addAuthorization
+      .mockClear()
+      .mockImplementation(() => ({ wait: mockTxWait }))
+    mockContractInstance.reencryptFile.mockClear().mockImplementation(() => ({ wait: mockTxWait }))
+    mockContractInstance.queryFilter.mockClear()
+    mockContractInstance.filters.FileUploaded.mockClear()
+    mockTxWait.mockClear().mockResolvedValue({ status: 1 }) // Reset tx.wait for each test
+
+    // Default mock behavior for fs.readFileSync
+    readFileSync.mockReturnValue(mockWalletPrivateKey) // Simulate existing key by default
+    writeFileSync.mockReturnValue(undefined)
+  })
+
+  // Test the constructor separately as it runs on module import
+  describe('Constructor', () => {
+    test('should initialize contract and log info on success (existing wallet)', () => {
+      // Ensure the BlockchainManager is instantiated for this specific test
+      // and then clear mocks to only check this constructor's specific calls.
+      const manager = new BlockchainManager()
+
+      expect(readFileSync).toHaveBeenCalledWith(ConfigManager.blockchain.walletKeyPath, 'utf-8')
+      expect(Wallet).toHaveBeenCalledWith(mockWalletPrivateKey, expect.any(JsonRpcProvider))
+      expect(JsonRpcProvider).toHaveBeenCalledWith(ConfigManager.blockchain.jsonRpcUrl)
       expect(Contract).toHaveBeenCalledWith(
         ConfigManager.blockchain.contractAddr,
         ConfigManager.blockchain.abi,
-        mockWallet
+        expect.any(Wallet) // Wallet instance from constructor
       )
+      expect(logger.info).toHaveBeenCalledWith(
+        `Blockchain Manager initialized with wallet address: ${mockWalletAddress}.`
+      )
+      expect(logger.error).not.toHaveBeenCalled()
+      expect(manager.contract).toBe(mockContractInstance)
     })
-    test('should set the contract property', () => {
-      expect(blockchainManager.contract).toBeDefined()
-      expect(blockchainManager.contract).toBe(mockContractInstance)
-    })
-    test('should log error if JsonRpcProvider fails to connect', () => {
-      JsonRpcProvider.mockImplementationOnce(() => {
-        throw new Error('Connection failed')
+
+    test('should create and store new wallet if key file not found', () => {
+      readFileSync.mockImplementation(() => {
+        const error = new Error('File not found')
+        error.code = 'ENOENT'
+        throw error
       })
 
-      blockchainManager = new BlockchainManager()
-      // Depending on how you handle it, you might expect logger.error to be called
-      // or the constructor to throw, which you would then catch in the test.
-      // expect(() => new BlockchainManager()).toThrow('Connection failed'); // If you re-throw
-      // OR
-      expect(logger.error).toHaveBeenCalledWith(new Error('Connection failed')) // If you log
-    })
-  })
+      const manager = new BlockchainManager()
 
-  describe('readOrCreateWallet', () => {
-    const somePath = '/this/is/some/path'
-    const someWalletKey = '0x8754697845\n\n'
-
-    beforeEach(() => {
-      Wallet.mockReturnValueOnce(mockWallet)
-      readFileSync.mockReturnValueOnce(someWalletKey)
+      expect(readFileSync).toHaveBeenCalledWith(ConfigManager.blockchain.walletKeyPath, 'utf-8')
+      expect(Wallet.createRandom).toHaveBeenCalledWith(expect.any(JsonRpcProvider))
+      expect(writeFileSync).toHaveBeenCalledWith(
+        ConfigManager.blockchain.walletKeyPath,
+        mockWalletPrivateKey
+      )
+      expect(logger.info).toHaveBeenCalledWith(
+        `Blockchain Manager initialized with wallet address: ${mockWalletAddress}.`
+      )
+      expect(logger.error).not.toHaveBeenCalled()
+      expect(manager.contract).toBe(mockContractInstance)
     })
 
-    test('should read key and create wallet if file exists', () => {
-      const result = blockchainManager.readOrCreateWallet(somePath, mockProvider)
-      expect(readFileSync).toHaveBeenCalledTimes(1)
-      expect(readFileSync).toHaveBeenCalledWith(somePath, 'utf-8')
-      expect(Wallet).toHaveBeenCalledTimes(1)
-      expect(Wallet).toHaveBeenCalledWith(someWalletKey.trim(), mockProvider)
-      expect(result).toBe(mockWallet)
-    })
-    test('should create wallet and write key if file do not exist', () => {
-      readFileSync.mockReset()
+    test('should log error if initialization fails (other fs error)', () => {
       readFileSync.mockImplementationOnce(() => {
-        const err = new Error('File not found')
-        err.code = 'ENOENT'
-        throw err
+        throw new Error('Permission denied')
       })
-      Wallet.createRandom = jest.fn().mockReturnValueOnce(mockWallet)
-      const result = blockchainManager.readOrCreateWallet(somePath, mockProvider)
-      expect(Wallet.createRandom).toHaveBeenCalledTimes(1)
-      expect(Wallet.createRandom).toHaveBeenCalledWith(mockProvider)
-      expect(writeFileSync).toHaveBeenCalledTimes(1)
-      expect(writeFileSync).toHaveBeenCalledWith(somePath, mockWallet.privateKey)
-      expect(result).toBe(mockWallet)
-    })
-    test('should throw error when unexpected error occurs', () => {
-      Wallet.mockReset()
-      Wallet.mockImplementationOnce(() => {
-        throw new Error('Unexpected')
-      })
-      expect(() => blockchainManager.readOrCreateWallet(somePath, mockProvider)).toThrow(
-        'Unexpected'
-      )
+
+      new BlockchainManager() // Instantiate to trigger the constructor error
+
+      expect(logger.error).toHaveBeenCalledWith(expect.any(Error))
+      expect(logger.info).not.toHaveBeenCalled()
+      expect(Contract).not.toHaveBeenCalled() // Contract should not be initialized on error
     })
   })
 
-  describe('setClientStatus', () => {
-    const clientAddr = '0x7335'
-    const status = true
-    beforeEach(async () => {
-      mockContractInstance.setClientStatus = jest.fn().mockResolvedValueOnce(mockTx)
+  describe('BlockchainManager methods', () => {
+    beforeEach(() => {
+      // Re-initialize BlockchainManager for each test in this block
+      // This ensures a clean contract instance and wallet for each method test.
+      // We assume successful constructor here.
+      blockchainManager = new BlockchainManager()
+      // Clear mocks again to only count calls within the method being tested
+      jest.clearAllMocks()
+      mockContractInstance.setClientStatus.mockImplementation(() => ({ wait: mockTxWait }))
+      mockContractInstance.setFileVerification.mockImplementation(() => ({ wait: mockTxWait }))
+      mockContractInstance.addAuthorization.mockImplementation(() => ({ wait: mockTxWait }))
+      mockContractInstance.reencryptFile.mockImplementation(() => ({ wait: mockTxWait }))
+      mockTxWait.mockResolvedValue({ status: 1 }) // Reset tx.wait for each test
+    })
+
+    test('bindEventListener should call contract.on', () => {
+      const listener = jest.fn()
+      blockchainManager.bindEventListener('MyEvent', listener)
+      expect(mockContractInstance.on).toHaveBeenCalledWith('MyEvent', listener)
+    })
+
+    test('setClientStatus should call contract.setClientStatus and wait for tx', async () => {
+      const clientAddr = '0xClientAddress'
+      const status = true
       await blockchainManager.setClientStatus(clientAddr, status)
+
+      expect(mockContractInstance.setClientStatus).toHaveBeenCalledWith(clientAddr, status)
+      expect(mockTxWait).toHaveBeenCalled()
+      expect(logger.info).toHaveBeenCalledWith(`set client ${clientAddr} status to ${status}`)
     })
 
-    test('should call contract.setClientStatus with correct arguments', () => {
-      expect(mockContractInstance.setClientStatus).toHaveBeenCalledTimes(1)
-      expect(mockContractInstance.setClientStatus).toHaveBeenCalledWith(BigInt(clientAddr), status)
-      expect(mockTx.wait).toHaveBeenCalledTimes(1)
-    })
-    test('should log success message', () => {
-      expect(logger.info).toHaveBeenCalledTimes(1)
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining(`${clientAddr}`))
-    })
-    test('should throw error when transaction error occurs', () => {
-      mockContractInstance.setClientStatus = jest
-        .fn()
-        .mockRejectedValueOnce(new Error('Transaction Error'))
+    test('setClientStatus should throw error if contract call fails', async () => {
+      const clientAddr = '0xClientAddress'
+      const status = true
+      const error = new Error('Contract call failed')
+      mockContractInstance.setClientStatus.mockImplementation(() => {
+        throw error
+      })
 
-      expect(blockchainManager.setClientStatus(clientAddr, status)).rejects.toThrow(
-        'Transaction Error'
-      )
-    })
-  })
-
-  describe('setFileVerification', () => {
-    const fileId = '0x68156'
-    const uploader = '0x7335'
-    const verificationInfo = 'verify_info'
-    beforeEach(async () => {
-      mockContractInstance.setFileVerification = jest.fn().mockResolvedValueOnce(mockTx)
-      await blockchainManager.setFileVerification(fileId, uploader, verificationInfo)
+      await expect(blockchainManager.setClientStatus(clientAddr, status)).rejects.toThrow(error)
+      expect(logger.info).not.toHaveBeenCalled()
     })
 
-    test('should call contract.setFileVerification with correct arguments', () => {
-      expect(mockContractInstance.setFileVerification).toHaveBeenCalledTimes(1)
+    test('setFileVerification should call contract.setFileVerification with converted fileId and wait for tx', async () => {
+      const fileOwnerAddr = '0xOwnerAddress'
+      const verificationInfo = 'success'
+
+      await blockchainManager.setFileVerification(mockFileId, fileOwnerAddr, verificationInfo)
+
       expect(mockContractInstance.setFileVerification).toHaveBeenCalledWith(
-        BigInt(fileId),
-        BigInt(uploader),
+        mockBigIntFileId,
+        fileOwnerAddr,
         verificationInfo
       )
-      expect(mockTx.wait).toHaveBeenCalledTimes(1)
-    })
-    test('should log success message', () => {
-      expect(logger.info).toHaveBeenCalledTimes(1)
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining(`${fileId}`))
-    })
-    test('should throw error when transaction error occurs', () => {
-      mockContractInstance.setClientStatus = jest
-        .fn()
-        .mockRejectedValueOnce(new Error('Transaction Error'))
-
-      expect(blockchainManager.setClientStatus(fileId, uploader, verificationInfo)).rejects.toThrow(
-        'Transaction Error'
-      )
-    })
-  })
-
-  describe('addAuthRecord', () => {
-    const fileId = '0x879465'
-    const requestor = '0x7918987'
-    const authorizer = '0x98787335445'
-    const authInfo = 'not replied'
-    beforeEach(async () => {
-      mockContractInstance.addAuthorization = jest.fn().mockResolvedValueOnce(mockTx)
-      await blockchainManager.addAuthRecord(fileId, requestor, authorizer, authInfo)
+      expect(mockTxWait).toHaveBeenCalled()
+      expect(logger.info).toHaveBeenCalledWith(`set verification for ${mockFileId}`)
     })
 
-    test('should call contract.addAuthorization with correct arguments', () => {
-      expect(mockContractInstance.addAuthorization).toHaveBeenCalledTimes(1)
+    test('setFileVerification should throw error if contract call fails', async () => {
+      const fileOwnerAddr = '0xOwnerAddress'
+      const verificationInfo = 'success'
+      const error = new Error('Verification failed')
+      mockContractInstance.setFileVerification.mockImplementation(() => {
+        throw error
+      })
+
+      await expect(
+        blockchainManager.setFileVerification(mockFileId, fileOwnerAddr, verificationInfo)
+      ).rejects.toThrow(error)
+      expect(logger.info).not.toHaveBeenCalled()
+    })
+
+    test('addAuthRecord should call contract.addAuthorization with converted fileId and wait for tx', async () => {
+      const requestorAddr = '0xRequestor'
+      const authorizerAddr = '0xAuthorizer'
+      const authInfo = 'agreed'
+
+      await blockchainManager.addAuthRecord(mockFileId, requestorAddr, authorizerAddr, authInfo)
+
       expect(mockContractInstance.addAuthorization).toHaveBeenCalledWith(
-        BigInt(fileId),
-        BigInt(requestor),
-        BigInt(authorizer),
+        mockBigIntFileId,
+        requestorAddr,
+        authorizerAddr,
         authInfo
       )
-      expect(mockTx.wait).toHaveBeenCalledTimes(1)
-    })
-    test('should log success message', () => {
-      expect(logger.info).toHaveBeenCalledTimes(1)
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining(`${fileId}`))
-    })
-    test('should throw error when transaction error occurs', async () => {
-      mockContractInstance.addAuthorization = jest
-        .fn()
-        .mockRejectedValueOnce(new Error('Transaction Error'))
-
-      expect(
-        blockchainManager.addAuthRecord(fileId, requestor, authorizer, authInfo)
-      ).rejects.toThrow(new Error('Transaction Error'))
-    })
-  })
-
-  describe('uploadReencryptFile', () => {
-    const fileId = '0x876546'
-    const fileHash = '0x78946587'
-    const metadata = 'file_meta'
-    const requestor = '0x98722872'
-    beforeEach(async () => {
-      mockContractInstance.uploadReencryptFile = jest.fn().mockResolvedValueOnce(mockTx)
-      await blockchainManager.uploadReencryptFile(fileId, fileHash, metadata, requestor)
+      expect(mockTxWait).toHaveBeenCalled()
+      expect(logger.info).toHaveBeenCalledWith(`added authorization record for file ${mockFileId}`)
     })
 
-    test('should call contract.uploadReencryptFile with correct arguments', () => {
-      expect(mockContractInstance.uploadReencryptFile).toHaveBeenCalledTimes(1)
-      expect(mockContractInstance.uploadReencryptFile).toHaveBeenCalledWith(
-        BigInt(fileId),
+    test('addAuthRecord should throw error if contract call fails', async () => {
+      const error = new Error('Auth record failed')
+      mockContractInstance.addAuthorization.mockImplementation(() => {
+        throw error
+      })
+
+      await expect(
+        blockchainManager.addAuthRecord(mockFileId, '0xR', '0xA', 'agreed')
+      ).rejects.toThrow(error)
+      expect(logger.info).not.toHaveBeenCalled()
+    })
+
+    test('reencryptFile should call contract.reencryptFile with converted inputs and wait for tx', async () => {
+      const fileHash = '0xabcdef0123456789'
+      const metadata = '{"filename":"new.txt"}'
+      const requestorAddr = '0xReq'
+      const authorizerAddr = '0xAuth'
+
+      await blockchainManager.reencryptFile(
+        mockFileId,
+        fileHash,
+        metadata,
+        requestorAddr,
+        authorizerAddr
+      )
+
+      expect(mockContractInstance.reencryptFile).toHaveBeenCalledWith(
+        mockBigIntFileId,
         BigInt(fileHash),
         metadata,
-        BigInt(requestor)
+        requestorAddr,
+        authorizerAddr,
+        'success',
+        'agreed'
       )
-      expect(mockTx.wait).toHaveBeenCalledTimes(1)
+      expect(mockTxWait).toHaveBeenCalled()
+      expect(logger.info).toHaveBeenCalledWith(
+        `Uploaded, verified and added record for reencrypted file ${mockFileId}.`
+      )
     })
-    test('should log success message', () => {
-      expect(logger.info).toHaveBeenCalledTimes(1)
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining(`${fileId}`))
-    })
-    test('should throw error when transaction error occurs', () => {
-      mockContractInstance.uploadReencryptFile = jest
-        .fn()
-        .mockRejectedValueOnce(new Error('Transaction Error'))
 
-      expect(
-        blockchainManager.uploadReencryptFile(fileId, fileHash, metadata, requestor)
-      ).rejects.toThrow(new Error('Transaction Error'))
-    })
-  })
+    test('reencryptFile should use default verificationInfo and authInfo if not provided', async () => {
+      const fileHash = '0xabcdef0123456789'
+      const metadata = '{"filename":"new.txt"}'
+      const requestorAddr = '0xReq'
+      const authorizerAddr = '0xAuth'
 
-  describe('getFileInfo', () => {
-    const fileUploadRecord = {
-      args: {
-        fileId: '0x124',
-        fileHash: BigInt('0x456'),
-        metadata: 'file_metadata',
-        uploader: '0x789',
-        timestamp: BigInt('0x486787')
+      await blockchainManager.reencryptFile(
+        mockFileId,
+        fileHash,
+        metadata,
+        requestorAddr,
+        authorizerAddr
+      )
+
+      expect(mockContractInstance.reencryptFile).toHaveBeenCalledWith(
+        mockBigIntFileId,
+        BigInt(fileHash),
+        metadata,
+        requestorAddr,
+        authorizerAddr,
+        'success', // Default
+        'agreed' // Default
+      )
+    })
+
+    test('reencryptFile should use provided verificationInfo and authInfo if provided', async () => {
+      const fileHash = '0xabcdef0123456789'
+      const metadata = '{"filename":"new.txt"}'
+      const requestorAddr = '0xReq'
+      const authorizerAddr = '0xAuth'
+      const customVerification = 'pending'
+      const customAuth = 'disputed'
+
+      await blockchainManager.reencryptFile(
+        mockFileId,
+        fileHash,
+        metadata,
+        requestorAddr,
+        authorizerAddr,
+        customVerification,
+        customAuth
+      )
+
+      expect(mockContractInstance.reencryptFile).toHaveBeenCalledWith(
+        mockBigIntFileId,
+        BigInt(fileHash),
+        metadata,
+        requestorAddr,
+        authorizerAddr,
+        customVerification, // Custom
+        customAuth // Custom
+      )
+    })
+
+    test('reencryptFile should throw error if contract call fails', async () => {
+      const error = new Error('Reencrypt failed')
+      mockContractInstance.reencryptFile.mockImplementation(() => {
+        throw error
+      })
+
+      await expect(
+        blockchainManager.reencryptFile(mockFileId, '0x0', '{}', '0xR', '0xA')
+      ).rejects.toThrow(error)
+      expect(logger.info).not.toHaveBeenCalled()
+    })
+
+    describe('getFileInfo', () => {
+      // Mocked UUIDs should match the pattern used in uuidToBigInt in the actual code
+      // and bigIntToUuid in the actual code for consistency.
+      const fileOwnerAddr = '0xOwnerAddressForQuery'
+      // Expected BigInt from uuidToBigInt(fileId)
+
+      // Helper to generate a BigInt that `bigIntToUuid` can convert back to a specific UUID format
+      // This is crucial because `bigIntToUuid` has validation.
+      const generateBigIntForUuid = (uuidString) => {
+        // Strip hyphens and convert to BigInt
+        return BigInt('0x' + uuidString.replace(/-/g, ''))
       }
-    }
-    let result
-    beforeEach(async () => {
-      mockContractInstance.filters.FileUploaded = jest.fn().mockReturnValueOnce({})
-      mockContractInstance.queryFilter.mockResolvedValueOnce([fileUploadRecord])
-      result = await blockchainManager.getFileInfo(
-        fileUploadRecord.args.fileId,
-        fileUploadRecord.args.uploader
-      )
-    })
 
-    test('should call contract.filters.FileUploaded with correct arguments', () => {
-      expect(mockContractInstance.filters.FileUploaded).toHaveBeenCalledTimes(1)
-      expect(mockContractInstance.filters.FileUploaded).toHaveBeenCalledWith(
-        BigInt(fileUploadRecord.args.fileId),
-        BigInt(fileUploadRecord.args.uploader)
-      )
-    })
+      test('should return null if no FileUploaded events are found', async () => {
+        mockContractInstance.queryFilter.mockResolvedValue([]) // No events
+        const result = await blockchainManager.getFileInfo(mockFileId, fileOwnerAddr)
 
-    test('should call contract.queryFilter with return value from contract.filters.FileUploaded', () => {
-      expect(mockContractInstance.queryFilter).toHaveBeenCalledTimes(1)
-      expect(mockContractInstance.queryFilter).toHaveBeenCalledWith(expect.any(Object))
-    })
+        expect(mockContractInstance.filters.FileUploaded).toHaveBeenCalledWith(
+          mockBigIntFileId,
+          fileOwnerAddr
+        )
+        expect(mockContractInstance.queryFilter).toHaveBeenCalledWith(
+          mockContractInstance.filters.FileUploaded(mockBigIntFileId, fileOwnerAddr)
+        )
+        expect(logger.info).toHaveBeenCalledWith(`retrived fileInfo for fileId ${mockFileId}`)
+        expect(result).toBeNull()
+      })
 
-    test('should return correct result', () => {
-      expect(result).toEqual(fileUploadRecord)
-    })
+      test('should return latest event arguments if FileUploaded events are found', async () => {
+        const mockBlockchainFileIdBigInt = generateBigIntForUuid(mockFileId)
+        const mockCalculatedHash = '0x1234567890abcdef1234567890abcdef' // Example hash
 
-    test('should return null if contract.queryFilter return empty array', async () => {
-      mockContractInstance.queryFilter.mockResolvedValueOnce([])
-      result = await blockchainManager.getFileInfo(
-        fileUploadRecord.args.fileId,
-        fileUploadRecord.args.uploader
-      )
+        const mockEvents = [
+          {
+            args: {
+              fileId: generateBigIntForUuid('00000000-0000-0000-0000-000000000001'),
+              fileOwner: '0x1',
+              fileHash: BigInt('0x11'),
+              metadata: '{"a":1}',
+              timestamp: BigInt(100)
+            }
+          },
+          {
+            args: {
+              fileId: mockBlockchainFileIdBigInt,
+              fileOwner: fileOwnerAddr,
+              fileHash: BigInt(mockCalculatedHash),
+              metadata: '{"filename":"test.txt"}',
+              timestamp: BigInt(200)
+            }
+          } // Latest
+        ]
+        mockContractInstance.queryFilter.mockResolvedValue(mockEvents)
 
-      expect(result).toEqual(null)
-    })
+        const result = await blockchainManager.getFileInfo(mockFileId, fileOwnerAddr)
 
-    test('should log success message', () => {
-      expect(logger.info).toHaveBeenCalledTimes(1)
+        expect(mockContractInstance.filters.FileUploaded).toHaveBeenCalledWith(
+          mockBigIntFileId,
+          fileOwnerAddr
+        )
+        expect(mockContractInstance.queryFilter).toHaveBeenCalledWith(
+          mockContractInstance.filters.FileUploaded(mockBigIntFileId, fileOwnerAddr)
+        )
+        expect(logger.info).toHaveBeenCalledWith(`retrived fileInfo for fileId ${mockFileId}`)
+        expect(result).toEqual({
+          fileId: bigIntToUuid(mockBlockchainFileIdBigInt), // Converted back
+          fileOwnerAddr: fileOwnerAddr,
+          fileHash: BigInt(mockCalculatedHash),
+          metadata: '{"filename":"test.txt"}',
+          timestamp: BigInt(200)
+        })
+      })
+
+      test('should throw error if queryFilter fails', async () => {
+        const error = new Error('Query filter failed')
+        mockContractInstance.queryFilter.mockRejectedValue(error)
+
+        await expect(blockchainManager.getFileInfo(mockFileId, fileOwnerAddr)).rejects.toThrow(
+          error
+        )
+        expect(logger.info).not.toHaveBeenCalledWith(`retrived fileInfo for fileId ${mockFileId}`)
+      })
     })
   })
 })
