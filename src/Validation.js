@@ -89,7 +89,7 @@ export const DeleteRequestRequestSchema = z.object({
 
 export const RespondRequestRequestSchema = z.object({
   requestId: z.uuidv4(),
-  aggreed: z.boolean(),
+  agreed: z.boolean(),
   description: z.string(),
   rekey: z.string().nullable()
 })
