@@ -1,3 +1,47 @@
+## 建立docker image
+`docker build -t="server" .` 
+
+## 建立k8s相關config跟secret
+### server-config
+```yaml
+apiVersion: v1
+data:
+  default.json: | 
+  {}
+# ^file context
+  local.json: |
+  {}
+# ^file context
+kind: configMap
+metadata:
+  name: server-config
+  namespace: default
+```
+### server-tls-secret
+```yaml
+apiVersion: v1
+data:
+  tls.crt: # base64 encoding of file
+  tls.key: # base64 encoding of file
+kind: Secret
+metadata:
+  name: server-tls-secret
+  namespace: default
+type: kubernetes.io/tls
+```
+### wallet-secret
+```yaml
+apiVersion: v1
+data:
+  key: # base64 encoding of file
+kind: Secret
+metadata:
+  name: wallet-secret
+  namespace: default
+type: Opaque
+```
+
+## Deploy docker on server
 1. copy certificate and bash file  
     要把`certs`資料夾放在`~/`底下  
     > 或是使用

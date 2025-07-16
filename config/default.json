@@ -9,8 +9,8 @@
   },
   "server": {
     "host": "0.0.0.0",
-    "key": "server.key",
-    "cert": "server.crt",
+    "key": "tls.key",
+    "cert": "tls.crt",
     "https": {
       "port": 3001
     },
