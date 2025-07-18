@@ -2,17 +2,18 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: https-service
+  name: ftps-data-service
   namespace: default
 spec:
   selector:
     app: server
   type: NodePort
   ports:
-  - name: https-service
+  - name: ftps-data-service
     protocol: TCP
-    port: 443
-    targetPort: 8443
-    nodePort: 30001
+    port: 989
+    targetPort: 7001
+    nodePort: 30989
+  sessionAffinity: ClientIP
 ---
 

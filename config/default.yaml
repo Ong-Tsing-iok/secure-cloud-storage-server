@@ -1,0 +1,30 @@
+directories:
+  uploads: uploads
+  certs: certs
+  logs: logs
+  database: database
+  blockchain: blockchain
+server:
+  host: 0.0.0.0
+  key: tls.key
+  cert: tls.crt
+  https:
+    port: 3001
+  ftps:
+    port:
+      control: 7002
+      data: 7001
+    pasv_url: 'localhost:7001'
+database:
+  name: storage.db
+  descMaxLength: 2000
+loginAttempts:
+  limit: 5
+  timeout: 15 # In minutes
+blockchain:
+  jsonRpcUrl: ''
+  contractAddr: ''
+  walletKeyPath: wallet.key
+  abiPath: abi.json
+settings:
+  uploadExpireTimeMin: 10

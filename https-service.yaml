@@ -1,0 +1,19 @@
+# https://kubernetes.io/docs/concepts/services-networking/service/
+apiVersion: v1
+kind: Service
+metadata:
+  name: https-service
+  namespace: default
+spec:
+  selector:
+    app: server
+  type: NodePort
+  ports:
+  - name: https-service
+    protocol: TCP
+    port: 443
+    targetPort: 3001
+    nodePort: 30443
+  sessionAffinity: ClientIP
+---
+

@@ -5,24 +5,26 @@ metadata:
   labels:
     app: server
 spec:
-  securityContext:
-    runAsUser: 0
+  # securityContext:
+  #   runAsUser: 0
 
   containers:
   - name: server
     image: ongtsingiok/secure-cloud-server:latest
     imagePullPolicy: Always
     ports:
-    - containerPort: 8443
+    - containerPort: 3001
+    - containerPort: 7001
+    - containerPort: 7002
     volumeMounts:
     - name: config-volume
       mountPath: "/usr/src/app/config"
       readOnly: true
     - name: secret-volume
-      mountPath: "/usr/src/app/data/certs"
+      mountPath: "/usr/src/app/certs"
       readOnly: true
-    - name: wallet-volume
-      mountPath: "/usr/src/app/data/wallet"
+    - name: blockchain-volume
+      mountPath: "/usr/src/app/blockchain"
     - name: data-volume
       mountPath: "/usr/src/app/data"
   volumes:
@@ -32,9 +34,13 @@ spec:
     - name: secret-volume
       secret:
         secretName: server-tls-secret
-    - name: wallet-volume
-      secret:
-        secretName: wallet-secret
+    - name: blockchain-volume
+      projected:
+        sources:
+        - secret:
+          secretName: wallet-secret
+        - configMap:
+          name: contract-abi
     - name: data-volume
       persistentVolumeClaim:
-        claimName: test-pv-claim
+        claimName: local-path-pvc

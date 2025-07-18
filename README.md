@@ -6,12 +6,12 @@
 ```yaml
 apiVersion: v1
 data:
-  default.json: | 
+  default.yaml: | 
   {}
-# ^file context
-  local.json: |
+# ^file content
+  local.yaml: |
   {}
-# ^file context
+# ^file content
 kind: ConfigMap
 metadata:
   name: server-config
@@ -33,12 +33,24 @@ type: kubernetes.io/tls
 ```yaml
 apiVersion: v1
 data:
-  key: # base64 encoding of file
+  wallet.key: # base64 encoding of file
 kind: Secret
 metadata:
   name: wallet-secret
   namespace: default
 type: Opaque
+```
+### contract-abi
+```yaml
+apiVersion: v1
+data:
+  abi.json: |
+
+# ^file content
+kind: ConfigMap
+metadata:
+  name: contract-abi
+  namespace: default
 ```
 
 ## Deploy docker on server

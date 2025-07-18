@@ -138,4 +138,9 @@ node-ip
 build
 config/local.*
 blockchain/
-*.yaml
+
+# Kubenetes YAML files
+server-config.yaml
+server-tls-secret.yaml
+wallet-secret.yaml
+contract-abi.yaml
