@@ -10,7 +10,7 @@ spec:
 
   containers:
   - name: server
-    image: ongtsingiok/secure-cloud-server:latest
+    image: ongtsingiok/secure-cloud-server:v1.2
     imagePullPolicy: Always
     ports:
     - containerPort: 3001
@@ -38,9 +38,9 @@ spec:
       projected:
         sources:
         - secret:
-          secretName: wallet-secret
+            name: wallet-secret
         - configMap:
-          name: contract-abi
+            name: contract-abi
     - name: data-volume
       persistentVolumeClaim:
         claimName: local-path-pvc
