@@ -33,6 +33,14 @@ const ftpServer = new FtpSrv({
   }
 })
 
+ftpServer.on('client-error', ({ connection, context, error }) => {
+  logFtpsError({ connection }, error)
+})
+
+ftpServer.on('server-error', ({ error }) => {
+  logFtpsError({ connection: {} }, error)
+})
+
 ftpServer.on('login', async (data, resolve, reject) => {
   try {
     const { connection, username: socketId, password: fileId } = data // use password as file id
