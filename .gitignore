@@ -136,5 +136,6 @@ uploads/
 .scannerwork
 node-ip
 build
-config/local.json
-wallet/key
+config/local.*
+blockchain/
+*.yaml

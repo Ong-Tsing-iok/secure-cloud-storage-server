@@ -66,7 +66,7 @@ class BlockchainManager {
    */
   constructor() {
     try {
-      const abi = ConfigManager.blockchain.abi
+      const abi = readFileSync(ConfigManager.blockchain.abiPath, 'utf-8')
       const url = ConfigManager.blockchain.jsonRpcUrl
       const contractAddr = ConfigManager.blockchain.contractAddr
       const provider = new JsonRpcProvider(url)

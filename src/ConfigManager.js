@@ -12,6 +12,11 @@ const getConfig = (key) => {
 }
 
 class ConfigManager {
+  ftps = {
+    dataPort: 989,
+    controlPort: 990,
+    pasv_url: 'localhost:989'
+  }
   settings = {
     uploadExpireTimeMin: 10
   }
@@ -19,60 +24,50 @@ class ConfigManager {
     try {
       this.directoryConfig = getConfig('directories')
       for (const key in this.directoryConfig) {
-        if (!existsSync(join(this.directoryConfig.root, this.directoryConfig[key]))) {
-          mkdirSync(join(this.directoryConfig.root, this.directoryConfig[key]))
+        if (!existsSync(join(this.directoryConfig[key]))) {
+          mkdirSync(join(this.directoryConfig[key]))
         }
       }
 
+      // Ftps server
+      this.ftps = {}
+      this.ftps.dataPort = config.get('server.ftps.port.data')
+      this.ftps.controlPort = config.get('server.ftps.port.control')
+      this.ftps.pasv_url = config.get('server.ftps.pasv_url')
+
       // Blockchain
       this.blockchain = {}
-      this.blockchain.abi = config.get('blockchain.abi')
       this.blockchain.jsonRpcUrl = config.get('blockchain.jsonRpcUrl')
       this.blockchain.contractAddr = config.get('blockchain.contractAddr')
       this.blockchain.walletKeyPath = resolve(
-        config.get('directories.root'),
+        config.get('directories.blockchain'),
         config.get('blockchain.walletKeyPath')
+      )
+      this.blockchain.abiPath = resolve(
+        config.get('directories.blockchain'),
+        config.get('blockchain.abiPath')
       )
 
       // Settings
       this.settings.uploadExpireTimeMin = parseInt(config.get('settings.uploadExpireTimeMin'))
-    } catch (error) {}
-  }
-  get cryptoPath() {
-    return resolve(getConfig('directories.root'), 'src', 'py', 'crypto')
+    } catch (error) {
+      logger.error(error)
+    }
   }
   get uploadDir() {
-    return join(getConfig('directories.root'), getConfig('directories.uploads'))
+    return getConfig('directories.uploads')
   }
   get logDir() {
-    return join(getConfig('directories.root'), getConfig('directories.logs'))
+    return getConfig('directories.logs')
   }
   get databasePath() {
-    return join(
-      getConfig('directories.root'),
-      getConfig('directories.database'),
-      getConfig('database.name')
-    )
+    return join(getConfig('directories.database'), getConfig('database.name'))
   }
   get serverCertPath() {
-    return join(
-      getConfig('directories.root'),
-      getConfig('directories.certs'),
-      getConfig('server.cert')
-    )
+    return join(getConfig('directories.certs'), getConfig('server.cert'))
   }
   get serverKeyPath() {
-    return join(
-      getConfig('directories.root'),
-      getConfig('directories.certs'),
-      getConfig('server.key')
-    )
-  }
-  get ftpsPort() {
-    return getConfig('server.ftps.port.control')
-  }
-  get ftpsPasvPort() {
-    return getConfig('server.ftps.port.data')
+    return join(getConfig('directories.certs'), getConfig('server.key'))
   }
   get serverHost() {
     return getConfig('server.host')

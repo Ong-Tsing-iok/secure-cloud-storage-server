@@ -12,7 +12,7 @@ data:
   local.json: |
   {}
 # ^file context
-kind: configMap
+kind: ConfigMap
 metadata:
   name: server-config
   namespace: default
