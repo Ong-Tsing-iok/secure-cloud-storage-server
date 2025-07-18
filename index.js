@@ -24,7 +24,7 @@ import { emailFormatRe, uuidFormatRe } from './src/Utils.js'
 import './src/HttpsServer.js'
 
 ftpServer.listen().then(() => {
-  logger.info(`Ftp server listening on port ${ConfigManager.ftpsPort}`)
+  logger.info(`Ftp server listening on port ${ConfigManager.ftps.controlPort}`)
 })
 
 const controller = new AbortController()

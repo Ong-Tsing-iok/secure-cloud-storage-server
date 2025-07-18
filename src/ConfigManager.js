@@ -51,7 +51,7 @@ class ConfigManager {
       // Settings
       this.settings.uploadExpireTimeMin = parseInt(config.get('settings.uploadExpireTimeMin'))
     } catch (error) {
-      logger.error(error)
+      // Logger not initialized
     }
   }
   get uploadDir() {
