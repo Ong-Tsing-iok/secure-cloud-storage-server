@@ -155,7 +155,7 @@ describe('Authentication', () => {
         cipher: 'cipherVal',
         spk: 'spkVal'
       })
-      getUserByKey.mockReturnValue(null) // Assume user not found by default
+      getUserByKey.mockResolvedValueOnce(null) // Assume user not found by default
     })
 
     test('should successfully register a new user', async () => {
@@ -397,7 +397,7 @@ describe('Authentication', () => {
       mockSocket.blockchainAddress = commonSocketProps.blockchainAddress
       mockSocket.userId = null // Important: userId is null for registration
 
-      AddUserAndGetId.mockReturnValue({ id: 'newUserId123', info: { changes: 1 } })
+      AddUserAndGetId.mockResolvedValue({ id: 'newUserId123', info: { rowCount: 1 } })
       mkdir.mockResolvedValueOnce()
       mockBlockchainManager.setClientStatus.mockResolvedValueOnce()
 
@@ -561,7 +561,7 @@ describe('Authentication', () => {
       mockSocket.blockchainAddress = commonSocketProps.blockchainAddress
       mockSocket.userId = null // Signifies registration attempt
 
-      AddUserAndGetId.mockReturnValue({ id: 'tempUserId', info: { changes: 0 } }) // Simulate failure to add user
+      AddUserAndGetId.mockResolvedValue({ id: 'tempUserId', info: { rowCount: 0 } }) // Simulate failure to add user
 
       await triggerSocketEvent('auth-res', validAuthResRequest)
 
@@ -584,7 +584,7 @@ describe('Authentication', () => {
       mockSocket.userId = null
 
       const tempId = 'tempNewUserId'
-      AddUserAndGetId.mockReturnValue({ id: tempId, info: { changes: 1 } })
+      AddUserAndGetId.mockResolvedValue({ id: tempId, info: { rowCount: 1 } })
       const mkdirError = new Error('Permission denied')
       mkdirError.code = 'EACCES'
       mkdir.mockRejectedValue(mkdirError) // Simulate mkdir failure
@@ -611,7 +611,7 @@ describe('Authentication', () => {
       mockSocket.userId = null
 
       const tempId = 'tempNewUserId2'
-      AddUserAndGetId.mockReturnValue({ id: tempId, info: { changes: 1 } })
+      AddUserAndGetId.mockResolvedValue({ id: tempId, info: { rowCount: 1 } })
       mkdir.mockResolvedValueOnce()
       mockBlockchainManager.setClientStatus.mockRejectedValue(new Error('Blockchain error')) // Simulate blockchain error
 

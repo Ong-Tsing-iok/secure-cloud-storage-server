@@ -61,7 +61,7 @@ const requestBinder = (socket) => {
         return
       }
 
-      const fileInfo = getFileInfo(fileId)
+      const fileInfo = await getFileInfo(fileId)
       if (!fileInfo) {
         logSocketWarning(socket, actionStr + ' which does not exist.', request)
         cb({ errorMsg: FileNotFoundErrorMsg })
@@ -77,15 +77,15 @@ const requestBinder = (socket) => {
         cb({ errorMsg: FileNotFoundErrorMsg })
         return
       }
-      requestId = addUniqueRequest(fileId, socket.userId, description)
+      requestId = await addUniqueRequest(fileId, socket.userId, description)
       if (!requestId) {
         logSocketWarning(socket, actionStr + ' which is already requested.', request)
         cb({ errorMsg: 'File already requested.' })
         return
       }
       // Add record to blockchain
-      const requestorInfo = getUserById(socket.userId)
-      const authorizerInfo = getUserById(fileInfo.ownerId)
+      const requestorInfo = await getUserById(socket.userId)
+      const authorizerInfo = await getUserById(fileInfo.ownerId)
       await blockchainManager.addAuthRecord(
         fileId,
         requestorInfo.address,
@@ -104,12 +104,12 @@ const requestBinder = (socket) => {
       logSocketError(socket, error, request)
       cb({ errorMsg: InternalServerErrorMsg })
       // Revert request
-      if (requestId) deleteRequestOfRequester(requestId, socket.userId)
+      if (requestId) await deleteRequestOfRequester(requestId, socket.userId)
     }
   })
 
   //! Delete request
-  socket.on('delete-request', (request, cb) => {
+  socket.on('delete-request', async (request, cb) => {
     try {
       const actionStr = 'Client asks to delete request'
       logSocketInfo(socket, actionStr + '.', request)
@@ -128,7 +128,7 @@ const requestBinder = (socket) => {
         return
       }
 
-      if (deleteRequestOfRequester(requestId, socket.userId).changes <= 0) {
+      if ((await deleteRequestOfRequester(requestId, socket.userId)).rowCount <= 0) {
         logSocketWarning(socket, actionStr + ' which does not exist.', request)
         cb({ errorMsg: 'Request not found.' })
         return
@@ -163,17 +163,17 @@ const requestBinder = (socket) => {
         return
       }
 
-      const requestInfo = getRequestNotRespondedByIdOfFileOwner(requestId, socket.userId)
+      const requestInfo = await getRequestNotRespondedByIdOfFileOwner(requestId, socket.userId)
       if (requestInfo === undefined) {
         logSocketWarning(socket, actionStr + ' which does not exist or already responded.', request)
         cb({ errorMsg: 'Request not exist or already responded.' })
         return
       }
-      ;({ responseId } = addResponse(requestId, agreed ? 1 : 0, description))
+      ;({ responseId } = await addResponse(requestId, agreed ? 1 : 0, description))
 
-      const authorizerInfo = getUserById(socket.userId)
-      const requestorInfo = getUserById(requestInfo.requester)
-      const fileInfo = getFileInfo(requestInfo.fileId)
+      const authorizerInfo = await getUserById(socket.userId)
+      const requestorInfo = await getUserById(requestInfo.requester)
+      const fileInfo = await getFileInfo(requestInfo.fileId)
       if (agreed) {
         const newFileId = await reencryptFile(
           rekey,
@@ -202,12 +202,12 @@ const requestBinder = (socket) => {
       logSocketError(socket, error, request)
       cb({ errorMsg: InternalServerErrorMsg })
       // Revert response
-      if (responseId) deleteResponseById(responseId)
+      if (responseId) await deleteResponseById(responseId)
     }
   })
 
   //! Get request list
-  socket.on('get-request-list', (cb) => {
+  socket.on('get-request-list', async (cb) => {
     try {
       const actionStr = 'Client asks to get request list requested by this client'
       logSocketInfo(socket, actionStr + '.')
@@ -218,7 +218,7 @@ const requestBinder = (socket) => {
         return
       }
 
-      const requests = getAllRequestsResponsesByRequester(socket.userId)
+      const requests = await getAllRequestsResponsesByRequester(socket.userId)
       // console.log({ files, folders })
       logSocketInfo(socket, 'Responding request list to client.')
       cb({ requests: JSON.stringify(requests) })
@@ -229,7 +229,7 @@ const requestBinder = (socket) => {
   })
 
   //! Get requested list
-  socket.on('get-requested-list', (cb) => {
+  socket.on('get-requested-list', async (cb) => {
     try {
       const actionStr = 'Client asks to get request list requested by other clients'
       logSocketInfo(socket, actionStr + '.')
@@ -240,7 +240,7 @@ const requestBinder = (socket) => {
         return
       }
 
-      const requests = getAllRequestsResponsesFilesByOwner(socket.userId)
+      const requests = await getAllRequestsResponsesFilesByOwner(socket.userId)
       requests.forEach((request) => {
         if (request.agreed != null) {
           delete request.pk
@@ -271,7 +271,7 @@ const reencryptFile = async (rekey, fileInfo, requestInfo, authorizerInfo, reque
       requestorInfo.pk
     )
     newUUID = randomUUID()
-    addFileToDatabase({
+    await addFileToDatabase({
       name: fileInfo.name,
       id: newUUID,
       userId: requestInfo.requester,
@@ -298,7 +298,7 @@ const reencryptFile = async (rekey, fileInfo, requestInfo, authorizerInfo, reque
     return newUUID
   } catch (error) {
     // Revert reencrypt
-    if (hasAddToDatabase && newUUID) deleteFile(newUUID)
+    if (hasAddToDatabase && newUUID) await deleteFile(newUUID)
     if (hasCopiedFile && copiedFilePath) await unlink(copiedFilePath)
     throw error
   }

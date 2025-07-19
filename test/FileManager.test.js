@@ -136,7 +136,7 @@ describe('File Binders', () => {
 
     // By default, assume user is logged in and folder exists for user checks
     checkLoggedIn.mockReturnValue(true)
-    checkFolderExistsForUser.mockReturnValue(true)
+    checkFolderExistsForUser.mockResolvedValue(true)
 
     // Initialize all binders
     allFileBinder(mockSocket)
@@ -167,7 +167,7 @@ describe('File Binders', () => {
         success: true,
         data: validDownloadRequest
       })
-      getFileInfo.mockReturnValue(mockFileInfo)
+      getFileInfo.mockResolvedValue(mockFileInfo)
     })
 
     test('should successfully respond with file info for owned file', async () => {
@@ -223,7 +223,7 @@ describe('File Binders', () => {
     })
 
     test('should return FileNotFoundErrorMsg if file does not exist', async () => {
-      getFileInfo.mockReturnValue(null)
+      getFileInfo.mockResolvedValue(null)
 
       await triggerSocketEvent('download-file-pre', validDownloadRequest)
 
@@ -236,7 +236,7 @@ describe('File Binders', () => {
     })
 
     test('should return "File not owned." if file is not owned by client', async () => {
-      getFileInfo.mockReturnValue({ ...mockFileInfo, ownerId: 'otherUser' })
+      getFileInfo.mockResolvedValue({ ...mockFileInfo, ownerId: 'otherUser' })
 
       await triggerSocketEvent('download-file-pre', validDownloadRequest)
 
@@ -367,7 +367,7 @@ describe('File Binders', () => {
     })
 
     test('should return "Parent folder not found." if parent folder does not exist for user', async () => {
-      checkFolderExistsForUser.mockReturnValue(false)
+      checkFolderExistsForUser.mockResolvedValue(false)
 
       await triggerSocketEvent('upload-file-pre', validUploadRequest)
 
@@ -402,8 +402,8 @@ describe('File Binders', () => {
 
     beforeEach(() => {
       DeleteFileRequestSchema.safeParse.mockReturnValue({ success: true, data: validDeleteRequest })
-      getFileInfo.mockReturnValue(mockFileInfo)
-      deleteFile.mockReturnValue({ changes: 1 }) // Simulate successful DB delete
+      getFileInfo.mockResolvedValue(mockFileInfo)
+      deleteFile.mockResolvedValue({ rowCount: 1 }) // Simulate successful DB delete
       unlink.mockResolvedValue() // Simulate successful file system unlink
     })
 
@@ -459,7 +459,7 @@ describe('File Binders', () => {
     })
 
     test('should return FileNotFoundErrorMsg if file does not exist in DB', async () => {
-      getFileInfo.mockReturnValue(null)
+      getFileInfo.mockResolvedValue(null)
 
       await triggerSocketEvent('delete-file', validDeleteRequest)
 
@@ -473,7 +473,7 @@ describe('File Binders', () => {
     })
 
     test('should return "File not owned." if file is not owned by client', async () => {
-      getFileInfo.mockReturnValue({ ...mockFileInfo, ownerId: 'otherUser' })
+      getFileInfo.mockResolvedValue({ ...mockFileInfo, ownerId: 'otherUser' })
 
       await triggerSocketEvent('delete-file', validDeleteRequest)
 
@@ -528,8 +528,8 @@ describe('File Binders', () => {
         success: true,
         data: validGetListRequest
       })
-      getAllFilesByParentFolderIdUserId.mockReturnValue(mockFiles)
-      getAllFoldersByParentFolderIdUserId.mockReturnValue(mockFolders)
+      getAllFilesByParentFolderIdUserId.mockResolvedValue(mockFiles)
+      getAllFoldersByParentFolderIdUserId.mockResolvedValue(mockFolders)
     })
 
     test('should successfully respond with file and folder lists', async () => {
@@ -705,9 +705,9 @@ describe('File Binders', () => {
           success: true,
           data: validDeleteFolderRequest
         })
-        getAllFilesByParentFolderIdUserId.mockReturnValue([]) // Empty folder by default
-        getAllFoldersByParentFolderIdUserId.mockReturnValue([]) // Empty folder by default
-        deleteFolder.mockReturnValue({ changes: 1 }) // Simulate successful DB delete
+        getAllFilesByParentFolderIdUserId.mockResolvedValue([]) // Empty folder by default
+        getAllFoldersByParentFolderIdUserId.mockResolvedValue([]) // Empty folder by default
+        deleteFolder.mockResolvedValue({ rowCount: 1 }) // Simulate successful DB delete
       })
 
       test('should successfully delete an empty folder', async () => {
@@ -770,7 +770,7 @@ describe('File Binders', () => {
       })
 
       test('should return "Folder not empty." if folder contains files', async () => {
-        getAllFilesByParentFolderIdUserId.mockReturnValueOnce([{ id: 'fileInFolder' }])
+        getAllFilesByParentFolderIdUserId.mockResolvedValue([{ id: 'fileInFolder' }])
 
         await triggerSocketEvent('delete-folder', validDeleteFolderRequest)
 
@@ -784,7 +784,7 @@ describe('File Binders', () => {
       })
 
       test('should return "Folder not empty." if folder contains sub-folders', async () => {
-        getAllFoldersByParentFolderIdUserId.mockReturnValueOnce([{ id: 'subFolder' }])
+        getAllFoldersByParentFolderIdUserId.mockResolvedValue([{ id: 'subFolder' }])
 
         await triggerSocketEvent('delete-folder', validDeleteFolderRequest)
 
@@ -798,7 +798,7 @@ describe('File Binders', () => {
       })
 
       test('should return "Folder not found." if deleteFolder reports no changes', async () => {
-        deleteFolder.mockReturnValue({ changes: 0 })
+        deleteFolder.mockResolvedValue({ rowCount: 0 })
 
         await triggerSocketEvent('delete-folder', validDeleteFolderRequest)
 
@@ -833,7 +833,7 @@ describe('File Binders', () => {
       ]
 
       beforeEach(() => {
-        getAllFoldersByUserId.mockReturnValue(mockAllFolders)
+        getAllFoldersByUserId.mockResolvedValue(mockAllFolders)
       })
 
       test('should successfully respond with all folders for the user', async () => {
@@ -860,7 +860,7 @@ describe('File Binders', () => {
       })
 
       test('should return InternalServerErrorMsg on unexpected error', async () => {
-        getAllFoldersByUserId.mockImplementation(() => {
+        getAllFoldersByUserId.mockImplementation(async () => {
           throw new Error('DB error')
         })
 
@@ -877,7 +877,7 @@ describe('File Binders', () => {
 
     beforeEach(() => {
       MoveFileRequestSchema.safeParse.mockReturnValue({ success: true, data: validMoveRequest })
-      moveFileToFolder.mockReturnValue({ changes: 1 }) // Simulate successful move
+      moveFileToFolder.mockResolvedValue({ rowCount: 1 }) // Simulate successful move
     })
 
     test('should successfully move a file to a target folder', async () => {
@@ -939,7 +939,7 @@ describe('File Binders', () => {
     })
 
     test('should return "Target folder not found." if target folder does not exist for user', async () => {
-      checkFolderExistsForUser.mockReturnValue(false)
+      checkFolderExistsForUser.mockResolvedValue(false)
 
       await triggerSocketEvent('move-file', validMoveRequest)
 
@@ -953,7 +953,7 @@ describe('File Binders', () => {
     })
 
     test('should return FileNotFoundErrorMsg if moveFileToFolder reports no changes', async () => {
-      moveFileToFolder.mockReturnValue({ changes: 0 }) // Simulate file not found or not moved
+      moveFileToFolder.mockResolvedValue({ rowCount: 0 }) // Simulate file not found or not moved
 
       await triggerSocketEvent('move-file', validMoveRequest)
 
@@ -981,7 +981,7 @@ describe('File Binders', () => {
     const mockPublicFiles = [{ id: 'publicFile1', ownerId: 'otherUser' }]
 
     beforeEach(() => {
-      getAllPublicFilesNotOwned.mockReturnValue(mockPublicFiles)
+      getAllPublicFilesNotOwned.mockResolvedValue(mockPublicFiles)
     })
 
     test('should successfully respond with public files not owned by the user', async () => {
@@ -1008,7 +1008,7 @@ describe('File Binders', () => {
     })
 
     test('should return InternalServerErrorMsg on unexpected error', async () => {
-      getAllPublicFilesNotOwned.mockImplementation(() => {
+      getAllPublicFilesNotOwned.mockImplementation(async () => {
         throw new Error('DB error')
       })
 
@@ -1032,8 +1032,8 @@ describe('File Binders', () => {
 
     beforeEach(() => {
       UpdateFileRequestSchema.safeParse.mockReturnValue({ success: true, data: validUpdateRequest })
-      getFileInfoOfOwnerId.mockReturnValue(mockFileInfoOwned)
-      updateFileDescPermInDatabase.mockReturnValue({}) // Success for DB update
+      getFileInfoOfOwnerId.mockResolvedValue(mockFileInfoOwned)
+      updateFileDescPermInDatabase.mockResolvedValue({}) // Success for DB update
     })
 
     test('should successfully update file description and permission', async () => {
@@ -1111,7 +1111,7 @@ describe('File Binders', () => {
     })
 
     test('should return FileNotFoundErrorMsg if file does not exist or is not owned', async () => {
-      getFileInfoOfOwnerId.mockReturnValue(null) // Simulate file not found or not owned
+      getFileInfoOfOwnerId.mockResolvedValue(null) // Simulate file not found or not owned
 
       await triggerSocketEvent('update-file-desc-perm', validUpdateRequest)
 

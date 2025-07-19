@@ -71,7 +71,7 @@ ftpServer.on('login', async (data, resolve, reject) => {
         reject(new Error('Upload info not found.'))
         return
       }
-      if (uploadInfo.parentFolderId && !getFolderInfo(uploadInfo.parentFolderId)) {
+      if (uploadInfo.parentFolderId && !(await getFolderInfo(uploadInfo.parentFolderId))) {
         logFtpsWarning(data, actionStr + ' but parent folder does not exist.')
         reject(new Error('Parent folder not found.'))
         return

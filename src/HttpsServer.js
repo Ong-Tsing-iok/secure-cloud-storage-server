@@ -3,13 +3,10 @@ import { mkdir, unlink } from 'fs/promises'
 import multer from 'multer'
 import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
 import {
-  addFileToDatabase,
   getFolderInfo,
   getFileInfo,
-  deleteFileOfOwnerId
 } from './StorageDatabase.js'
-import { join, resolve } from 'path'
-import { randomUUID } from 'crypto'
+import { resolve } from 'path'
 import ConfigManager from './ConfigManager.js'
 import { finishUpload } from './UploadVerifier.js'
 import { app } from './SocketIO.js'
@@ -77,7 +74,7 @@ const auth = (req, res, next) => {
   }
 }
 
-const checkUpload = (req, res, next) => {
+const checkUpload = async (req, res, next) => {
   try {
     const actionStr = 'Client asks to upload file'
     logHttpsInfo(req, actionStr + '.')
@@ -95,7 +92,7 @@ const checkUpload = (req, res, next) => {
       return
     }
     // check if path exists
-    if (uploadInfo.parentFolderId && !getFolderInfo(uploadInfo.parentFolderId)) {
+    if (uploadInfo.parentFolderId && !(await getFolderInfo(uploadInfo.parentFolderId))) {
       logHttpsWarning(req, actionStr + 'but parent folder does not exist.', {
         parentFolderId: uploadInfo.parentFolderId
       })
@@ -140,7 +137,7 @@ app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res, n
   }
 })
 
-app.get('/download', auth, (req, res, next) => {
+app.get('/download', auth, async (req, res, next) => {
   try {
     const actionStr = 'Client asks to download file'
     logHttpsInfo(req, actionStr + '.')
@@ -153,7 +150,7 @@ app.get('/download', auth, (req, res, next) => {
     }
 
     const fileId = req.headers.fileid
-    const fileInfo = getFileInfo(fileId)
+    const fileInfo = await getFileInfo(fileId)
 
     if (!fileInfo) {
       logHttpsWarning(req, actionStr + ' which does not exist.')

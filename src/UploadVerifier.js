@@ -64,7 +64,7 @@ blockchainManager.bindEventListener(
           uploadInfoDeleted = true
           if (BigInt(value.hash) == BigInt(fileHash)) {
             const socketId = getSocketId(userId)?.socketId
-            addFileToDatabase(value.uploadInfo)
+            await addFileToDatabase(value.uploadInfo)
             await blockchainManager.setFileVerification(fileId, uploader, 'success')
             if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId })
             logger.info('File uploaded and verified.', { fileId, userId })

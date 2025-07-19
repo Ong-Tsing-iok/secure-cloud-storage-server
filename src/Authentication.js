@@ -28,7 +28,7 @@ const authenticationBinder = (socket, blockchainManager) => {
       }
       const { publicKey, blockchainAddress, name, email } = result.data
 
-      const userInfo = getUserByKey(publicKey)
+      const userInfo = await getUserByKey(publicKey)
       if (userInfo) {
         socket.userId = userInfo.id
         logSocketWarning(socket, actionStr + ' but is already registered.', request)
@@ -71,7 +71,7 @@ const authenticationBinder = (socket, blockchainManager) => {
         return
       }
 
-      const userInfo = getUserByKey(publicKey)
+      const userInfo = await getUserByKey(publicKey)
       if (!userInfo) {
         logSocketWarning(socket, actionStr + ' but is not registered.', request)
         cb({ errorMsg: 'Not registered.' })
@@ -144,13 +144,13 @@ const authenticationBinder = (socket, blockchainManager) => {
         let folderCreated = false
         let databaseAdded = false
         try {
-          const { id, info } = AddUserAndGetId(
+          const { id, info } = await AddUserAndGetId(
             socket.pk,
             socket.blockchainAddress,
             socket.name,
             socket.email
           )
-          if (info.changes === 0) {
+          if (info.rowCount === 0) {
             throw new Error('Failed to add user to database. Might be id collision.')
           }
           socket.userId = id
@@ -183,7 +183,7 @@ const authenticationBinder = (socket, blockchainManager) => {
             blockchainAddress: socket.blockchainAddress
           }) // Did not re-throw because need to log extra information
           // Reverting register
-          if (socket.userId && databaseAdded) deleteUserById(socket.userId)
+          if (socket.userId && databaseAdded) await deleteUserById(socket.userId)
           try {
             if (socket.userId && folderCreated)
               await rmdir(resolve(ConfigManager.uploadDir, socket.userId))

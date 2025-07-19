@@ -53,8 +53,11 @@ jest.mock('../src/ConfigManager.js', () => ({
   __esModule: true,
   default: {
     serverHost: 'localhost',
-    ftpsPort: 2121,
-    ftpsPasvPort: 2122,
+    ftps: {
+      controlPort: 2121,
+      dataPort: 2122,
+      pasv_url: 'ftp.example.com'
+    },
     serverKeyPath: '/test/keys/server.key',
     serverCertPath: '/test/keys/server.crt',
     uploadDir: '/test/upload/dir'
@@ -178,7 +181,7 @@ describe('FTP Server (FtpsServer.js)', () => {
       checkUserLoggedIn.mockReturnValue({ userId: mockUserId })
       mkdir.mockResolvedValue(undefined) // mkdir succeeds by default
       getUpload.mockReturnValue(undefined) // No upload info by default for guest
-      getFolderInfo.mockReturnValue({}) // Folder exists by default
+      getFolderInfo.mockResolvedValue({}) // Folder exists by default
     })
 
     test('should successfully authenticate for a guest user', async () => {
@@ -276,7 +279,7 @@ describe('FTP Server (FtpsServer.js)', () => {
         parentFolderId: 'nonExistentFolder'
       }
       getUpload.mockReturnValue(mockUploadInfo)
-      getFolderInfo.mockReturnValue(null) // Parent folder does not exist
+      getFolderInfo.mockResolvedValue(null) // Parent folder does not exist
 
       const data = { connection: mockConnection, username: mockSocketId, password: mockFileId }
       await ftpServer.events.login(data, resolveLogin, rejectLogin)

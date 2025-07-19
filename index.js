@@ -93,7 +93,7 @@ const queryDatabase = async () => {
             { value: 'status', align: 'left' },
             { value: 'timestamp', alias: 'created time', align: 'left' }
           ]
-          const users = getAllUsers()
+          const users = await getAllUsers()
           const p = new Table(header, users).render()
           console.log(p)
           success = true
@@ -118,7 +118,7 @@ const queryDatabase = async () => {
         {
           const userId = await getUserIdInput()
           if (!userId) return
-          const files = getFilesOfOwnerId(userId)
+          const files = await getFilesOfOwnerId(userId)
           const p = new Table(fileHeaders, files).render()
           console.log(p)
           success = true
@@ -126,7 +126,7 @@ const queryDatabase = async () => {
         break
       case 'get-all-files':
         {
-          const files = getAllFiles()
+          const files = await getAllFiles()
           console.log(new Table(fileHeaders, files).render())
           success = true
         }
@@ -135,7 +135,7 @@ const queryDatabase = async () => {
         {
           const userId = await getUserIdInput()
           if (!userId) return
-          const requests = getAllRequestsResponsesByRequester(userId)
+          const requests = await getAllRequestsResponsesByRequester(userId)
           const p = new Table(
             [
               { value: 'requestId', align: 'left' },
@@ -154,7 +154,7 @@ const queryDatabase = async () => {
       case 'get-responses': {
         const userId = await getUserIdInput()
         if (!userId) return
-        const responses = getAllRequestsResponsesFilesByOwner(userId)
+        const responses = await getAllRequestsResponsesFilesByOwner(userId)
         const p = new Table(
           [
             { value: 'requestId', align: 'left' },
@@ -192,8 +192,8 @@ const deleteAccount = async (userId) => {
     console.log('刪除已取消')
     return
   }
-  const result = updateUserStatusById(userId, userStatusType.stopped)
-  if (result.changes === 0) {
+  const result = await updateUserStatusById(userId, userStatusType.stopped)
+  if (result.rowCount === 0) {
     console.log('查無此使用者')
     return
   }
@@ -205,10 +205,10 @@ const deleteAccount = async (userId) => {
     // delete all upload table info
     removeUpload(loginInfo.userId)
   }
-  const userInfo = getUserById(userId)
+  const userInfo = await getUserById(userId)
   await blockchainManager.setClientStatus(userInfo.address, false)
   await rm(join(ConfigManager.uploadDir, userId), { recursive: true, force: true })
-  deleteUserById(userId)
+  await deleteUserById(userId)
   success = true
   console.log('刪除成功')
 
@@ -246,7 +246,7 @@ const updateAccount = async (userInfo) => {
         { signal: controller.signal }
       )
     ).trim()
-    updateUserInfoById(userInfo.id, name, email)
+    await updateUserInfoById(userInfo.id, name, email)
     console.log('更新成功')
     logger.info('successfully updated account', {
       userId: userInfo.id,
@@ -282,7 +282,7 @@ const manageAccounts = async () => {
   try {
     userId = await getUserIdInput()
     if (!userId) return
-    const userInfo = getUserById(userId)
+    const userInfo = await getUserById(userId)
     if (!userInfo) {
       console.log('查無此使用者')
       return
@@ -290,7 +290,7 @@ const manageAccounts = async () => {
     switch (adminAction) {
       case 'stop-account':
         {
-          updateUserStatusById(userId, userStatusType.stopped)
+          await updateUserStatusById(userId, userStatusType.stopped)
           const loginInfo = getSocketId(userId)
           if (loginInfo) {
             disconnectSocket(loginInfo.socketId)
@@ -300,7 +300,7 @@ const manageAccounts = async () => {
         }
         break
       case 'activate-account':
-        updateUserStatusById(userId, userStatusType.activate)
+        await updateUserStatusById(userId, userStatusType.activate)
         console.log('啟用成功')
         success = true
         break

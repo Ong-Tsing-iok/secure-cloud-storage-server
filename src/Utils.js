@@ -25,11 +25,11 @@ const checkLoggedIn = (socket) => {
   return true
 }
 
-const checkFolderExistsForUser = (folderId, userId) => {
+const checkFolderExistsForUser = async (folderId, userId) => {
   if (!folderId) {
     return true
   }
-  return !!getFolderInfoOfOwnerId(folderId, userId)
+  return await getFolderInfoOfOwnerId(folderId, userId)
 }
 
 const getFilePath = (userId, fileId) => {
@@ -51,7 +51,7 @@ const revertUpload = async (userId, fileId, errorMsg) => {
   try {
     logger.info(`reverting upload.`, { userId, fileId, errorMsg })
     // remove file from database
-    deleteFileOfOwnerId(fileId, userId)
+    await deleteFileOfOwnerId(fileId, userId)
     // remove file from disc
     const filePath = resolve(ConfigManager.uploadDir, userId, fileId)
     await unlink(filePath)

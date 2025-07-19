@@ -349,7 +349,7 @@ describe('HTTPS Server (HttpsServer.js)', () => {
     beforeEach(() => {
       FileIdSchema.safeParse.mockReturnValue({ success: true, data: mockFileId })
       getUpload.mockReturnValue(mockUploadInfo)
-      getFolderInfo.mockReturnValue({}) // Folder exists by default
+      getFolderInfo.mockResolvedValue({}) // Folder exists by default
     })
 
     test('should set uploadInfo and call next if valid', () => {
@@ -402,7 +402,7 @@ describe('HTTPS Server (HttpsServer.js)', () => {
 
     test('should return 400 if parent folder does not exist', () => {
       mockReq.headers.fileid = mockFileId
-      getFolderInfo.mockReturnValue(null)
+      getFolderInfo.mockResolvedValue(null)
 
       checkUploadMiddleware(mockReq, mockRes, mockNext)
 
@@ -540,7 +540,7 @@ describe('HTTPS Server (HttpsServer.js)', () => {
       mockReq.headers.fileid = mockFileId
       mockReq.userId = mockUserId // Simulate auth middleware setting userId
       FileIdSchema.safeParse.mockReturnValue({ success: true, data: mockFileId })
-      getFileInfo.mockReturnValue(mockFileInfo)
+      getFileInfo.mockResolvedValue(mockFileInfo)
       path.resolve.mockReturnValue(`/test/upload/dir/${mockUserId}/${mockFileId}`)
     })
 
@@ -578,7 +578,7 @@ describe('HTTPS Server (HttpsServer.js)', () => {
     })
 
     test('should return 404 if file does not exist', () => {
-      getFileInfo.mockReturnValue(null)
+      getFileInfo.mockResolvedValue(null)
 
       downloadRouteHandler(mockReq, mockRes)
 
@@ -591,7 +591,7 @@ describe('HTTPS Server (HttpsServer.js)', () => {
     })
 
     test('should return 403 if file is not owned by client', () => {
-      getFileInfo.mockReturnValue({ ...mockFileInfo, ownerId: 'otherUser' })
+      getFileInfo.mockResolvedValue({ ...mockFileInfo, ownerId: 'otherUser' })
 
       downloadRouteHandler(mockReq, mockRes)
 

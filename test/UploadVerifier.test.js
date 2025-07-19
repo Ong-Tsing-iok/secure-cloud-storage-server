@@ -342,7 +342,7 @@ describe('UploadVerifier', () => {
       })
 
       // Simulate an error within the event listener (e.g., addFileToDatabase fails)
-      addFileToDatabase.mockImplementationOnce(() => {
+      addFileToDatabase.mockImplementationOnce(async () => {
         throw new Error('Database error')
       })
 

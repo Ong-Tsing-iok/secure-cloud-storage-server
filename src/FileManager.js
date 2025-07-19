@@ -31,6 +31,7 @@ import {
 } from './Utils.js'
 import ConfigManager from './ConfigManager.js'
 import {
+  AddFolderRequestSchema,
   DeleteFileRequestSchema,
   DeleteFolderRequestSchema,
   DownloadFileHashErrorRequestSchema,
@@ -45,7 +46,7 @@ const uploadExpireTime = ConfigManager.settings.uploadExpireTimeMin * 60 * 1000
 
 // Download file related events
 const downloadFileBinder = (socket) => {
-  socket.on('download-file-pre', (request, cb) => {
+  socket.on('download-file-pre', async (request, cb) => {
     try {
       const actionStr = 'Client asks to download file'
       logSocketInfo(socket, actionStr + '.', request)
@@ -64,7 +65,7 @@ const downloadFileBinder = (socket) => {
         return
       }
 
-      const fileInfo = getFileInfo(fileId)
+      const fileInfo = await getFileInfo(fileId)
       if (!fileInfo) {
         logSocketWarning(socket, actionStr + ' which does not exist.', request)
         cb({ errorMsg: FileNotFoundErrorMsg })
@@ -92,7 +93,7 @@ const downloadFileBinder = (socket) => {
 
 // Upload file related events
 const uploadFileBinder = (socket) => {
-  socket.on('upload-file-pre', (request, cb) => {
+  socket.on('upload-file-pre', async (request, cb) => {
     try {
       const actionStr = 'Client asks to upload file'
       // cipher and spk do not need to be logged
@@ -112,7 +113,7 @@ const uploadFileBinder = (socket) => {
         return
       }
 
-      if (!checkFolderExistsForUser(parentFolderId, socket.userId)) {
+      if (!(await checkFolderExistsForUser(parentFolderId, socket.userId))) {
         logSocketWarning(socket, actionStr + ' to a non-existing folder.', request)
         cb({ errorMsg: 'Parent folder not found.' })
         return
@@ -154,7 +155,7 @@ const deleteFileBinder = (socket) => {
         return
       }
 
-      const fileInfo = getFileInfo(fileId)
+      const fileInfo = await getFileInfo(fileId)
       if (!fileInfo) {
         logSocketWarning(socket, actionStr + ' which does not exist.', request)
         cb({ errorMsg: FileNotFoundErrorMsg })
@@ -167,7 +168,7 @@ const deleteFileBinder = (socket) => {
         return
       }
       try {
-        deleteFile(fileId)
+        await deleteFile(fileId)
         await unlink(getFilePath(socket.userId, fileId))
       } catch (error1) {
         if (error1.code != 'ENOENT') throw error1
@@ -183,7 +184,7 @@ const deleteFileBinder = (socket) => {
 
 // Get file list event
 const getFileListBinder = (socket) => {
-  socket.on('get-file-list', (request, cb) => {
+  socket.on('get-file-list', async (request, cb) => {
     try {
       const actionStr = 'Client asks to get file list'
       logSocketInfo(socket, actionStr + '.', request)
@@ -202,8 +203,8 @@ const getFileListBinder = (socket) => {
         return
       }
 
-      const files = getAllFilesByParentFolderIdUserId(parentFolderId, socket.userId)
-      const folders = getAllFoldersByParentFolderIdUserId(parentFolderId, socket.userId)
+      const files = await getAllFilesByParentFolderIdUserId(parentFolderId, socket.userId)
+      const folders = await getAllFoldersByParentFolderIdUserId(parentFolderId, socket.userId)
       logSocketInfo(socket, 'Responding file list to client.', request)
       // console.log({ files, folders })
       cb({ fileList: { files: JSON.stringify(files), folders: JSON.stringify(folders) } })
@@ -217,12 +218,12 @@ const getFileListBinder = (socket) => {
 // Folder related events
 const folderBinder = (socket) => {
   // Add folder
-  socket.on('add-folder', (request, cb) => {
+  socket.on('add-folder', async (request, cb) => {
     try {
       const actionStr = 'Client asks to add folder'
       logSocketInfo(socket, actionStr + '.', request)
 
-      const result = DeleteFileRequestSchema.safeParse(request)
+      const result = AddFolderRequestSchema.safeParse(request)
       if (!result.success) {
         logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
         cb({ errorMsg: InvalidArgumentErrorMsg })
@@ -236,7 +237,7 @@ const folderBinder = (socket) => {
         return
       }
 
-      addFolderToDatabase(folderName, parentFolderId, socket.userId)
+      await addFolderToDatabase(folderName, parentFolderId, socket.userId)
       logSocketInfo(socket, 'Folder added to database.', request)
       cb({})
     } catch (error) {
@@ -246,7 +247,7 @@ const folderBinder = (socket) => {
   })
 
   // Delete folder
-  socket.on('delete-folder', (request, cb) => {
+  socket.on('delete-folder', async (request, cb) => {
     try {
       const actionStr = 'Client asks to delete folder'
       logSocketInfo(socket, actionStr + '.', request)
@@ -265,14 +266,14 @@ const folderBinder = (socket) => {
         return
       }
 
-      const files = getAllFilesByParentFolderIdUserId(folderId, socket.userId)
-      const folders = getAllFoldersByParentFolderIdUserId(folderId, socket.userId)
+      const files = await getAllFilesByParentFolderIdUserId(folderId, socket.userId)
+      const folders = await getAllFoldersByParentFolderIdUserId(folderId, socket.userId)
       if (files.length > 0 || folders.length > 0) {
         logSocketWarning(socket, actionStr + ' which is not empty.', request)
         cb({ errorMsg: 'Folder not empty.' })
         return
       }
-      if (deleteFolder(folderId).changes <= 0) {
+      if ((await deleteFolder(folderId)).rowCount <= 0) {
         logSocketWarning(socket, actionStr + ' which does not exist.', request)
         cb({ errorMsg: 'Folder not found.' })
         return
@@ -286,7 +287,7 @@ const folderBinder = (socket) => {
   })
 
   // Get all folder
-  socket.on('get-all-folders', (cb) => {
+  socket.on('get-all-folders', async (cb) => {
     try {
       const actionStr = 'Client asks to get all folders'
       logSocketInfo(socket, actionStr + '.')
@@ -297,7 +298,7 @@ const folderBinder = (socket) => {
         return
       }
 
-      const folders = getAllFoldersByUserId(socket.userId)
+      const folders = await getAllFoldersByUserId(socket.userId)
       logSocketInfo(socket, 'Responding all folders to client.')
       cb({ folders: JSON.stringify(folders) })
     } catch (error) {
@@ -308,7 +309,7 @@ const folderBinder = (socket) => {
 }
 
 const moveFileBinder = (socket) => {
-  socket.on('move-file', (request, cb) => {
+  socket.on('move-file',async (request, cb) => {
     try {
       const actionStr = 'Client asks to move file to target folder'
       logSocketInfo(socket, actionStr + '.', request)
@@ -327,12 +328,12 @@ const moveFileBinder = (socket) => {
         return
       }
 
-      if (!checkFolderExistsForUser(targetFolderId, socket.userId)) {
+      if (!(await checkFolderExistsForUser(targetFolderId, socket.userId))) {
         logSocketWarning(socket, actionStr + ' but target folder does not exist.', request)
         cb({ errorMsg: 'Target folder not found.' })
         return
       }
-      if (moveFileToFolder(fileId, targetFolderId).changes === 0) {
+      if (await moveFileToFolder(fileId, targetFolderId).rowCount === 0) {
         logSocketWarning(socket, actionStr + ' but file does not exist.', request)
         cb({ errorMsg: FileNotFoundErrorMsg })
         return
@@ -347,7 +348,7 @@ const moveFileBinder = (socket) => {
 }
 
 const getPublicFilesBinder = (socket) => {
-  socket.on('get-public-files', (cb) => {
+  socket.on('get-public-files', async (cb) => {
     try {
       const actionStr = 'Client asks to get public files'
       logSocketInfo(socket, actionStr + '.')
@@ -358,7 +359,7 @@ const getPublicFilesBinder = (socket) => {
         return
       }
 
-      const files = getAllPublicFilesNotOwned(socket.userId)
+      const files = await getAllPublicFilesNotOwned(socket.userId)
       logSocketInfo(socket, 'Responding public files to client.')
       cb({ files: JSON.stringify(files) })
     } catch (error) {
@@ -369,7 +370,7 @@ const getPublicFilesBinder = (socket) => {
 }
 
 const updateFileBinder = (socket) => {
-  socket.on('update-file-desc-perm', (request, cb) => {
+  socket.on('update-file-desc-perm', async (request, cb) => {
     try {
       const actionStr = 'Client asks to update description and permission for file'
       logSocketInfo(socket, actionStr + '.', request)
@@ -388,7 +389,7 @@ const updateFileBinder = (socket) => {
         return
       }
 
-      if (!getFileInfoOfOwnerId(fileId, socket.userId)) {
+      if (!(await getFileInfoOfOwnerId(fileId, socket.userId))) {
         logSocketWarning(socket, actionStr + ' but file does not exist.', request)
         cb({ errorMsg: FileNotFoundErrorMsg })
         return
@@ -398,7 +399,7 @@ const updateFileBinder = (socket) => {
       if (description.length > ConfigManager.databaseLengthLimit) {
         desc = description.substring(0, ConfigManager.databaseLengthLimit)
       }
-      updateFileDescPermInDatabase(fileId, desc, permission)
+      await updateFileDescPermInDatabase(fileId, desc, permission)
       logSocketInfo(socket, 'Description and permission updated for file.', request)
       cb({})
     } catch (error) {

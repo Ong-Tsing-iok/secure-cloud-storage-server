@@ -20,6 +20,16 @@ class ConfigManager {
   settings = {
     uploadExpireTimeMin: 10
   }
+  dbPoolConfig = {
+    user: 'postgres',
+    host: 'localhost',
+    database: 'postgres',
+    password: '',
+    port: 5432,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000
+  }
   constructor() {
     try {
       this.directoryConfig = getConfig('directories')
@@ -30,11 +40,20 @@ class ConfigManager {
       }
 
       // Ftps server
-      this.ftps = {}
       this.ftps.dataPort = config.get('server.ftps.port.data')
       this.ftps.controlPort = config.get('server.ftps.port.control')
       this.ftps.pasv_url = config.get('server.ftps.pasv_url')
 
+      // Database
+      this.dbPoolConfig.user = config.get('database.user')
+      this.dbPoolConfig.host = config.get('database.host')
+      this.dbPoolConfig.database = config.get('database.database')
+      this.dbPoolConfig.password = config.get('database.password')
+      this.dbPoolConfig.port = config.get('database.port')
+      this.dbPoolConfig.max = config.get('database.pool.max')
+      this.dbPoolConfig.idleTimeoutMillis = config.get('database.pool.idleTimeoutMillis')
+      this.dbPoolConfig.connectionTimeoutMillis = config.get('database.pool.connectionTimeoutMillis')
+      
       // Blockchain
       this.blockchain = {}
       this.blockchain.jsonRpcUrl = config.get('blockchain.jsonRpcUrl')

@@ -147,7 +147,7 @@ describe('RequestManager', () => {
 
     // Default mock behaviors
     checkLoggedIn.mockReturnValue(true)
-    getFileInfo.mockReturnValue({
+    getFileInfo.mockResolvedValue({
       id: mockFileId,
       ownerId: mockOwnerId,
       permissions: 1, // public by default
@@ -157,18 +157,18 @@ describe('RequestManager', () => {
       size: 1234,
       description: 'file description'
     })
-    addUniqueRequest.mockReturnValue(mockRequestId)
-    getUserById.mockImplementation((id) => {
-      if (id === mockUserId) return { id: mockUserId, address: 'userAddress', pk: 'userPk' }
-      if (id === mockOwnerId) return { id: mockOwnerId, address: 'ownerAddress', pk: 'ownerPk' }
+    addUniqueRequest.mockResolvedValue(mockRequestId)
+    getUserById.mockImplementation((id) => new Promise((resolve) => {
+      if (id === mockUserId) resolve({ id: mockUserId, address: 'userAddress', pk: 'userPk' })
+      if (id === mockOwnerId) resolve({ id: mockOwnerId, address: 'ownerAddress', pk: 'ownerPk' })
       if (id === mockRequesterId)
-        return { id: mockRequesterId, address: 'requesterAddress', pk: 'requesterPk' }
-      return null
-    })
+        resolve({ id: mockRequesterId, address: 'requesterAddress', pk: 'requesterPk' })
+      resolve(null)
+    }))
     blockchainManager.addAuthRecord.mockResolvedValue(true)
     blockchainManager.reencryptFile.mockResolvedValue(true)
     getSocketId.mockReturnValue({ socketId: 'ownerSocketId' })
-    addResponse.mockReturnValue({ responseId: mockResponseId })
+    addResponse.mockResolvedValue({ responseId: mockResponseId })
     CryptoHandler.reencrypt.mockResolvedValue({ recipher: 'newCipher', spk: 'newSpk' })
     randomUUID.mockReturnValue('newFileUUID')
     copyFile.mockResolvedValue(true)
@@ -260,7 +260,7 @@ describe('RequestManager', () => {
     })
 
     test('should return FileNotFoundErrorMsg if file does not exist', async () => {
-      getFileInfo.mockReturnValue(null)
+      getFileInfo.mockResolvedValue(null)
 
       await triggerSocketEvent('request-file', validRequestFile)
 
@@ -274,7 +274,7 @@ describe('RequestManager', () => {
     })
 
     test('should return "File is owned." if file is owned by client', async () => {
-      getFileInfo.mockReturnValue({ ...getFileInfo(), ownerId: mockUserId })
+      getFileInfo.mockResolvedValue({ ...(await getFileInfo()), ownerId: mockUserId })
 
       await triggerSocketEvent('request-file', validRequestFile)
 
@@ -288,7 +288,7 @@ describe('RequestManager', () => {
     })
 
     test('should return FileNotFoundErrorMsg if file is not public (permissions 0)', async () => {
-      getFileInfo.mockReturnValue({ ...getFileInfo(), permissions: 0 })
+      getFileInfo.mockResolvedValue({ ...(await getFileInfo()), permissions: 0 })
 
       await triggerSocketEvent('request-file', validRequestFile)
 
@@ -302,7 +302,7 @@ describe('RequestManager', () => {
     })
 
     test('should return "File already requested." if already requested', async () => {
-      addUniqueRequest.mockReturnValue(null) // Simulate already requested
+      addUniqueRequest.mockResolvedValue(null) // Simulate already requested
 
       await triggerSocketEvent('request-file', validRequestFile)
 
@@ -347,7 +347,7 @@ describe('RequestManager', () => {
         success: true,
         data: validDeleteRequest
       })
-      deleteRequestOfRequester.mockReturnValue({ changes: 1 }) // Simulate successful deletion
+      deleteRequestOfRequester.mockResolvedValue({ rowCount: 1 }) // Simulate successful deletion
     })
 
     test('should successfully delete a request', async () => {
@@ -399,7 +399,7 @@ describe('RequestManager', () => {
     })
 
     test('should return "Request not found." if request does not exist', async () => {
-      deleteRequestOfRequester.mockReturnValue({ changes: 0 }) // No changes means not found
+      deleteRequestOfRequester.mockResolvedValue({ rowCount: 0 }) // No changes means not found
 
       await triggerSocketEvent('delete-request', validDeleteRequest)
 
@@ -448,8 +448,8 @@ describe('RequestManager', () => {
         success: true,
         data: req
       }))
-      getRequestNotRespondedByIdOfFileOwner.mockReturnValue(mockRequestInfo)
-      addResponse.mockReturnValue({ responseId: mockResponseId })
+      getRequestNotRespondedByIdOfFileOwner.mockResolvedValue(mockRequestInfo)
+      addResponse.mockResolvedValue({ responseId: mockResponseId })
 
       // Mock CryptoHandler and file operations for 'agreed' path
       CryptoHandler.reencrypt.mockResolvedValue({
@@ -457,7 +457,7 @@ describe('RequestManager', () => {
         spk: 'newSpkResult'
       })
       randomUUID.mockReturnValue('newFileUUIDForRequester')
-      addFileToDatabase.mockReturnValue({})
+      addFileToDatabase.mockResolvedValue({})
       copyFile.mockResolvedValue(true)
       calculateFileHash.mockResolvedValue('newFileHash')
       blockchainManager.reencryptFile.mockResolvedValue(true)
@@ -607,7 +607,7 @@ describe('RequestManager', () => {
     })
 
     test('should return "Request not exist or already responded." if request not found', async () => {
-      getRequestNotRespondedByIdOfFileOwner.mockReturnValue(undefined)
+      getRequestNotRespondedByIdOfFileOwner.mockResolvedValue(undefined)
 
       await triggerSocketEvent('respond-request', validRespondAgreeRequest)
 
@@ -636,7 +636,7 @@ describe('RequestManager', () => {
     })
 
     test('should return InternalServerErrorMsg and rollback if addResponse fails', async () => {
-      addResponse.mockImplementation(() => {
+      addResponse.mockImplementation(async () => {
         throw new Error('DB error on addResponse')
       })
 
@@ -687,7 +687,7 @@ describe('RequestManager', () => {
     const mockRequests = [{ id: 'req1' }, { id: 'req2' }]
 
     beforeEach(() => {
-      getAllRequestsResponsesByRequester.mockReturnValue(mockRequests)
+      getAllRequestsResponsesByRequester.mockResolvedValue(mockRequests)
     })
 
     test('should successfully retrieve requests by requester', async () => {
@@ -717,7 +717,7 @@ describe('RequestManager', () => {
     })
 
     test('should return InternalServerErrorMsg on general error', async () => {
-      getAllRequestsResponsesByRequester.mockImplementation(() => {
+      getAllRequestsResponsesByRequester.mockImplementation(async () => {
         throw new Error('DB error')
       })
 
@@ -741,7 +741,7 @@ describe('RequestManager', () => {
     ]
 
     beforeEach(() => {
-      getAllRequestsResponsesFilesByOwner.mockReturnValue(mockRequested)
+      getAllRequestsResponsesFilesByOwner.mockResolvedValue(mockRequested)
     })
 
     test('should successfully retrieve requested list by owner, removing pk for responded items', async () => {
@@ -771,7 +771,7 @@ describe('RequestManager', () => {
     })
 
     test('should return InternalServerErrorMsg on general error', async () => {
-      getAllRequestsResponsesFilesByOwner.mockImplementation(() => {
+      getAllRequestsResponsesFilesByOwner.mockImplementation(async () => {
         throw new Error('DB error')
       })
 
@@ -812,7 +812,7 @@ describe('RequestManager', () => {
 
       CryptoHandler.reencrypt.mockResolvedValue({ recipher: newCipherResult, spk: newSpkResult })
       randomUUID.mockReturnValue(newUUID)
-      addFileToDatabase.mockReturnValue({}) // success
+      addFileToDatabase.mockResolvedValue({}) // success
       copyFile.mockResolvedValue(true)
       calculateFileHash.mockResolvedValue(newFileHash)
       blockchainManager.reencryptFile.mockResolvedValue(true)
@@ -864,7 +864,7 @@ describe('RequestManager', () => {
             requestorInfo.pk
           )
           newUUID = randomUUID()
-          addFileToDatabase({
+          await addFileToDatabase({
             name: fileInfo.name,
             id: newUUID,
             userId: requestInfo.requester,
@@ -893,7 +893,7 @@ describe('RequestManager', () => {
           )
           return newUUID
         } catch (error) {
-          if (hasAddToDatabase && newUUID) deleteFile(newUUID)
+          if (hasAddToDatabase && newUUID) await deleteFile(newUUID)
           if (hasCopiedFile && copiedFilePath) await unlink(copiedFilePath)
           throw error
         }
@@ -958,7 +958,7 @@ describe('RequestManager', () => {
     })
 
     test('should rollback database and file copy if addFileToDatabase fails', async () => {
-      addFileToDatabase.mockImplementation(() => {
+      addFileToDatabase.mockImplementation(async () => {
         throw new Error('DB add failed')
       })
 
