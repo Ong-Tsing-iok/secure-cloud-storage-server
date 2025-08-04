@@ -1,28 +1,39 @@
 import winston, { format } from 'winston'
 import 'winston-daily-rotate-file'
-import ConfigManager from './ConfigManager.js'
+import config from 'config'
 import { Socket } from 'socket.io'
+
+// const timezoned = () => {
+//   return new Date().toLocaleString('zh-TW', {
+//     timeZone: 'Asia/Taipei'
+//   })
+// }
 
 export const logger = winston.createLogger({
   level: 'info',
-  format: winston.format.combine(format.errors({ stack: true }), format.timestamp(), format.json()),
+  format: winston.format.combine(
+    format.errors({ stack: true }),
+    format.timestamp(/*{ format: timezoned }*/),
+    format.json()
+  ),
   // defaultMeta: { service: "user-service" },
   transports: [
     //
     // - Write all logs with importance level of `error` or less to `error.log`
     // - Write all logs with importance level of `info` or less to `combined.log`
     //
-    new winston.transports.DailyRotateFile({
-      filename: '%DATE%-error.log',
-      datePattern: 'YYYY-MM-DD',
-      dirname: ConfigManager.logDir,
-      level: 'error'
-    }),
-    new winston.transports.DailyRotateFile({
-      filename: '%DATE%-combined.log',
-      datePattern: 'YYYY-MM-DD',
-      dirname: ConfigManager.logDir
-    })
+    // new winston.transports.DailyRotateFile({
+    //   filename: '%DATE%-error.log',
+    //   datePattern: 'YYYY-MM-DD',
+    //   dirname: config.get('directories.logs'),
+    //   level: 'error'
+    // }),
+    // new winston.transports.DailyRotateFile({
+    //   filename: '%DATE%-combined.log',
+    //   datePattern: 'YYYY-MM-DD',
+    //   dirname: config.get('directories.logs')
+    // }),
+    new winston.transports.Console({})
   ]
 })
 
@@ -30,21 +41,15 @@ export const logger = winston.createLogger({
 // If we're not in production then log to the `console` with the format:
 // `${info.level}: ${info.message} JSON.stringify({ ...rest }) `
 //
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(
-    new winston.transports.Console({
-      format: winston.format.simple(),
-      level: 'debug'
-    })
-  )
-} else {
-  logger.add(
-    new winston.transports.Console({
-      format: winston.format.simple(),
-      level: 'error'
-    })
-  )
-}
+
+// logger.add(
+//   new winston.transports.Console({
+//     format: winston.format.simple(),
+//     level: 'debug'
+//   })
+// )
+
+logger.info('Logging initialized.')
 
 const getSocketMeta = (socket, metaObj) => {
   return { ip: socket.ip, userId: socket.userId, event: socket.event, ...metaObj }
@@ -103,11 +108,10 @@ const getFtpsMeta = (data, metaObj) => {
     ip: data.connection.ip,
     userId: data.userId,
     protocol: 'ftps',
-    ...(data.password != 'guest' && {fileId: data.password}),
+    ...(data.password != 'guest' && { fileId: data.password }),
     ...metaObj
   }
 }
-
 
 export const logFtpsInfo = (data, message, metaObj = {}) => {
   logger.info(message, getFtpsMeta(data, metaObj))
@@ -127,7 +131,7 @@ const getHttpsMeta = (req, metaObj) => {
     ip: req.ip,
     userId: req.userId,
     protocol: 'https',
-    fileId: req.headers.fileid,
+    fileId: req.headers?.fileid,
     ...metaObj
   }
 }

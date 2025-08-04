@@ -319,34 +319,34 @@ const manageAccounts = async () => {
   }
 }
 
-while (true) {
-  let adminAction = null
-  try {
-    adminAction = await select({
-      message: '選擇要執行的指令',
-      choices: [
-        { name: '查看資料庫', value: 'database' },
-        { name: '管理帳號', value: 'accounts' },
-        { name: '關閉伺服器', value: 'exit' }
-      ]
-    })
-    switch (adminAction) {
-      case 'database':
-        await queryDatabase()
-        break
-      case 'accounts':
-        await manageAccounts()
-        break
-      case 'exit':
-        {
-          const yes = await confirm({
-            message: '確定要關閉伺服器嗎?'
-          })
-          if (yes) process.exit(0)
-        }
-        break
-    }
-  } catch (error) {
-    logger.error(error, { adminAction })
-  }
-}
+// while (true) {
+//   let adminAction = null
+//   try {
+//     adminAction = await select({
+//       message: '選擇要執行的指令',
+//       choices: [
+//         { name: '查看資料庫', value: 'database' },
+//         { name: '管理帳號', value: 'accounts' },
+//         { name: '關閉伺服器', value: 'exit' }
+//       ]
+//     })
+//     switch (adminAction) {
+//       case 'database':
+//         await queryDatabase()
+//         break
+//       case 'accounts':
+//         await manageAccounts()
+//         break
+//       case 'exit':
+//         {
+//           const yes = await confirm({
+//             message: '確定要關閉伺服器嗎?'
+//           })
+//           if (yes) process.exit(0)
+//         }
+//         break
+//     }
+//   } catch (error) {
+//     logger.error(error, { adminAction })
+//   }
+// }
