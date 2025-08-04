@@ -28,7 +28,17 @@ class ConfigManager {
     port: 5432,
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000
+    connectionTimeoutMillis: 2000,
+    ssl: {
+      rejectUnauthorized: true
+    }
+  }
+  directoryConfig = {}
+  blockchain = {
+    jsonRpcUrl: '',
+    contractAddr: '',
+    walletKeyPath: '',
+    abiPath: ''
   }
   constructor() {
     try {
@@ -52,8 +62,11 @@ class ConfigManager {
       this.dbPoolConfig.port = config.get('database.port')
       this.dbPoolConfig.max = config.get('database.pool.max')
       this.dbPoolConfig.idleTimeoutMillis = config.get('database.pool.idleTimeoutMillis')
-      this.dbPoolConfig.connectionTimeoutMillis = config.get('database.pool.connectionTimeoutMillis')
-      
+      this.dbPoolConfig.connectionTimeoutMillis = config.get(
+        'database.pool.connectionTimeoutMillis'
+      )
+      this.dbPoolConfig.ssl.rejectUnauthorized = config.get('database.ssl.rejectUnauthorized')
+
       // Blockchain
       this.blockchain = {}
       this.blockchain.jsonRpcUrl = config.get('blockchain.jsonRpcUrl')
@@ -70,14 +83,11 @@ class ConfigManager {
       // Settings
       this.settings.uploadExpireTimeMin = parseInt(config.get('settings.uploadExpireTimeMin'))
     } catch (error) {
-      // Logger not initialized
+      logger.error(error)
     }
   }
   get uploadDir() {
     return getConfig('directories.uploads')
-  }
-  get logDir() {
-    return getConfig('directories.logs')
   }
   get databasePath() {
     return join(getConfig('directories.database'), getConfig('database.name'))
