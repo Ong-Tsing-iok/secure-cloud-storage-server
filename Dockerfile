@@ -1,5 +1,6 @@
 FROM node:22-alpine3.20
-RUN apk update
+RUN apk update && apk add --no-cache tzdata
+ENV TZ=Asia/Taipei
 # && apk add --no-cache openssl=3.3.2-r1 && apk add --no-cache vim && apk add --no-cache tcpdump
 ENV NODE_ENV=production
 WORKDIR /usr/src/app
