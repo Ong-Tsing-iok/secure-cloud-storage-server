@@ -12,8 +12,9 @@ import { mkdir, rmdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import ConfigManager from './ConfigManager.js'
 import { AuthResRequestSchema, LoginRequestSchema, RegisterRequestSchema } from './Validation.js'
+import BlockchainManager from './BlockchainManager.js'
 
-const authenticationBinder = (socket, blockchainManager) => {
+const authenticationBinder = (socket) => {
   // Register event
   socket.on('register', async (request, cb) => {
     try {
@@ -166,7 +167,7 @@ const authenticationBinder = (socket, blockchainManager) => {
           }
           folderCreated = true
 
-          await blockchainManager.setClientStatus(socket.blockchainAddress, true)
+          await BlockchainManager.setClientStatus(socket.blockchainAddress, true)
 
           logSocketInfo(socket, 'User registered.', {
             name: socket.name,

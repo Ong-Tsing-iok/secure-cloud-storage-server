@@ -4,6 +4,7 @@ directories:
   logs: logs
   database: database
   blockchain: blockchain
+  ssh: ssh
 server:
   host: 0.0.0.0
   key: tls.key
@@ -13,8 +14,12 @@ server:
   ftps:
     port:
       control: 7002
-      data: 7001
-    pasv_url: 'localhost:7001'
+      data: 7000
+    pasv_url: 'localhost:7000'
+  ssh:
+    key: id_ed25519
+  sftp:
+    port: 7001
 database:
   user: postgres
   host: localhost

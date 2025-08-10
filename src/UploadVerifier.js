@@ -1,15 +1,23 @@
-import { bigIntToUuid } from './BlockchainManager.js'
+import { randomUUID } from 'node:crypto'
+import { bigIntToUuid, BigIntToHex } from './Utils.js'
 import EvictingMap from './EvictingMap.js'
 import { logger } from './Logger.js'
 import { getSocketId } from './LoginDatabase.js'
-import { blockchainManager, emitToSocket } from './SocketIO.js'
-import { addFileToDatabase } from './StorageDatabase.js'
-import { calculateFileHash, getFilePath, InternalServerErrorMsg, revertUpload } from './Utils.js'
+import { emitToSocket } from './SocketIO.js'
+import { addFileToDatabase, deleteFileOfOwnerId } from './StorageDatabase.js'
+import { calculateFileHash, getFilePath, InternalServerErrorMsg } from './Utils.js'
+import BlockchainManager from './BlockchainManager.js'
+import { unlink } from 'node:fs/promises'
 
 const uploadInfoMap = new EvictingMap(5 * 60 * 1000)
 
-const BigIntToHex = (value) => {
-  return '0x' + value.toString(16)
+export const preUpload = (cipher, spk, parentFolderId) => {
+  let fileId = randomUUID()
+  while (uploadInfoMap.has(fileId)) {
+    fileId = randomUUID()
+  }
+  uploadInfoMap.set(fileId, { id: fileId, cipher, spk, parentFolderId })
+  return fileId
 }
 
 /**
@@ -28,7 +36,10 @@ const BigIntToHex = (value) => {
 export const finishUpload = async (uploadInfo) => {
   try {
     const hash = await calculateFileHash(getFilePath(uploadInfo.userId, uploadInfo.id))
-    uploadInfoMap.set(uploadInfo.id, { uploadInfo, hash })
+    uploadInfoMap.set(uploadInfo.id, {
+      uploadInfo: { ...uploadInfo, ...uploadInfoMap.get(uploadInfo.id) },
+      hash
+    })
     logger.info(`upload info map set.`, { fileId: uploadInfo.id, hash })
   } catch (error) {
     logger.error(error)
@@ -36,11 +47,15 @@ export const finishUpload = async (uploadInfo) => {
   }
 }
 
+export const hasUpload = (fileId) => {
+  return uploadInfoMap.has(fileId)
+}
+
 uploadInfoMap.onExpired((key, value) => {
   revertUpload(value.uploadInfo.userId, key, 'Did not get blockchain info in time.')
 })
 
-blockchainManager.bindEventListener(
+BlockchainManager.bindEventListener(
   'FileUploaded',
   async (fileId, uploader, fileHash, metadata, timestamp) => {
     try {
@@ -65,17 +80,17 @@ blockchainManager.bindEventListener(
           if (BigInt(value.hash) == BigInt(fileHash)) {
             const socketId = getSocketId(userId)?.socketId
             await addFileToDatabase(value.uploadInfo)
-            await blockchainManager.setFileVerification(fileId, uploader, 'success')
+            await BlockchainManager.setFileVerification(fileId, uploader, 'success')
             if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId })
             logger.info('File uploaded and verified.', { fileId, userId })
           } else {
             logger.warn('File hashes do not meet', {
               fileHash: value.hash,
-              blockchainHash: BigIntToHex(fileHash),
+              blockchainHash: BigIntToHex(fileHash, 64), // sha256 have length 64
               fileId,
               userId
             })
-            await blockchainManager.setFileVerification(fileId, uploader, 'fail')
+            await BlockchainManager.setFileVerification(fileId, uploader, 'fail')
             revertUpload(userId, fileId, 'File hashes do not meet.')
           }
         } catch (error1) {
@@ -88,7 +103,25 @@ blockchainManager.bindEventListener(
         })
       }
     } catch (error) {
-      logger.error(error, { fileId, uploader: BigIntToHex(uploader) })
+      logger.error(error, { fileId, uploader: BigIntToHex(uploader, 40) }) // ethernet address have length 40
     }
   }
 )
+
+const revertUpload = async (userId, fileId, errorMsg) => {
+  try {
+    logger.info(`reverting upload.`, { userId, fileId, errorMsg })
+    // remove file from database
+    await deleteFileOfOwnerId(fileId, userId)
+    // remove file from disc
+    const filePath = getFilePath(userId, fileId)
+    await unlink(filePath)
+    // send message to client if online
+    const socketId = getSocketId(userId)?.socketId
+    if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId, errorMsg })
+  } catch (error) {
+    if (error.code != 'ENOENT') {
+      logger.error(error)
+    }
+  }
+}

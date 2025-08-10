@@ -1,4 +1,5 @@
-import { blockchainManager, disconnectSocket } from './src/SocketIO.js'
+import BlockchainManager from './src/BlockchainManager.js'
+import { disconnectSocket } from './src/SocketIO.js'
 import ftpServer from './src/FtpsServer.js'
 import { logger } from './src/Logger.js'
 import { input, select, confirm } from '@inquirer/prompts'
@@ -22,6 +23,7 @@ import { getAllLoginUsers, getSocketId, removeUpload } from './src/LoginDatabase
 import ConfigManager from './src/ConfigManager.js'
 import { emailFormatRe, uuidFormatRe } from './src/Utils.js'
 import './src/HttpsServer.js'
+import './src/SftpServer.js'
 
 ftpServer.listen().then(() => {
   logger.info(`Ftp server listening on port ${ConfigManager.ftps.controlPort}`)
@@ -206,7 +208,7 @@ const deleteAccount = async (userId) => {
     removeUpload(loginInfo.userId)
   }
   const userInfo = await getUserById(userId)
-  await blockchainManager.setClientStatus(userInfo.address, false)
+  await BlockchainManager.setClientStatus(userInfo.address, false)
   await rm(join(ConfigManager.uploadDir, userId), { recursive: true, force: true })
   await deleteUserById(userId)
   success = true

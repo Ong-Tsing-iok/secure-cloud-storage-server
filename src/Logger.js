@@ -10,7 +10,7 @@ import { Socket } from 'socket.io'
 // }
 
 export const logger = winston.createLogger({
-  level: 'info',
+  level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info',
   format: winston.format.combine(
     format.errors({ stack: true }),
     format.timestamp(/*{ format: timezoned }*/),
@@ -41,13 +41,14 @@ export const logger = winston.createLogger({
 // If we're not in production then log to the `console` with the format:
 // `${info.level}: ${info.message} JSON.stringify({ ...rest }) `
 //
-
-// logger.add(
-//   new winston.transports.Console({
-//     format: winston.format.simple(),
-//     level: 'debug'
-//   })
-// )
+// if (process.env.NODE_ENV !== 'production') {
+//   logger.add(
+//     new winston.transports.Console({
+//       format: winston.format.simple(),
+//       level: 'debug'
+//     })
+//   )
+// }
 
 logger.info('Logging initialized.')
 
@@ -146,4 +147,27 @@ export const logHttpsWarning = (req, message, metaObj = {}) => {
 
 export const logHttpsError = (req, error, metaObj = {}) => {
   logger.error(error, getHttpsMeta(req, metaObj))
+}
+
+// SftpServer.js
+const getSftpMeta = (ip, userId, fileId, metaObj) => {
+  return {
+    ip,
+    userId,
+    protocol: 'sftp',
+    fileId,
+    ...metaObj
+  }
+}
+
+export const logSftpInfo = (ip, userId, fileId, message, metaObj = {}) => {
+  logger.info(message, getSftpMeta(ip, userId, fileId, metaObj))
+}
+
+export const logSftpWarning = (ip, userId, fileId, message, metaObj = {}) => {
+  logger.warn(message, getSftpMeta(ip, userId, fileId, metaObj))
+}
+
+export const logSftpError = (ip, userId, fileId, error, metaObj = {}) => {
+  logger.error(error, getSftpMeta(ip, userId, fileId, metaObj))
 }

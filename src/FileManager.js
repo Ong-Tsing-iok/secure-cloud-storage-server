@@ -41,6 +41,7 @@ import {
   UpdateFileRequestSchema,
   UploadFileRequestSchema
 } from './Validation.js'
+import { preUpload } from './UploadVerifier.js'
 
 const uploadExpireTime = ConfigManager.settings.uploadExpireTimeMin * 60 * 1000
 
@@ -119,7 +120,7 @@ const uploadFileBinder = (socket) => {
         return
       }
       // Create random id as fileId
-      const fileId = randomUUID()
+      const fileId = preUpload(cipher, spk, parentFolderId)
       // Store with key and iv in database with expires time
       insertUpload(fileId, cipher, spk, parentFolderId, Date.now() + uploadExpireTime)
       logSocketInfo(socket, 'Pre-upload information stored in upload database.', {

@@ -15,6 +15,7 @@ COPY index.js .
 EXPOSE 3001
 EXPOSE 7002
 EXPOSE 7001
+EXPOSE 7000
 RUN chown -R node /usr/src/app
 USER node
 CMD ["npm", "start"]

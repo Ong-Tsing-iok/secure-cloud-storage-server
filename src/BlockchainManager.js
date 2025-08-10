@@ -2,6 +2,7 @@ import { Contract, JsonRpcProvider, Wallet } from 'ethers'
 import { readFileSync, writeFileSync } from 'fs'
 import ConfigManager from './ConfigManager.js'
 import { logger } from './Logger.js'
+import { bigIntToUuid } from './Utils.js'
 
 /**
  * Converts a UUID string to a BigInt for use in smart contracts.
@@ -23,39 +24,6 @@ export function uuidToBigInt(uuidString) {
   return BigInt('0x' + hexString)
 }
 
-/**
- * Converts a BigInt (representing a UUID) back to a standard UUID string.
- * This assumes the BigInt was originally derived from a 128-bit UUID.
- *
- * @param {bigint} uuidBigInt The BigInt to convert back to a UUID string.
- * @returns {string} The UUID string in standard format.
- * @throws {Error} If the BigInt is too large to be a 128-bit UUID.
- */
-export function bigIntToUuid(uuidBigInt) {
-  // A 128-bit number's maximum value in hexadecimal is 16^32 - 1.
-  // The maximum BigInt for a 128-bit UUID is 2^128 - 1, which is (2^64)^2 - 1.
-  // This translates to 'ffffffffffffffffffffffffffffffff' in hex.
-  const max128BitBigInt = (1n << 128n) - 1n // Calculate 2^128 - 1n
-
-  if (uuidBigInt < 0n || uuidBigInt > max128BitBigInt) {
-    throw new Error(`BigInt ${uuidBigInt} is out of the valid range for a 128-bit UUID.`)
-  }
-
-  // Convert BigInt to hexadecimal string, then pad with leading zeros if necessary
-  let hexString = uuidBigInt.toString(16)
-
-  // Ensure the hex string is 32 characters long (128 bits = 32 hex chars)
-  hexString = hexString.padStart(32, '0')
-
-  // Insert hyphens to format as a UUID
-  return [
-    hexString.substring(0, 8),
-    hexString.substring(8, 12),
-    hexString.substring(12, 16),
-    hexString.substring(16, 20),
-    hexString.substring(20, 32)
-  ].join('-')
-}
 
 /**
  * Manages smart contract communication
@@ -220,4 +188,4 @@ class BlockchainManager {
   }
 }
 
-export default BlockchainManager
+export default new BlockchainManager()

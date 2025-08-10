@@ -98,11 +98,17 @@ class ConfigManager {
   get serverKeyPath() {
     return join(getConfig('directories.certs'), getConfig('server.key'))
   }
+  get sshKeyPath() {
+    return join(getConfig('directories.ssh'), getConfig('server.ssh.key'))
+  }
   get serverHost() {
     return getConfig('server.host')
   }
   get httpsPort() {
     return getConfig('server.https.port')
+  }
+  get sftpPort() {
+    return getConfig('server.sftp.port')
   }
   get databaseLengthLimit() {
     return getConfig('database.descMaxLength')

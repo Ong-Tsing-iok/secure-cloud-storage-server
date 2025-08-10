@@ -1,12 +1,9 @@
 import { createReadStream } from 'fs'
 import crypto from 'crypto'
 import { logger } from './Logger.js'
-import { deleteFileOfOwnerId, getFolderInfoOfOwnerId } from './StorageDatabase.js'
+import { getFolderInfoOfOwnerId } from './StorageDatabase.js'
 import { resolve } from 'path'
 import ConfigManager from './ConfigManager.js'
-import { unlink } from 'fs/promises'
-import { getSocketId } from './LoginDatabase.js'
-import { emitToSocket } from './SocketIO.js'
 const keyFormatRe = /^[a-zA-Z0-9+/=]+$/
 const emailFormatRe = /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/
 const uuidFormatRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
@@ -47,31 +44,48 @@ const calculateFileHash = async (filePath, algorithm = 'sha256') => {
   return '0x' + hash.digest('hex')
 }
 
-const revertUpload = async (userId, fileId, errorMsg) => {
-  try {
-    logger.info(`reverting upload.`, { userId, fileId, errorMsg })
-    // remove file from database
-    await deleteFileOfOwnerId(fileId, userId)
-    // remove file from disc
-    const filePath = resolve(ConfigManager.uploadDir, userId, fileId)
-    await unlink(filePath)
-    // send message to client if online
-    const socketId = getSocketId(userId)?.socketId
-    if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId, errorMsg })
-  } catch (error) {
-    if (error.code != 'ENOENT') {
-      logger.error(error)
-    }
-  }
-}
-
 /**
  *
  * @param {BigInt} value
+ * @param {number} maxLength The length to pad to without '0x'
  * @returns Hex representation of the value.
  */
-export const BigIntToHex = (value) => {
-  return '0x' + value.toString(16)
+export const BigIntToHex = (value, maxLength = 0) => {
+  return '0x' + value.toString(16).padStart(maxLength, '0')
+}
+
+/**
+ * Converts a BigInt (representing a UUID) back to a standard UUID string.
+ * This assumes the BigInt was originally derived from a 128-bit UUID.
+ *
+ * @param {bigint} uuidBigInt The BigInt to convert back to a UUID string.
+ * @returns {string} The UUID string in standard format.
+ * @throws {Error} If the BigInt is too large to be a 128-bit UUID.
+ */
+export function bigIntToUuid(uuidBigInt) {
+  // A 128-bit number's maximum value in hexadecimal is 16^32 - 1.
+  // The maximum BigInt for a 128-bit UUID is 2^128 - 1, which is (2^64)^2 - 1.
+  // This translates to 'ffffffffffffffffffffffffffffffff' in hex.
+  const max128BitBigInt = (1n << 128n) - 1n // Calculate 2^128 - 1n
+
+  if (uuidBigInt < 0n || uuidBigInt > max128BitBigInt) {
+    throw new Error(`BigInt ${uuidBigInt} is out of the valid range for a 128-bit UUID.`)
+  }
+
+  // Convert BigInt to hexadecimal string, then pad with leading zeros if necessary
+  let hexString = uuidBigInt.toString(16)
+
+  // Ensure the hex string is 32 characters long (128 bits = 32 hex chars)
+  hexString = hexString.padStart(32, '0')
+
+  // Insert hyphens to format as a UUID
+  return [
+    hexString.substring(0, 8),
+    hexString.substring(8, 12),
+    hexString.substring(12, 16),
+    hexString.substring(16, 20),
+    hexString.substring(20, 32)
+  ].join('-')
 }
 
 export {
@@ -79,7 +93,6 @@ export {
   checkFolderExistsForUser,
   getFilePath,
   calculateFileHash,
-  revertUpload,
   keyFormatRe,
   emailFormatRe,
   uuidFormatRe

@@ -31,12 +31,13 @@ import {
   logSocketWarning
 } from './Logger.js'
 import ConfigManager from './ConfigManager.js'
-import { blockchainManager, emitToSocket } from './SocketIO.js'
+import { emitToSocket } from './SocketIO.js'
 import {
   DeleteRequestRequestSchema,
   ReqeustFileRequestSchema,
   RespondRequestRequestSchema
 } from './Validation.js'
+import BlockchainManager from './BlockchainManager.js'
 
 // Reqeust related events
 const requestBinder = (socket) => {
@@ -86,7 +87,7 @@ const requestBinder = (socket) => {
       // Add record to blockchain
       const requestorInfo = await getUserById(socket.userId)
       const authorizerInfo = await getUserById(fileInfo.ownerId)
-      await blockchainManager.addAuthRecord(
+      await BlockchainManager.addAuthRecord(
         fileId,
         requestorInfo.address,
         authorizerInfo.address,
@@ -184,7 +185,7 @@ const requestBinder = (socket) => {
         )
         logSocketInfo(socket, 'File reencrypted.', { newFileId })
       } else {
-        await blockchainManager.addAuthRecord(
+        await BlockchainManager.addAuthRecord(
           fileInfo.id,
           requestorInfo.address,
           authorizerInfo.address,
@@ -288,7 +289,7 @@ const reencryptFile = async (rekey, fileInfo, requestInfo, authorizerInfo, reque
     hasCopiedFile = true
 
     const fileHash = await calculateFileHash(copiedFilePath)
-    await blockchainManager.reencryptFile(
+    await BlockchainManager.reencryptFile(
       newUUID,
       fileHash,
       JSON.stringify({ filename: fileInfo.name }),

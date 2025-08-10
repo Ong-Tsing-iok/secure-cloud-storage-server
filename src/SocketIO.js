@@ -9,7 +9,6 @@ import { userDbLogout } from './LoginDatabase.js'
 import { allFileBinder } from './FileManager.js'
 import authenticationBinder from './Authentication.js'
 import { requestBinder } from './RequestManager.js'
-import BlockchainManager from './BlockchainManager.js'
 import ConfigManager from './ConfigManager.js'
 import { createServer } from 'https'
 import { readFileSync } from 'fs'
@@ -35,7 +34,6 @@ const io = new Server(server, {
     origin: '*'
   }
 })
-const blockchainManager = new BlockchainManager()
 
 io.on('connection', (socket) => {
   socket.ip = socket.handshake.address
@@ -58,7 +56,7 @@ io.on('connection', (socket) => {
     userDbLogout(socket.id)
   })
 
-  authenticationBinder(socket, blockchainManager)
+  authenticationBinder(socket)
   allFileBinder(socket)
   requestBinder(socket, io)
 })
@@ -71,4 +69,4 @@ const disconnectSocket = (socketId) => {
 }
 
 // export default io
-export { emitToSocket, disconnectSocket, blockchainManager, app }
+export { emitToSocket, disconnectSocket, app }
