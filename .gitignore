@@ -138,6 +138,7 @@ node-ip
 build
 config/local.*
 blockchain/
+ssh/
 
 # Kubenetes YAML files
 server-config.yaml
