@@ -168,7 +168,7 @@ app.get('/download', auth, async (req, res, next) => {
 })
 
 // Error handler
-app.use((err, req, res) => {
+app.use((err, req, res, next) => {
   logHttpsError(req, err)
   res.sendStatus(500)
 })
