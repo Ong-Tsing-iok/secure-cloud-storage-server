@@ -153,6 +153,6 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
     .on('error', (err) => {
       logSftpError(ip, userId, fileId, err)
     })
-}).listen(ConfigManager.sftpPort, '0.0.0.0', function () {
+}).listen(ConfigManager.sftpPort, ConfigManager.serverHost, function () {
   logger.info(`SFTP server listening on port ${this.address().port}`)
 })
