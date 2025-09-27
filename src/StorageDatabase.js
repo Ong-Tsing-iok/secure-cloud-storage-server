@@ -368,6 +368,18 @@ export const getAllPublicFilesNotOwned = async (userId) => {
   return parseFileRows(result.rows)
 }
 
+export const getPublicFilesNotOwnedByFileId = async (userId, fileId) => {
+  const result = await pool.query(
+    `SELECT * FROM files WHERE id = $1 AND permissions = 1 AND ownerId != $2`,
+    [fileId, userId]
+  )
+  if (result.rows.length > 0) {
+    return parseFileRows(result.rows)[0]
+  } else {
+    return null
+  }
+}
+
 //- Folder
 // Helper function
 const parseFolderRows = (rows) => {
@@ -673,44 +685,44 @@ export const deleteRequestOfRequester = async (requestId, requester) => {
 }
 
 //-- ABSE related --//
-const insertCtw = async (fileId, j, ctw) => {
+export const insertCtw = async (fileId, j, ctw) => {
   return await pool.query(`INSERT INTO ctw_table (fileid, j, ctw) VALUES ($1, $2, $3)`, [
     fileId,
     j,
     ctw
   ])
 }
-const insertCt = async (fileId, i, ct) => {
+export const insertCt = async (fileId, i, ct) => {
   return await pool.query(`INSERT INTO ct_table (fileid, i, ct) VALUES ($1, $2, $3)`, {
     fileId,
     i,
     ct
   })
 }
-const insertCtstar = async (fileId, ctstar) => {
+export const insertCtStar = async (fileId, ctstar) => {
   return await pool.query(`INSERT INTO ctstar_table (fileid, ctstar) VALUES ($1, $2)`, [
     fileId,
     ctstar
   ])
 }
-const getCtws = async (fileId) => {
+export const getCtws = async (fileId) => {
   return (await pool.query(`SELECT * FROM ctw_table WHERE fileid = $1 ORDER BY j ASC`, [fileId]))
     .rows
 }
-const getCts = async (fileId) => {
+export const getCts = async (fileId) => {
   return (await pool.query(`SELECT * FROM ct_table WHERE fileid = $1 ORDER BY i ASC`, [fileId]))
     .rows
 }
-const getCtStars = async () => {
+export const getCtStars = async () => {
   return (await pool.query(`SELECT * FROM ctstar_table`)).rows
 }
-const deleteCtw = async (fileId) => {
+export const deleteCtw = async (fileId) => {
   return await pool.query(`DELETE FROM ctw_table WHERE fileid = $1`, [fileId])
 }
-const deleteCt = async (fileId) => {
+export const deleteCt = async (fileId) => {
   return await pool.query(`DELETE FROM ct_table WHERE fileid = $1`, [fileId])
 }
-const deleteCtStar = async (fileId) => {
+export const deleteCtStar = async (fileId) => {
   return await pool.query(`DELETE FROM ctstar_table WHERE fileid = $1`, [fileId])
 }
 

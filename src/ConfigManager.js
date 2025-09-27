@@ -41,6 +41,9 @@ class ConfigManager {
     abiPath: '',
     enabled: false
   }
+  trustedAuthority = {
+    url: ''
+  }
   constructor() {
     try {
       this.directoryConfig = getConfig('directories')
@@ -81,6 +84,9 @@ class ConfigManager {
         config.get('blockchain.abiPath')
       )
       this.blockchain.enabled = config.get('blockchain.enabled')
+
+      // Trusted Authority
+      this.trustedAuthority.url = config.get('trustedAuthority.url')
 
       // Settings
       this.settings.uploadExpireTimeMin = parseInt(config.get('settings.uploadExpireTimeMin'))

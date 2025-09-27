@@ -10,6 +10,7 @@ const NonEmptyStringSchema = z.string().min(1, { message: 'Name cannot be empty.
 export const PublicKeySchema = z.string().regex(/^[a-zA-Z0-9+/=]+$/)
 const FolderIdSchema = z.uuidv4().nullable()
 export const FileIdSchema = z.uuidv4()
+const HexStringSchema = z.string().regex(/^[0-9a-fA-F]+$/)
 
 // CryptoHandler.js
 export const Base64Schema = z.base64()
@@ -70,11 +71,29 @@ export const MoveFileRequestSchema = z.object({
   targetFolderId: FolderIdSchema
 })
 
+const CTwSchema = z.object({
+  ctStar: HexStringSchema,
+  ctw: HexStringSchema.array(),
+  ct: HexStringSchema.array()
+})
+
 export const UpdateFileRequestSchema = z.object({
   fileId: FileIdSchema,
   description: z.string(),
   // Maybe should conenct to storage database via Config Manager
-  permission: z.union([z.literal(0), z.literal(1), z.literal(2)])
+  permission: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  CTw: CTwSchema.nullable()
+})
+
+const TKSchema = z.object({
+  TStar: HexStringSchema,
+  T: HexStringSchema.array(),
+  sky: HexStringSchema,
+  dPrime: z.number()
+})
+
+export const SearchFileRequestSchema = z.object({
+  TK: TKSchema
 })
 
 // RequestManager.js

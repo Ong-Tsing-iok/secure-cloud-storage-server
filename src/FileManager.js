@@ -15,7 +15,8 @@ import {
   getAllFoldersByUserId,
   getAllPublicFilesNotOwned,
   getFileInfoOfOwnerId,
-  updateFileDescPermInDatabase
+  updateFileDescPermInDatabase,
+  getPublicFilesNotOwnedByFileId
 } from './StorageDatabase.js'
 import { unlink } from 'fs/promises'
 import { randomUUID } from 'crypto'
@@ -38,10 +39,12 @@ import {
   DownloadFileRequestSchema,
   GetFileListRequestSchema,
   MoveFileRequestSchema,
+  SearchFileRequestSchema,
   UpdateFileRequestSchema,
   UploadFileRequestSchema
 } from './Validation.js'
 import { preUpload } from './UploadVerifier.js'
+import ABSEManeger from './ABSEManager.js'
 
 const uploadExpireTime = ConfigManager.settings.uploadExpireTimeMin * 60 * 1000
 
@@ -310,7 +313,7 @@ const folderBinder = (socket) => {
 }
 
 const moveFileBinder = (socket) => {
-  socket.on('move-file',async (request, cb) => {
+  socket.on('move-file', async (request, cb) => {
     try {
       const actionStr = 'Client asks to move file to target folder'
       logSocketInfo(socket, actionStr + '.', request)
@@ -334,7 +337,7 @@ const moveFileBinder = (socket) => {
         cb({ errorMsg: 'Target folder not found.' })
         return
       }
-      if (await moveFileToFolder(fileId, targetFolderId).rowCount === 0) {
+      if ((await moveFileToFolder(fileId, targetFolderId).rowCount) === 0) {
         logSocketWarning(socket, actionStr + ' but file does not exist.', request)
         cb({ errorMsg: FileNotFoundErrorMsg })
         return
@@ -368,12 +371,45 @@ const getPublicFilesBinder = (socket) => {
       cb({ errorMsg: InternalServerErrorMsg })
     }
   })
+  socket.on('search-files', async (request, cb) => {
+    try {
+      const actionStr = 'Client asks to search for files'
+      logSocketInfo(socket, actionStr + '.')
+
+      const result = SearchFileRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { TK } = result.data
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.')
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
+      // Search for matching files
+      const matchingFileIds = await ABSEManeger.Search(TK)
+      const files = []
+      matchingFileIds.forEach((fileId) => {
+        const fileInfo = getPublicFilesNotOwnedByFileId(socket.userId, fileId)
+        if (fileInfo) files.push(fileInfo)
+      })
+      logSocketInfo(socket, 'Responding searched files to client.')
+      cb({ files: JSON.stringify(files) })
+    } catch (error) {
+      logSocketError(socket, error)
+      cb({ errorMsg: InternalServerErrorMsg })
+    }
+  })
 }
 
 const updateFileBinder = (socket) => {
   socket.on('update-file-desc-perm', async (request, cb) => {
     try {
-      const actionStr = 'Client asks to update description and permission for file'
+      const actionStr = 'Client asks to update description, permission and index for file'
       logSocketInfo(socket, actionStr + '.', request)
 
       const result = UpdateFileRequestSchema.safeParse(request)
@@ -382,7 +418,11 @@ const updateFileBinder = (socket) => {
         cb({ errorMsg: InvalidArgumentErrorMsg })
         return
       }
-      const { fileId, description, permission } = result.data
+      const { fileId, description, permission, CTw } = result.data
+      if (CTw && CTw.ct.length != (await ABSEManeger.getPP()).h_i.length) {
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
 
       if (!checkLoggedIn(socket)) {
         logSocketWarning(socket, actionStr + ' but is not logged in.', request)
@@ -401,7 +441,8 @@ const updateFileBinder = (socket) => {
         desc = description.substring(0, ConfigManager.databaseLengthLimit)
       }
       await updateFileDescPermInDatabase(fileId, desc, permission)
-      logSocketInfo(socket, 'Description and permission updated for file.', request)
+      if (CTw) await ABSEManeger.insertFileIndex(CTw, fileId)
+      logSocketInfo(socket, 'Description, permission and index updated for file.', request)
       cb({})
     } catch (error) {
       logSocketError(socket, error)

@@ -44,3 +44,5 @@ blockchain:
   enabled: true
 settings:
   uploadExpireTimeMin: 10
+trustedAuthority:
+  url: 'localhost:2999'
