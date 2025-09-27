@@ -2,15 +2,12 @@ import { logger, logHttpsError, logHttpsInfo, logHttpsWarning } from './Logger.j
 import { mkdir, unlink } from 'fs/promises'
 import multer from 'multer'
 import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
-import {
-  getFolderInfo,
-  getFileInfo,
-} from './StorageDatabase.js'
+import { getFolderInfo, getFileInfo, getUserByKey } from './StorageDatabase.js'
 import { resolve } from 'path'
 import ConfigManager from './ConfigManager.js'
 import { finishUpload } from './UploadVerifier.js'
 import { app } from './SocketIO.js'
-import { FileIdSchema, SocketIDSchema } from './Validation.js'
+import { FileIdSchema, PublicKeySchema, SocketIDSchema } from './Validation.js'
 
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
@@ -162,6 +159,30 @@ app.get('/download', auth, async (req, res, next) => {
       logHttpsInfo(req, 'Client downloading file.')
       res.download(resolve(ConfigManager.uploadDir, req.userId, fileInfo.id), fileInfo.name)
     }
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/userId', async (req, res, next) => {
+  try {
+    logHttpsInfo(req, 'UserId of pk is asked.')
+    const result = PublicKeySchema.safeParse(req.query.pk)
+    if (!result.success) {
+      logHttpsWarning(req, 'UserId of pk is asked but pk is invalid.', { issues: result.issues })
+      res.status(400).json({ errorMsg: 'pk is invalid.' })
+      return
+    }
+    const pk = result.data
+    const userInfo = await getUserByKey(pk)
+    if (!userInfo) {
+      logHttpsWarning(req, 'UserId of pk is asked but user does not exist.', {
+        issues: result.issues
+      })
+      res.status(404).json({ errorMsg: 'User does not exist.' })
+      return
+    }
+    res.json({ userId: userInfo.id })
   } catch (error) {
     next(error)
   }

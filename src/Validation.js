@@ -7,7 +7,7 @@ const EthereumAddressSchema = z.string().refine((val) => isAddress(val), {
 
 const NonEmptyStringSchema = z.string().min(1, { message: 'Name cannot be empty.' })
 
-const PublicKeySchema = z.string().regex(/^[a-zA-Z0-9+/=]+$/)
+export const PublicKeySchema = z.string().regex(/^[a-zA-Z0-9+/=]+$/)
 const FolderIdSchema = z.uuidv4().nullable()
 export const FileIdSchema = z.uuidv4()
 
