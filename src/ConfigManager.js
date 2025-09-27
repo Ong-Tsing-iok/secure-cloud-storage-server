@@ -38,7 +38,8 @@ class ConfigManager {
     jsonRpcUrl: '',
     contractAddr: '',
     walletKeyPath: '',
-    abiPath: ''
+    abiPath: '',
+    enabled: false
   }
   constructor() {
     try {
@@ -79,6 +80,7 @@ class ConfigManager {
         config.get('directories.blockchain'),
         config.get('blockchain.abiPath')
       )
+      this.blockchain.enabled = config.get('blockchain.enabled')
 
       // Settings
       this.settings.uploadExpireTimeMin = parseInt(config.get('settings.uploadExpireTimeMin'))

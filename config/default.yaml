@@ -41,5 +41,6 @@ blockchain:
   contractAddr: ''
   walletKeyPath: wallet.key
   abiPath: abi.json
+  enabled: true
 settings:
   uploadExpireTimeMin: 10

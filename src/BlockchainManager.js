@@ -24,7 +24,6 @@ export function uuidToBigInt(uuidString) {
   return BigInt('0x' + hexString)
 }
 
-
 /**
  * Manages smart contract communication
  */
@@ -33,6 +32,7 @@ class BlockchainManager {
    * Connect to blockchain and smart contract
    */
   constructor() {
+    if (!ConfigManager.blockchain.enabled) return
     try {
       const abi = readFileSync(ConfigManager.blockchain.abiPath, 'utf-8')
       const url = ConfigManager.blockchain.jsonRpcUrl
@@ -76,6 +76,7 @@ class BlockchainManager {
    * @throws Any error occurred.
    */
   bindEventListener(eventName, listener) {
+    if (!ConfigManager.blockchain.enabled) return
     this.contract.on(eventName, listener)
   }
 
