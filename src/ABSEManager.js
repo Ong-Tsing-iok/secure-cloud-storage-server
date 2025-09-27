@@ -1,6 +1,6 @@
 import * as mcl from 'mcl-wasm'
 import { logger } from './Logger.js'
-import ConfigManager from './ConfigManager'
+import ConfigManager from './ConfigManager.js'
 import {
   deleteCt,
   deleteCtStar,
@@ -14,6 +14,10 @@ import {
 } from './StorageDatabase.js'
 import assert from 'assert'
 
+// This is used because we only have self-signed certificates.
+// Should be removed in real deployment environment
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+
 class ABSEManager {
   constructor() {}
   async init() {
@@ -23,7 +27,9 @@ class ABSEManager {
   async getPP() {
     if (this.pp) return this.pp
     try {
-      const response = await fetch(`${ConfigManager.trustedAuthority.url}/pp`)
+      const fetchUrl = `https://${ConfigManager.trustedAuthority.url}/pp`
+      logger.info(`fetching ${fetchUrl} for public parameters.`)
+      const response = await fetch(fetchUrl)
       if (!response.ok) {
         logger.warn(`Cannot get public parameter from trusted authority`, { response })
         return null
