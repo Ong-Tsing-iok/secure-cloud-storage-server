@@ -693,11 +693,11 @@ export const insertCtw = async (fileId, j, ctw) => {
   ])
 }
 export const insertCt = async (fileId, i, ct) => {
-  return await pool.query(`INSERT INTO ct_table (fileid, i, ct) VALUES ($1, $2, $3)`, {
+  return await pool.query(`INSERT INTO ct_table (fileid, i, ct) VALUES ($1, $2, $3)`, [
     fileId,
     i,
     ct
-  })
+  ])
 }
 export const insertCtStar = async (fileId, ctstar) => {
   return await pool.query(`INSERT INTO ctstar_table (fileid, ctstar) VALUES ($1, $2)`, [

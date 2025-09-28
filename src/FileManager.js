@@ -211,7 +211,7 @@ const getFileListBinder = (socket) => {
       const folders = await getAllFoldersByParentFolderIdUserId(parentFolderId, socket.userId)
       logSocketInfo(socket, 'Responding file list to client.', request)
       // console.log({ files, folders })
-      cb({ fileList: { files: JSON.stringify(files), folders: JSON.stringify(folders) } })
+      cb({ files: JSON.stringify(files), folders: JSON.stringify(folders) })
     } catch (error) {
       logSocketError(socket, error, request)
       cb({ errorMsg: InternalServerErrorMsg })

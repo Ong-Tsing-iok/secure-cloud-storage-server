@@ -115,8 +115,8 @@ class ABSEManager {
     }
   }
   async insertFileIndex(CTw, fileId) {
-    this.deleteFileIndex(fileId)
-    await insertCtStar(fileId, CTw.ctstar)
+    await this.deleteFileIndex(fileId)
+    await insertCtStar(fileId, CTw.ctStar)
     for (let i = 0; i < CTw.ctw.length; i++) {
       await insertCtw(fileId, i, CTw.ctw[i])
     }
