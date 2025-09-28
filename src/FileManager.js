@@ -374,7 +374,7 @@ const getPublicFilesBinder = (socket) => {
   socket.on('search-files', async (request, cb) => {
     try {
       const actionStr = 'Client asks to search for files'
-      logSocketInfo(socket, actionStr + '.')
+      logSocketInfo(socket, actionStr + '.', { tags: request.tags })
 
       const result = SearchFileRequestSchema.safeParse(request)
       if (!result.success) {
@@ -382,7 +382,7 @@ const getPublicFilesBinder = (socket) => {
         cb({ errorMsg: InvalidArgumentErrorMsg })
         return
       }
-      const { TK } = result.data
+      const { TK, tags } = result.data
 
       if (!checkLoggedIn(socket)) {
         logSocketWarning(socket, actionStr + ' but is not logged in.')
@@ -393,11 +393,11 @@ const getPublicFilesBinder = (socket) => {
       // Search for matching files
       const matchingFileIds = await ABSEManeger.Search(TK)
       const files = []
-      matchingFileIds.forEach((fileId) => {
-        const fileInfo = getPublicFilesNotOwnedByFileId(socket.userId, fileId)
+      for (const fileId of matchingFileIds) {
+        const fileInfo = await getPublicFilesNotOwnedByFileId(socket.userId, fileId)
         if (fileInfo) files.push(fileInfo)
-      })
-      logSocketInfo(socket, 'Responding searched files to client.')
+      }
+      logSocketInfo(socket, 'Responding searched files to client.', { matchingFileIds })
       cb({ files: JSON.stringify(files) })
     } catch (error) {
       logSocketError(socket, error)

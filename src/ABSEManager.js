@@ -66,6 +66,7 @@ class ABSEManager {
     return TK
   }
   async Search(serializedTK) {
+    // console.log(serializedTK)
     try {
       const TK = this.parseTK(serializedTK)
       assert(TK.dPrime > 0)
@@ -73,11 +74,16 @@ class ABSEManager {
       const dPrimeFr = new mcl.Fr()
       dPrimeFr.setInt(TK.dPrime)
       const files = await getCtStars()
-      files.forEach((file) => {
+      logger.debug(`Total of ${files.length} files are indexed.`)
+      for (const file of files) {
         const ctStar = mcl.deserializeHexStrToG1(file.ctstar)
-        const ctw = getCtws(file.fileid).map((entry) => mcl.deserializeHexStrToGT(entry.ctw))
+        const ctw = (await getCtws(file.fileid)).map((entry) =>
+          mcl.deserializeHexStrToGT(entry.ctw)
+        )
+        // console.log(ctw)
         if (ctw.length < TK.dPrime) return // Keyword to match is larger than keyword set
-        const ct = getCts(file.fileid).map((entry) => mcl.deserializeHexStrToG1(entry.ct))
+        const ct = (await getCts(file.fileid)).map((entry) => mcl.deserializeHexStrToG1(entry.ct))
+        // console.log(ct)
         const eCtStarSky = mcl.pairing(ctStar, TK.sky)
         assert(ct.length == TK.T.length)
         assert(ct.length >= 1)
@@ -107,7 +113,7 @@ class ABSEManager {
         if (backtrack(0, 0, 0)) {
           result.push(file.fileid)
         }
-      })
+      }
       return result
     } catch (error) {
       logger.error(error)

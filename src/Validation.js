@@ -93,7 +93,8 @@ const TKSchema = z.object({
 })
 
 export const SearchFileRequestSchema = z.object({
-  TK: TKSchema
+  TK: TKSchema,
+  tags: z.string().array()
 })
 
 // RequestManager.js
