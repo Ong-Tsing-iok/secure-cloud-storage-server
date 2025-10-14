@@ -88,6 +88,7 @@ class BlockchainManager {
    * @throws Any error occurred.
    */
   async setClientStatus(clientAddr, status) {
+    if (!ConfigManager.blockchain.enabled) return
     const tx = await this.contract.setClientStatus(clientAddr, status)
     await tx.wait()
     logger.info(`set client ${clientAddr} status to ${status}`)
@@ -101,6 +102,7 @@ class BlockchainManager {
    * @throws Any error occurred.
    */
   async setFileVerification(fileId, fileOwnerAddr, verificationInfo) {
+    if (!ConfigManager.blockchain.enabled) return
     const tx = await this.contract.setFileVerification(
       uuidToBigInt(fileId),
       fileOwnerAddr,
@@ -119,6 +121,7 @@ class BlockchainManager {
    * @throws Any error occurred.
    */
   async addAuthRecord(fileId, requestorAddr, authorizerAddr, authInfo) {
+    if (!ConfigManager.blockchain.enabled) return
     const tx = await this.contract.addAuthorization(
       uuidToBigInt(fileId),
       requestorAddr,
@@ -149,6 +152,7 @@ class BlockchainManager {
     verificationInfo = 'success',
     authInfo = 'agreed'
   ) {
+    if (!ConfigManager.blockchain.enabled) return
     const tx = await this.contract.reencryptFile(
       uuidToBigInt(fileId),
       BigInt(fileHash),
@@ -170,6 +174,7 @@ class BlockchainManager {
    * @throws Any error occurred.
    */
   async getFileInfo(fileId, fileOwnerAddr) {
+    if (!ConfigManager.blockchain.enabled) return null
     const events = await this.contract.queryFilter(
       this.contract.filters.FileUploaded(uuidToBigInt(fileId), fileOwnerAddr)
     )

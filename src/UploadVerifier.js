@@ -8,6 +8,7 @@ import { addFileToDatabase, deleteFileOfOwnerId } from './StorageDatabase.js'
 import { calculateFileHash, getFilePath, InternalServerErrorMsg } from './Utils.js'
 import BlockchainManager from './BlockchainManager.js'
 import { unlink } from 'node:fs/promises'
+import ConfigManager from './ConfigManager.js'
 
 const uploadInfoMap = new EvictingMap(5 * 60 * 1000)
 
@@ -35,6 +36,19 @@ export const preUpload = (cipher, spk, parentFolderId) => {
  */
 export const finishUpload = async (uploadInfo) => {
   try {
+    if (!ConfigManager.blockchain.enabled) {
+      // Ignore blockchain and directly accept upload
+      const userId = uploadInfo.userId
+      const fileId = uploadInfo.id
+      uploadInfo = {...uploadInfo, ...uploadInfoMap.get(uploadInfo.id)}
+      uploadInfoMap.delete(fileId)
+      const socketId = getSocketId(userId)?.socketId
+      await addFileToDatabase(uploadInfo)
+      if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId })
+      logger.info('File uploaded.', { fileId, userId })
+      return
+    }
+    
     const hash = await calculateFileHash(getFilePath(uploadInfo.userId, uploadInfo.id))
     uploadInfoMap.set(uploadInfo.id, {
       uploadInfo: { ...uploadInfo, ...uploadInfoMap.get(uploadInfo.id) },
