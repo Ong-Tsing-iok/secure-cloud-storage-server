@@ -389,6 +389,12 @@ const getPublicFilesBinder = (socket) => {
         cb({ errorMsg: NotLoggedInErrorMsg })
         return
       }
+      // Check if tags match TK
+      if (!(await ABSEManeger.checkTKTags(TK, tags))) {
+        logSocketWarning(socket, actionStr + ' but submitted tags do not match trapdoor.')
+        cb({ errorMsg: "Trapdoor do not match tags." })
+        return
+      }
 
       // Search for matching files
       const matchingFileIds = await ABSEManeger.Search(TK)

@@ -35,6 +35,7 @@ class ABSEManager {
         return null
       }
       const pp = await response.json()
+      logger.info(`Public parameters successfully fetched for ABSE.`)
       this.pp = {
         g1: mcl.deserializeHexStrToG1(pp.g1),
         g2: mcl.deserializeHexStrToG2(pp.g2),
@@ -46,7 +47,6 @@ class ABSEManager {
       for (let i = 0; i < pp.h_i.length; i++) {
         this.pp.h_i[i] = mcl.deserializeHexStrToG1(pp.h_i[i])
       }
-      this.pp = pp
       return pp
     } catch (error) {
       logger.error(error)
@@ -66,7 +66,6 @@ class ABSEManager {
     return TK
   }
   async Search(serializedTK) {
-    // console.log(serializedTK)
     try {
       const TK = this.parseTK(serializedTK)
       assert(TK.dPrime > 0)
@@ -80,37 +79,8 @@ class ABSEManager {
         const ctw = (await getCtws(file.fileid)).map((entry) =>
           mcl.deserializeHexStrToGT(entry.ctw)
         )
-        // console.log(ctw)
-        if (ctw.length < TK.dPrime) return // Keyword to match is larger than keyword set
         const ct = (await getCts(file.fileid)).map((entry) => mcl.deserializeHexStrToG1(entry.ct))
-        // console.log(ct)
-        const eCtStarSky = mcl.pairing(ctStar, TK.sky)
-        assert(ct.length == TK.T.length)
-        assert(ct.length >= 1)
-        let prod = mcl.pairing(ct[0], TK.T[0])
-        for (let i = 1; i < ct.length; i++) {
-          const paired = mcl.pairing(ct[i], TK.T[i])
-          prod = mcl.mul(prod, paired)
-        }
-        const B = mcl.mul(eCtStarSky, prod)
-        // console.log(B)
-        const D = mcl.div(mcl.pairing(ctStar, TK.TStar), mcl.pow(B, dPrimeFr))
-        const backtrack = (currentProd, startIndex, depth) => {
-          // Might need to refactor into iteration later
-          if (depth == TK.dPrime) {
-            // depth start from 0
-            // Check if D == D'
-            return D.isEqual(currentProd)
-          }
-          for (let i = startIndex; i < ctw.length - (TK.dPrime - depth) + 1; i++) {
-            let newProd
-            if (depth == 0) newProd = ctw[i]
-            else newProd = mcl.mul(currentProd, ctw[i])
-            // console.log(newProd)
-            if (backtrack(newProd, i + 1, depth + 1)) return true
-          }
-        }
-        if (backtrack(0, 0, 0)) {
+        if (await this._singleSearch(TK, dPrimeFr, ctStar, ct, ctw)) {
           result.push(file.fileid)
         }
       }
@@ -119,6 +89,75 @@ class ABSEManager {
       logger.error(error)
       return []
     }
+  }
+  async _singleSearch(TK, dPrimeFr, ctStar, ct, ctw) {
+    if (ctw.length < TK.dPrime) return false // Keyword to match is larger than keyword set
+    const eCtStarSky = mcl.pairing(ctStar, TK.sky)
+    assert(ct.length == TK.T.length)
+    assert(ct.length >= 1)
+    let prod = mcl.pairing(ct[0], TK.T[0])
+    for (let i = 1; i < ct.length; i++) {
+      const paired = mcl.pairing(ct[i], TK.T[i])
+      prod = mcl.mul(prod, paired)
+    }
+    const B = mcl.mul(eCtStarSky, prod)
+    // console.log(B)
+    const D = mcl.div(mcl.pairing(ctStar, TK.TStar), mcl.pow(B, dPrimeFr))
+    const backtrack = (currentProd, startIndex, depth) => {
+      // Might need to refactor into iteration later
+      if (depth == TK.dPrime) {
+        // depth start from 0
+        // Check if D == D'
+        return D.isEqual(currentProd)
+      }
+      for (let i = startIndex; i < ctw.length - (TK.dPrime - depth) + 1; i++) {
+        let newProd
+        if (depth == 0) newProd = ctw[i]
+        else newProd = mcl.mul(currentProd, ctw[i])
+        // console.log(newProd)
+        if (backtrack(newProd, i + 1, depth + 1)) return true
+      }
+    }
+    return backtrack(0, 0, 0)
+  }
+  async EncForAllAttr(W) {
+    const pp = await this.getPP()
+    // Access policy vector x
+    const x = new Array(pp.U.length + 1)
+    let sum = new mcl.Fr()
+    let i
+    for (i = 0; i < pp.U.length; i++) {
+      const xi = new mcl.Fr()
+      // if (P.includes(pp.U[i])) { <-- Not needed for all attr to search 
+      //   xi.setByCSPRNG()
+      //   sum = mcl.add(sum, xi)
+      // }
+      x[i] = xi
+    }
+    x[i] = mcl.neg(sum)
+    sum = new mcl.Fr()
+    for (i = 0; i < x.length; i++) {
+      sum = mcl.add(sum, x[i])
+    }
+    assert(sum.isZero())
+    const t = new mcl.Fr()
+    t.setByCSPRNG()
+    const ctStar = mcl.mul(pp.h, t)
+    const eggat = mcl.pow(pp.eggalpha, t)
+    const ctw = new Array(W.length)
+    for (i = 0; i < W.length; i++) {
+      const wHash = mcl.hashToFr(W[i])
+      const P = mcl.pairing(mcl.mul(pp.g1, wHash), mcl.mul(pp.g2, t))
+      ctw[i] = mcl.mul(eggat, P)
+    }
+    const ct = new Array(pp.h_i.length)
+    for (i = 0; i < pp.h_i.length; i++) {
+      ct[i] = mcl.add(mcl.mul(pp.h_i[i], t), mcl.mul(pp.g1, x[i]))
+    }
+    const CTw = { ctStar, ctw, ct }
+    // console.log(CTm);
+    // console.log(CTw);
+    return CTw
   }
   async insertFileIndex(CTw, fileId) {
     await this.deleteFileIndex(fileId)
@@ -134,6 +173,16 @@ class ABSEManager {
     await deleteCtw(fileId)
     await deleteCt(fileId)
     await deleteCtStar(fileId)
+  }
+  async checkTKTags(serializedTK, tags) {
+    // Encrypt a file with the tags and all attributes
+    const CTw = await this.EncForAllAttr(tags)
+    // Try to use TK to search for this file
+    const TK = this.parseTK(serializedTK)
+    assert(TK.dPrime > 0)
+    const dPrimeFr = new mcl.Fr()
+    dPrimeFr.setInt(TK.dPrime)
+    return await this._singleSearch(TK, dPrimeFr, CTw.ctStar, CTw.ct, CTw.ctw)
   }
 }
 
