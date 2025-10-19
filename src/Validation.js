@@ -31,6 +31,18 @@ export const AuthResRequestSchema = z.object({
   decryptedValue: z.string()
 })
 
+export const SecretShareRequestSchema = z.object({
+  shares: z.string().array()
+})
+
+export const SecretRecoverRequestSchema = z.object({
+  email: z.email()
+})
+
+export const EmailAuthResRequestSchema = z.object({
+  emailAuth: z.string()
+})
+
 // FileManager.js
 export const DownloadFileRequestSchema = z.object({
   fileId: FileIdSchema

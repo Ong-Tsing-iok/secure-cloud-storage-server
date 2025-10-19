@@ -18,7 +18,9 @@ class ConfigManager {
     pasv_url: 'localhost:989'
   }
   settings = {
-    uploadExpireTimeMin: 10
+    uploadExpireTimeMin: 10,
+    emailAuthExpireTimeMin: 5,
+    emailAuthLength: 6
   }
   dbPoolConfig = {
     user: 'postgres',
@@ -108,6 +110,8 @@ class ConfigManager {
 
       // Settings
       this.settings.uploadExpireTimeMin = parseInt(config.get('settings.uploadExpireTimeMin'))
+      this.settings.emailAuthExpireTimeMin = parseInt(config.get('settings.emailAuthExpireTimeMin'))
+      this.settings.emailAuthLength = parseInt(config.get('settings.emailAuthLength'))
     } catch (error) {
       logger.error(error)
     }

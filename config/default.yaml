@@ -61,5 +61,7 @@ blockchain:
   enabled: true
 settings:
   uploadExpireTimeMin: 10
+  emailAuthExpireTimeMin: 5
+  emailAuthLength: 6
 trustedAuthority:
   url: 'localhost:2999'

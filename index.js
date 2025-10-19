@@ -24,6 +24,7 @@ import ConfigManager from './src/ConfigManager.js'
 import { emailFormatRe, uuidFormatRe } from './src/Utils.js'
 import './src/HttpsServer.js'
 import './src/SftpServer.js'
+import './src/SecretShareDatabase.js'
 
 ftpServer.listen().then(() => {
   logger.info(`Ftp server listening on port ${ConfigManager.ftps.controlPort}`)

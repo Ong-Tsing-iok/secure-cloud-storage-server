@@ -1,6 +1,21 @@
-import { AddUserAndGetId, deleteUserById, getUserByKey, userStatusType } from './StorageDatabase.js'
+import {
+  AddUserAndGetId,
+  deleteUserById,
+  getUserByEmail,
+  getUserByKey,
+  userStatusType
+} from './StorageDatabase.js'
 import { addFailure, getFailure, userDbLogin } from './LoginDatabase.js'
-import { InvalidArgumentErrorMsg, InternalServerErrorMsg } from './Utils.js'
+import {
+  InvalidArgumentErrorMsg,
+  InternalServerErrorMsg,
+  NoEmailAuthFirstErrorMsg,
+  EmailAuthExpiredErrorMsg,
+  EmailAuthNotMatchErrorMsg,
+  EmailNotRegisteredErrorMsg,
+  checkLoggedIn,
+  NotLoggedInErrorMsg
+} from './Utils.js'
 import {
   logInvalidSchemaWarning,
   logSocketError,
@@ -11,8 +26,17 @@ import CryptoHandler from './CryptoHandler.js'
 import { mkdir, rmdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import ConfigManager from './ConfigManager.js'
-import { AuthResRequestSchema, LoginRequestSchema, RegisterRequestSchema } from './Validation.js'
+import {
+  AuthResRequestSchema,
+  EmailAuthResRequestSchema,
+  LoginRequestSchema,
+  RegisterRequestSchema,
+  SecretRecoverRequestSchema,
+  SecretShareRequestSchema
+} from './Validation.js'
 import BlockchainManager from './BlockchainManager.js'
+import { request } from 'node:http'
+import { retrieveUserShares, storeUserShares } from './SecretShareDatabase.js'
 
 const authenticationBinder = (socket) => {
   // Register event
@@ -205,6 +229,123 @@ const authenticationBinder = (socket) => {
       cb({ errorMsg: InternalServerErrorMsg })
     }
   })
+
+  socket.on('secret-share', async (request, cb) => {
+    try {
+      const actionStr = 'Client asks to share secret'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = SecretShareRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { shares } = result.data
+
+      if (!checkLoggedIn(socket)) {
+        logSocketWarning(socket, actionStr + ' but is not logged in.', request)
+        cb({ errorMsg: NotLoggedInErrorMsg })
+        return
+      }
+
+      logSocketInfo(socket, 'Storing client secret share to databases.')
+      await storeUserShares(socket.userId, shares)
+      cb()
+    } catch (error) {
+      logSocketError(socket, error)
+      cb({ errorMsg: InternalServerErrorMsg })
+    }
+  })
+
+  socket.on('secret-recover', async (request, cb) => {
+    try {
+      const actionStr = 'Client asks to recover secret'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = SecretRecoverRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { email } = result.data
+
+      const userInfo = await getUserByEmail(email)
+      if (!userInfo) {
+        logInvalidSchemaWarning(socket, actionStr + ' but the email is not registered.', request)
+        cb({ errorMsg: EmailNotRegisteredErrorMsg })
+        return
+      }
+      socket.userId = userInfo.id
+      socket.emailAuth = await sendEmailAuth(email)
+      socket.email = email
+      socket.askRecover = true
+      socket.emailAuthStartTime = Date.now()
+      cb()
+    } catch (error) {
+      logSocketError(socket, error)
+      cb({ errorMsg: InternalServerErrorMsg })
+    }
+  })
+
+  socket.on('email-auth-res', async (request, cb) => {
+    try {
+      const actionStr = 'Client asks to respond to email auth'
+      logSocketInfo(socket, actionStr + '.', request)
+
+      const result = EmailAuthResRequestSchema.safeParse(request)
+      if (!result.success) {
+        logInvalidSchemaWarning(socket, actionStr, result.error.issues, request)
+        cb({ errorMsg: InvalidArgumentErrorMsg })
+        return
+      }
+      const { emailAuth } = result.data
+
+      if (!socket.emailAuth) {
+        logSocketWarning(socket, actionStr + ' but did not ask for one first.')
+        cb({ errorMsg: NoEmailAuthFirstErrorMsg })
+        return
+      }
+
+      if (
+        Date.now() - socket.emailAuthStartTime >
+        ConfigManager.settings.emailAuthExpireTimeMin * 60 * 1000
+      ) {
+        cb({ errorMsg: EmailAuthExpiredErrorMsg })
+        return
+      }
+
+      // Ignored for now as no real email is sent
+      // if (emailAuth !== socket.emailAuth) {
+      //   logSocketWarning(socket, actionStr + ' but the response did not match.')
+      //   cb({ errorMsg: EmailAuthNotMatchErrorMsg })
+      //   return
+      // }
+
+      if (socket.askRecover) {
+        logSocketInfo(socket, 'Retrieving user secret shares')
+        const shares = await retrieveUserShares(socket.userId)
+        cb({ shares })
+      } else {
+        cb()
+      }
+    } catch (error) {
+      logSocketError(socket, error)
+      cb({ errorMsg: InternalServerErrorMsg })
+    }
+  })
+}
+const authChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+
+async function sendEmailAuth(email) {
+  let emailAuth = ''
+  for (let i = 0; i < ConfigManager.settings.emailAuthLength; i++) {
+    emailAuth += authChars.charAt(Math.floor(Math.random() * authChars.length))
+  }
+  // Send authentication code to user email
+
+  return emailAuth
 }
 
 export default authenticationBinder

@@ -68,6 +68,11 @@ export const getUserById = async (id) => {
   return res.rows[0]
 }
 
+export const getUserByEmail = async (email) => {
+  const res = await pool.query('SELECT * FROM users WHERE email = $1', [email])
+  return res.rows[0]
+}
+
 /**
  * Retrieves all users from the database.
  * @returns {Promise<Array<User>>} A promise that resolves to an array of user objects.
