@@ -71,6 +71,24 @@ class ConfigManager {
       )
       this.dbPoolConfig.ssl.rejectUnauthorized = config.get('database.ssl.rejectUnauthorized')
 
+      this.secretShareDbConfigs = []
+      const secretShareInfo = config.get('database.secretShare')
+      for (const secretShare of secretShareInfo) {
+        this.secretShareDbConfigs.push({
+          user: secretShare.user || this.dbPoolConfig.user,
+          host: secretShare.host || this.dbPoolConfig.host,
+          database: secretShare.database || this.dbPoolConfig.database,
+          password: secretShare.password || this.dbPoolConfig.password,
+          port: secretShare.port || this.dbPoolConfig.port,
+          max: this.dbPoolConfig.max,
+          idleTimeoutMillis: this.dbPoolConfig.idleTimeoutMillis,
+          connectionTimeoutMillis: this.dbPoolConfig.connectionTimeoutMillis,
+          ssl: {
+            rejectUnauthorized: this.dbPoolConfig.ssl.rejectUnauthorized
+          }
+        })
+      }
+
       // Blockchain
       this.blockchain = {}
       this.blockchain.jsonRpcUrl = config.get('blockchain.jsonRpcUrl')

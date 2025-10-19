@@ -33,6 +33,23 @@ database:
   ssl:
     rejectUnauthorized: true
   descMaxLength: 2000
+  # null values will be seen as the same as global settings
+  secretShare:
+  - user: null
+    host: null
+    database: secret_share1
+    password: null
+    port: null
+  - user: null
+    host: null
+    database: secret_share2
+    password: null
+    port: null
+  - user: null
+    host: null
+    database: secret_share3
+    password: null
+    port: null
 loginAttempts:
   limit: 5
   timeout: 15 # In minutes
