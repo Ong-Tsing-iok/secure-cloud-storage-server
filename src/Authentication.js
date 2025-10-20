@@ -251,7 +251,7 @@ const authenticationBinder = (socket) => {
 
       logSocketInfo(socket, 'Storing client secret share to databases.')
       await storeUserShares(socket.userId, shares)
-      cb()
+      cb({})
     } catch (error) {
       logSocketError(socket, error)
       cb({ errorMsg: InternalServerErrorMsg })
@@ -282,7 +282,7 @@ const authenticationBinder = (socket) => {
       socket.email = email
       socket.askRecover = true
       socket.emailAuthStartTime = Date.now()
-      cb()
+      cb({})
     } catch (error) {
       logSocketError(socket, error)
       cb({ errorMsg: InternalServerErrorMsg })
@@ -328,7 +328,7 @@ const authenticationBinder = (socket) => {
         const shares = await retrieveUserShares(socket.userId)
         cb({ shares })
       } else {
-        cb()
+        cb({})
       }
     } catch (error) {
       logSocketError(socket, error)

@@ -6,11 +6,15 @@ import { randomUUID } from 'crypto'
 //--  Setup --//
 const secretShareDbPools = []
 for (const secretShareDbConfig of ConfigManager.secretShareDbConfigs) {
-  const pool = new Pool(secretShareDbConfig)
-  pool.on('error', (err) => {
-    logger.error(err)
-  })
-  secretShareDbPools.push(pool)
+  try {
+    const pool = new Pool(secretShareDbConfig)
+    pool.on('error', (err) => {
+      logger.error(err)
+    })
+    secretShareDbPools.push(pool)
+  } catch (error) {
+    logger.error(error)
+  }
 }
 
 export async function retrieveUserShares(userId) {
@@ -37,13 +41,14 @@ export async function storeUserShares(userId, shares) {
   let j = 0
   while (i < shares.length && j < secretShareDbPools.length) {
     try {
-      secretShareDbPools[j].query(
-        `INSERT INTO secret_share (userid, share, retrievable) VALUES ($1, $2, TRUE)`,
+      await secretShareDbPools[j].query(
+        `INSERT INTO secret_share (userid, share, retrievable) VALUES ($1, $2, TRUE)
+        ON CONFLICT (userid) DO UPDATE SET share = excluded.share`,
         [userId, shares[i]]
       )
       i++
     } catch (error) {
-        logger.error(error)
+      logger.error(error)
     }
     j++
   }
