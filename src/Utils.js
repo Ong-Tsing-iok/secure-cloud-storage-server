@@ -13,9 +13,11 @@ export const InternalServerErrorMsg = 'Internal server error.'
 export const NotLoggedInErrorMsg = 'Not logged in.'
 export const FileNotFoundErrorMsg = 'File not found.'
 export const EmailNotRegisteredErrorMsg = 'Email not registered.'
+export const EmailAlreadyRegisteredErrorMsg = 'Email already registered.'
 export const NoEmailAuthFirstErrorMsg = 'Did not ask for email authentication first.'
 export const EmailAuthExpiredErrorMsg = 'Email authentication code is expired.'
 export const EmailAuthNotMatchErrorMsg = 'Email authentication code did not match.'
+export const ShouldNotReachErrorMsg = 'Should not reach.'
 
 const checkLoggedIn = (socket) => {
   if (!socket.authed) {

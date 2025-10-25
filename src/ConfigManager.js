@@ -46,6 +46,12 @@ class ConfigManager {
   trustedAuthority = {
     url: ''
   }
+  smtp = {
+    host: '',
+    user: '',
+    pass: '',
+    from: ''
+  }
   constructor() {
     try {
       this.directoryConfig = getConfig('directories')
@@ -107,6 +113,12 @@ class ConfigManager {
 
       // Trusted Authority
       this.trustedAuthority.url = config.get('trustedAuthority.url')
+
+      // SMTP
+      this.smtp.host = config.get('smtp.host')
+      this.smtp.user = config.get('smtp.user')
+      this.smtp.pass = config.get('smtp.pass')
+      this.smtp.from = config.get('smtp.from')
 
       // Settings
       this.settings.uploadExpireTimeMin = parseInt(config.get('settings.uploadExpireTimeMin'))

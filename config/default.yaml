@@ -65,3 +65,8 @@ settings:
   emailAuthLength: 6
 trustedAuthority:
   url: 'localhost:2999'
+smtp:
+  host: localhost
+  user: user
+  pass: pass
+  from: user@example.mail

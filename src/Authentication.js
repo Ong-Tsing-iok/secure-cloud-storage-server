@@ -14,7 +14,9 @@ import {
   EmailAuthNotMatchErrorMsg,
   EmailNotRegisteredErrorMsg,
   checkLoggedIn,
-  NotLoggedInErrorMsg
+  NotLoggedInErrorMsg,
+  EmailAlreadyRegisteredErrorMsg,
+  ShouldNotReachErrorMsg
 } from './Utils.js'
 import {
   logInvalidSchemaWarning,
@@ -37,6 +39,7 @@ import {
 import BlockchainManager from './BlockchainManager.js'
 import { request } from 'node:http'
 import { retrieveUserShares, storeUserShares } from './SecretShareDatabase.js'
+import { sendEmailAuth } from './SMTPManager.js'
 
 const authenticationBinder = (socket) => {
   // Register event
@@ -61,12 +64,20 @@ const authenticationBinder = (socket) => {
         return
       }
 
+      const emailUserInfo = await getUserByEmail(email)
+      if (emailUserInfo) {
+        logSocketWarning(socket, actionStr + ' but email is already registered.', request)
+        cb({ errorMsg: EmailAlreadyRegisteredErrorMsg })
+        return
+      }
+
       const { message, cipher, spk } = await CryptoHandler.verifyGen(publicKey)
       socket.randKey = message
       socket.pk = publicKey
       socket.name = name
       socket.email = email
       socket.blockchainAddress = blockchainAddress
+      socket.askRegister = true
       logSocketInfo(socket, 'Asking client to respond with correct authentication key.')
       cb({ cipher, spk })
       // Wait for auth-res
@@ -93,6 +104,12 @@ const authenticationBinder = (socket) => {
       if (socket.authed) {
         logSocketWarning(socket, actionStr + ' but is already logged in.', request)
         cb({ errorMsg: 'Already logged in.' })
+        return
+      }
+
+      if (socket.askLogin) {
+        logSocketWarning(socket, actionStr + ' but already asked to logg in.', request)
+        cb({ errorMsg: 'Already asked to logg in.' })
         return
       }
 
@@ -126,6 +143,7 @@ const authenticationBinder = (socket) => {
       socket.pk = publicKey
       socket.name = userInfo.name
       socket.email = userInfo.email
+      socket.askLogin = true
       logSocketInfo(socket, 'Asking client to respond with correct authentication key.')
       cb({ cipher, spk })
     } catch (error) {
@@ -148,9 +166,9 @@ const authenticationBinder = (socket) => {
       }
       const { decryptedValue } = result.data
 
-      if (!socket.pk || !socket.randKey || !(socket.userId || (socket.name && socket.email))) {
+      if (!socket.askLogin && !socket.askRegister) {
         logSocketWarning(socket, actionStr + ' without asking to login or register.', request)
-        cb({ errorMsg: 'Did not ask to log in or register first.' })
+        cb({ errorMsg: 'Did not ask to login or register first.' })
         return
       }
 
@@ -163,67 +181,21 @@ const authenticationBinder = (socket) => {
         cb({ errorMsg: 'Incorrect authentication key.' })
         return
       }
-
-      if (!socket.userId && socket.pk && socket.name && socket.email && socket.blockchainAddress) {
-        // register
-        let folderCreated = false
-        let databaseAdded = false
-        try {
-          const { id, info } = await AddUserAndGetId(
-            socket.pk,
-            socket.blockchainAddress,
-            socket.name,
-            socket.email
-          )
-          if (info.rowCount === 0) {
-            throw new Error('Failed to add user to database. Might be id collision.')
-          }
-          socket.userId = id
-          databaseAdded = true
-
-          logSocketInfo(socket, 'Creating folder for user.')
-          try {
-            await mkdir(resolve(ConfigManager.uploadDir, id))
-          } catch (error1) {
-            if (error1.code !== 'EEXIST') {
-              throw error1
-            }
-          }
-          folderCreated = true
-
-          await BlockchainManager.setClientStatus(socket.blockchainAddress, true)
-
-          logSocketInfo(socket, 'User registered.', {
-            name: socket.name,
-            email: socket.email,
-            pk: socket.pk,
-            blockchainAddress: socket.blockchainAddress
-          })
-        } catch (error2) {
-          // Error when registering
-          logSocketError(socket, error2, {
-            name: socket.name,
-            email: socket.email,
-            pk: socket.pk,
-            blockchainAddress: socket.blockchainAddress
-          }) // Did not re-throw because need to log extra information
-          // Reverting register
-          if (socket.userId && databaseAdded) await deleteUserById(socket.userId)
-          try {
-            if (socket.userId && folderCreated)
-              await rmdir(resolve(ConfigManager.uploadDir, socket.userId))
-          } catch (error2) {
-            if (error2.code !== 'ENOENT') throw error2
-          }
-          cb({ errorMsg: InternalServerErrorMsg })
-          return
-        }
-      }
-
-      userDbLogin(socket.id, socket.userId)
-      socket.authed = true
       logSocketInfo(socket, 'Authentication key correct. Client is authenticated.')
-      cb({ userInfo: { userId: socket.userId, name: socket.name, email: socket.email } })
+
+      if (socket.askLogin) {
+        delete socket.askLogin
+        userDbLogin(socket.id, socket.userId)
+        socket.authed = true
+        cb({ userInfo: { userId: socket.userId, name: socket.name, email: socket.email } })
+        return
+      } else if (socket.askRegister) {
+        // Send email auth
+        socket.emailAuth = await createSendEmailAuth(socket.email)
+        cb({}) // Wait for email auth
+        return
+      }
+      throw new Error(ShouldNotReachErrorMsg)
     } catch (error) {
       logSocketError(socket, error)
       cb({ errorMsg: InternalServerErrorMsg })
@@ -278,7 +250,7 @@ const authenticationBinder = (socket) => {
         return
       }
       socket.userId = userInfo.id
-      socket.emailAuth = await sendEmailAuth(email)
+      socket.emailAuth = await createSendEmailAuth(email)
       socket.email = email
       socket.askRecover = true
       socket.emailAuthStartTime = Date.now()
@@ -316,20 +288,31 @@ const authenticationBinder = (socket) => {
         return
       }
 
-      // Ignored for now as no real email is sent
-      // if (emailAuth !== socket.emailAuth) {
-      //   logSocketWarning(socket, actionStr + ' but the response did not match.')
-      //   cb({ errorMsg: EmailAuthNotMatchErrorMsg })
-      //   return
-      // }
+      if (emailAuth !== socket.emailAuth) {
+        logSocketWarning(socket, actionStr + ' but the response did not match.', {
+          emailAuth,
+          socketEmailAuth: socket.emailAuth
+        })
+        cb({ errorMsg: EmailAuthNotMatchErrorMsg })
+        return
+      }
+      delete socket.emailAuth
 
       if (socket.askRecover) {
+        delete socket.askRecover
         logSocketInfo(socket, 'Retrieving user secret shares')
         const shares = await retrieveUserShares(socket.userId)
         cb({ shares })
-      } else {
-        cb({})
+        return
+      } else if (socket.askRegister) {
+        delete socket.askRegister
+        await registerProcess(socket)
+        socket.authed = true
+        cb({ userId: socket.userId })
+        return
       }
+
+      throw new Error(ShouldNotReachErrorMsg)
     } catch (error) {
       logSocketError(socket, error)
       cb({ errorMsg: InternalServerErrorMsg })
@@ -338,14 +321,68 @@ const authenticationBinder = (socket) => {
 }
 const authChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 
-async function sendEmailAuth(email) {
+async function createSendEmailAuth(email) {
   let emailAuth = ''
   for (let i = 0; i < ConfigManager.settings.emailAuthLength; i++) {
     emailAuth += authChars.charAt(Math.floor(Math.random() * authChars.length))
   }
-  // Send authentication code to user email
+  await sendEmailAuth(email, emailAuth)
 
   return emailAuth
+}
+
+async function registerProcess(socket) {
+  // register
+  let folderCreated = false
+  let databaseAdded = false
+  try {
+    const { id, info } = await AddUserAndGetId(
+      socket.pk,
+      socket.blockchainAddress,
+      socket.name,
+      socket.email
+    )
+    if (info.rowCount === 0) {
+      throw new Error('Failed to add user to database. Might be id collision.')
+    }
+    socket.userId = id
+    databaseAdded = true
+
+    logSocketInfo(socket, 'Creating folder for user.')
+    try {
+      await mkdir(resolve(ConfigManager.uploadDir, id))
+    } catch (error1) {
+      if (error1.code !== 'EEXIST') {
+        throw error1
+      }
+    }
+    folderCreated = true
+
+    await BlockchainManager.setClientStatus(socket.blockchainAddress, true)
+
+    logSocketInfo(socket, 'User registered.', {
+      name: socket.name,
+      email: socket.email,
+      pk: socket.pk,
+      blockchainAddress: socket.blockchainAddress
+    })
+  } catch (error2) {
+    // Error when registering
+    logSocketError(socket, error2, {
+      name: socket.name,
+      email: socket.email,
+      pk: socket.pk,
+      blockchainAddress: socket.blockchainAddress
+    }) // Did not re-throw because need to log extra information
+    // Reverting register
+    if (socket.userId && databaseAdded) await deleteUserById(socket.userId)
+    try {
+      if (socket.userId && folderCreated)
+        await rmdir(resolve(ConfigManager.uploadDir, socket.userId))
+    } catch (error3) {
+      if (error3.code !== 'ENOENT') throw error3
+    }
+  }
 }
 
 export default authenticationBinder
