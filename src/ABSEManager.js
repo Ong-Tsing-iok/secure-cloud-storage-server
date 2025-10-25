@@ -65,7 +65,7 @@ class ABSEManager {
     }
     return TK
   }
-  async Search(serializedTK) {
+  async *Search(serializedTK) {
     try {
       const TK = this.parseTK(serializedTK)
       assert(TK.dPrime > 0)
@@ -81,13 +81,14 @@ class ABSEManager {
         )
         const ct = (await getCts(file.fileid)).map((entry) => mcl.deserializeHexStrToG1(entry.ct))
         if (await this._singleSearch(TK, dPrimeFr, ctStar, ct, ctw)) {
-          result.push(file.fileid)
+          // result.push(file.fileid)
+          yield file.fileid
         }
       }
-      return result
+      // return result
     } catch (error) {
       logger.error(error)
-      return []
+      // return
     }
   }
   async _singleSearch(TK, dPrimeFr, ctStar, ct, ctw) {

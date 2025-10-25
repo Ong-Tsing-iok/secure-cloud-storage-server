@@ -392,19 +392,22 @@ const getPublicFilesBinder = (socket) => {
       // Check if tags match TK
       if (!(await ABSEManeger.checkTKTags(TK, tags))) {
         logSocketWarning(socket, actionStr + ' but submitted tags do not match trapdoor.')
-        cb({ errorMsg: "Trapdoor do not match tags." })
+        cb({ errorMsg: 'Trapdoor do not match tags.' })
         return
       }
 
       // Search for matching files
-      const matchingFileIds = await ABSEManeger.Search(TK)
-      const files = []
-      for (const fileId of matchingFileIds) {
-        const fileInfo = await getPublicFilesNotOwnedByFileId(socket.userId, fileId)
-        if (fileInfo) files.push(fileInfo)
+      const searchGen = ABSEManeger.Search(TK)
+      const fileIds = []
+      for await (const matchFileId of searchGen) {
+        const fileInfo = await getPublicFilesNotOwnedByFileId(socket.userId, matchFileId)
+        if (fileInfo) {
+          socket.emit('partial-search-files', { files: [fileInfo] })
+          fileIds.push(matchFileId)
+        }
       }
-      logSocketInfo(socket, 'Responding searched files to client.', { matchingFileIds })
-      cb({ files: JSON.stringify(files) })
+      logSocketInfo(socket, 'Responding searched end to client.', { fileIds })
+      cb({ files: [] })
     } catch (error) {
       logSocketError(socket, error)
       cb({ errorMsg: InternalServerErrorMsg })
