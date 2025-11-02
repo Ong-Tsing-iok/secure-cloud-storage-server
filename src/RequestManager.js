@@ -1,3 +1,7 @@
+/**
+ * This file handles communications with client related to requests.
+ * Including requesting file, responding to request, deleting request, getting request lists.
+ */
 import {
   calculateFileHash,
   checkLoggedIn,
@@ -41,7 +45,9 @@ import BlockchainManager from './BlockchainManager.js'
 
 // Reqeust related events
 const requestBinder = (socket) => {
-  //! Ask for request
+  /**
+   * Client asks to request file
+   */
   socket.on('request-file', async (request, cb) => {
     let requestId
     try {
@@ -109,7 +115,9 @@ const requestBinder = (socket) => {
     }
   })
 
-  //! Delete request
+  /**
+   * Client asks to delete request
+   */
   socket.on('delete-request', async (request, cb) => {
     try {
       const actionStr = 'Client asks to delete request'
@@ -142,7 +150,9 @@ const requestBinder = (socket) => {
     }
   })
 
-  //! Respond request
+  /**
+   * Client responds to request
+   */
   socket.on('respond-request', async (request, cb) => {
     let responseId
     try {
@@ -207,7 +217,9 @@ const requestBinder = (socket) => {
     }
   })
 
-  //! Get request list
+  /**
+   * Client asks to get request list (client is requester)
+   */
   socket.on('get-request-list', async (cb) => {
     try {
       const actionStr = 'Client asks to get request list requested by this client'
@@ -229,7 +241,9 @@ const requestBinder = (socket) => {
     }
   })
 
-  //! Get requested list
+  /**
+   * Client asks to get requested list (client is file owner)
+   */
   socket.on('get-requested-list', async (cb) => {
     try {
       const actionStr = 'Client asks to get request list requested by other clients'
@@ -257,7 +271,15 @@ const requestBinder = (socket) => {
   })
 }
 
-// Reencrypt file sub-process
+/**
+ * Actually reencrypt the file
+ * @param {*} rekey 
+ * @param {*} fileInfo 
+ * @param {*} requestInfo 
+ * @param {*} authorizerInfo 
+ * @param {*} requestorInfo 
+ * @returns 
+ */
 const reencryptFile = async (rekey, fileInfo, requestInfo, authorizerInfo, requestorInfo) => {
   // Reencrypt file
   let newUUID
@@ -284,10 +306,12 @@ const reencryptFile = async (rekey, fileInfo, requestInfo, authorizerInfo, reque
       description: fileInfo.description
     })
     hasAddToDatabase = true
+    // Copy the file from original owner to requester, as we only reencrypts its AES key
     copiedFilePath = join(ConfigManager.uploadDir, requestInfo.requester, newUUID)
     await copyFile(join(ConfigManager.uploadDir, fileInfo.ownerId, fileInfo.id), copiedFilePath)
     hasCopiedFile = true
 
+    // Add new file information to blockchain
     const fileHash = await calculateFileHash(copiedFilePath)
     await BlockchainManager.reencryptFile(
       newUUID,

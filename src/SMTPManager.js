@@ -1,3 +1,6 @@
+/**
+ * This file handles communication with SMTP server and send mails.
+ */
 import nodemailer from 'nodemailer'
 import ConfigManager from './ConfigManager.js'
 import { logger } from './Logger.js'

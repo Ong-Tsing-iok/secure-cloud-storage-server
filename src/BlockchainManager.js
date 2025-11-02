@@ -1,3 +1,6 @@
+/**
+ * This file handles operations related to blockchain. Including initializing wallet, communicating with smart contract.
+ */
 import { Contract, JsonRpcProvider, Wallet } from 'ethers'
 import { readFileSync, writeFileSync } from 'fs'
 import ConfigManager from './ConfigManager.js'

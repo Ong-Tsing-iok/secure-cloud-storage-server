@@ -1,3 +1,6 @@
+/**
+ * This file handles express server and socketio initializations.
+ */
 import express from 'express'
 // Servers
 import { Server } from 'socket.io'

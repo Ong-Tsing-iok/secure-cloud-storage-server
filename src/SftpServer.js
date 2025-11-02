@@ -1,3 +1,6 @@
+/**
+ * This file handles actual upload and download for SFTP protocol
+ */
 import ConfigManager from './ConfigManager.js'
 import { logger, logSftpError, logSftpInfo, logSftpWarning } from './Logger.js'
 import fs from 'node:fs'
@@ -15,6 +18,7 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
   let fileId
   client
     .on('authentication', (ctx) => {
+      // Client authenticates with socketId as username and fileId as password
       if (ctx.method !== 'password') return ctx.reject()
       let actionStr = 'Client tries to authenticate'
       fileId = ctx.password

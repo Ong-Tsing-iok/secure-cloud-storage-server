@@ -1,3 +1,6 @@
+/**
+ * This file handles upload verification from blockchain.
+ */
 import { randomUUID } from 'node:crypto'
 import { bigIntToUuid, BigIntToHex } from './Utils.js'
 import EvictingMap from './EvictingMap.js'
@@ -22,7 +25,7 @@ export const preUpload = (cipher, spk, parentFolderId) => {
 }
 
 /**
- *
+ * Store file info in map after upload, and wait for blockchain info
  * @param {{
  * name,
  * id,
@@ -66,11 +69,23 @@ export const hasUpload = (fileId) => {
 }
 
 uploadInfoMap.onExpired((key, value) => {
+  // revert upload if blockhain information did not come in time
   revertUpload(value.uploadInfo.userId, key, 'Did not get blockchain info in time.')
 })
 
+/**
+ * Blockchain fired an upload event which is initiated by client.
+ */
 BlockchainManager.bindEventListener(
   'FileUploaded',
+  /**
+   * Check if the information on blockchain is same as what recieved.
+   * @param {*} fileId 
+   * @param {*} uploader 
+   * @param {*} fileHash 
+   * @param {*} metadata 
+   * @param {*} timestamp 
+   */
   async (fileId, uploader, fileHash, metadata, timestamp) => {
     try {
       fileId = bigIntToUuid(fileId)

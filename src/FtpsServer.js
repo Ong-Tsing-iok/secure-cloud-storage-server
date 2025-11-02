@@ -1,3 +1,6 @@
+/**
+ * This file handles actual upload and download with FTPS protocol
+ */
 import { FtpSrv, FileSystem } from 'ftp-srv'
 import { readFileSync } from 'fs'
 import { stat, mkdir } from 'fs/promises'
@@ -15,6 +18,7 @@ class CustomFileSystem extends FileSystem {
     super(connection, { root, cwd })
     this.fileId = fileId
   }
+  // write to file as name 'fileId', and record the original name.
   write(fileName, { append, start }) {
     this.connection.originalFileName = fileName
     return super.write(this.fileId, { append, start })
@@ -41,6 +45,9 @@ ftpServer.on('server-error', ({ error }) => {
   logFtpsError({ connection: {} }, error)
 })
 
+/**
+ * Let client login with its socketId and fileId if wanting to upload.
+ */
 ftpServer.on('login', async (data, resolve, reject) => {
   try {
     const { connection, username: socketId, password: fileId } = data // use password as file id

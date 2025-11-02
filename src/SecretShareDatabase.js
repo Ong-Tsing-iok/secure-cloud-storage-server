@@ -1,3 +1,6 @@
+/**
+ * This file handles communication with secret share databases.
+ */
 import { Pool } from 'pg'
 import ConfigManager from './ConfigManager.js'
 import { logger } from './Logger.js'
@@ -54,7 +57,7 @@ export async function storeUserShares(userId, shares) {
   }
 }
 
-//-- Tear down --//
+//-- Tear down --// Should be called with StorageDatabase.js
 // process.on('SIGINT', async () => {
 //   logger.info('SIGINT signal received: Closing PostgreSQL pool...')
 //   await pool.end()

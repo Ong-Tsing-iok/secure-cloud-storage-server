@@ -1,3 +1,6 @@
+/**
+ * This file handles cryptography for user, including verifying message and file reencryption
+ */
 import {
   pre_schema1_MessageGen,
   pre_schema1_SigningKeyGen,
@@ -7,6 +10,14 @@ import {
 import { logger } from './Logger.js'
 import { Base64Schema } from './Validation.js'
 
+/**
+ * Reencrypt a cipher with the rekey
+ * @param {*} rekey 
+ * @param {*} cipher 
+ * @param {*} aSpk 
+ * @param {*} bPk 
+ * @returns The reencrypted cipher
+ */
 const reencrypt = async (rekey, cipher, aSpk, bPk) => {
   const parsedRekey = Base64Schema.parse(rekey)
   const parsedCipher = Base64Schema.parse(cipher)
@@ -50,7 +61,7 @@ const messageGen = async () => {
 }
 
 /**
- *
+ * Generate a random message and cipher for verification
  * @param {string} publicKey
  * @returns {Promise<{message: string, cipher: string, spk: string}>}
  */

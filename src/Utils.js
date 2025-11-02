@@ -20,6 +20,7 @@ export const EmailAuthNotMatchErrorMsg = 'Email authentication code did not matc
 export const ShouldNotReachErrorMsg = 'Should not reach.'
 
 const checkLoggedIn = (socket) => {
+  // TODO: Would need additional for account status in database, in case manager stop the account
   if (!socket.authed) {
     logger.warn('Unauthorized attempt', { ip: socket.ip })
     // socket.emit('message', 'not logged in')

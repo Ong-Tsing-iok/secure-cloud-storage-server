@@ -1,11 +1,11 @@
-directories:
+directories: # Where data are stored
   uploads: uploads
   certs: certs
   logs: logs
   database: database
   blockchain: blockchain
   ssh: ssh
-server:
+server: # Server settings
   host: 0.0.0.0
   key: tls.key
   cert: tls.crt
@@ -20,7 +20,7 @@ server:
     key: id_ed25519
   sftp:
     port: 7001
-database:
+database: # Database settings
   user: postgres
   host: localhost
   database: postgres
@@ -59,7 +59,7 @@ blockchain:
   walletKeyPath: wallet.key
   abiPath: abi.json
   enabled: true
-settings:
+settings: # Other settings
   uploadExpireTimeMin: 10
   emailAuthExpireTimeMin: 5
   emailAuthLength: 6

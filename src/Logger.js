@@ -1,3 +1,6 @@
+/**
+ * This file handles logging to terminal. As the deployment position is in Kubenetes, logs are only written to terminal but not to files.
+ */
 import winston, { format } from 'winston'
 import 'winston-daily-rotate-file'
 import config from 'config'

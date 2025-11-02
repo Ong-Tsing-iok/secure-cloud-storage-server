@@ -1,3 +1,7 @@
+/**
+ * This file handles communications with client related to files.
+ * Including upload request, download request, description and index update, deleting file, adding and deleting folder.
+ */
 import {
   logInvalidSchemaWarning,
   logSocketError,
@@ -50,6 +54,9 @@ const uploadExpireTime = ConfigManager.settings.uploadExpireTimeMin * 60 * 1000
 
 // Download file related events
 const downloadFileBinder = (socket) => {
+  /**
+   * Client ask to download certain file. Will return file info.
+   */
   socket.on('download-file-pre', async (request, cb) => {
     try {
       const actionStr = 'Client asks to download file'
@@ -97,6 +104,9 @@ const downloadFileBinder = (socket) => {
 
 // Upload file related events
 const uploadFileBinder = (socket) => {
+  /**
+   * Client aks to upload file, will return generated fileId
+   */
   socket.on('upload-file-pre', async (request, cb) => {
     try {
       const actionStr = 'Client asks to upload file'
@@ -140,6 +150,9 @@ const uploadFileBinder = (socket) => {
 
 // Delete file event
 const deleteFileBinder = (socket) => {
+  /**
+   * Client ask to delete file
+   */
   socket.on('delete-file', async (request, cb) => {
     try {
       const actionStr = 'Client asks to delete file'
@@ -221,7 +234,9 @@ const getFileListBinder = (socket) => {
 
 // Folder related events
 const folderBinder = (socket) => {
-  // Add folder
+  /**
+   * Client ask to add folder
+   */
   socket.on('add-folder', async (request, cb) => {
     try {
       const actionStr = 'Client asks to add folder'
@@ -250,7 +265,9 @@ const folderBinder = (socket) => {
     }
   })
 
-  // Delete folder
+  /**
+   * Client ask to delete folder
+   */
   socket.on('delete-folder', async (request, cb) => {
     try {
       const actionStr = 'Client asks to delete folder'
@@ -313,6 +330,9 @@ const folderBinder = (socket) => {
 }
 
 const moveFileBinder = (socket) => {
+  /**
+   * Client asks to move file to other folders
+   */
   socket.on('move-file', async (request, cb) => {
     try {
       const actionStr = 'Client asks to move file to target folder'
@@ -352,25 +372,31 @@ const moveFileBinder = (socket) => {
 }
 
 const getPublicFilesBinder = (socket) => {
-  socket.on('get-public-files', async (cb) => {
-    try {
-      const actionStr = 'Client asks to get public files'
-      logSocketInfo(socket, actionStr + '.')
+  /**
+   * Client ask to get public files. Should not be called anymore.
+   */
+  // socket.on('get-public-files', async (cb) => {
+  //   try {
+  //     const actionStr = 'Client asks to get public files'
+  //     logSocketInfo(socket, actionStr + '.')
 
-      if (!checkLoggedIn(socket)) {
-        logSocketWarning(socket, actionStr + ' but is not logged in.')
-        cb({ errorMsg: NotLoggedInErrorMsg })
-        return
-      }
+  //     if (!checkLoggedIn(socket)) {
+  //       logSocketWarning(socket, actionStr + ' but is not logged in.')
+  //       cb({ errorMsg: NotLoggedInErrorMsg })
+  //       return
+  //     }
 
-      const files = await getAllPublicFilesNotOwned(socket.userId)
-      logSocketInfo(socket, 'Responding public files to client.')
-      cb({ files: JSON.stringify(files) })
-    } catch (error) {
-      logSocketError(socket, error)
-      cb({ errorMsg: InternalServerErrorMsg })
-    }
-  })
+  //     const files = await getAllPublicFilesNotOwned(socket.userId)
+  //     logSocketInfo(socket, 'Responding public files to client.')
+  //     cb({ files: JSON.stringify(files) })
+  //   } catch (error) {
+  //     logSocketError(socket, error)
+  //     cb({ errorMsg: InternalServerErrorMsg })
+  //   }
+  // })
+  /**
+   * Client asks to search files
+   */
   socket.on('search-files', async (request, cb) => {
     try {
       const actionStr = 'Client asks to search for files'
@@ -402,6 +428,7 @@ const getPublicFilesBinder = (socket) => {
       for await (const matchFileId of searchGen) {
         const fileInfo = await getPublicFilesNotOwnedByFileId(socket.userId, matchFileId)
         if (fileInfo) {
+          // Return partial on search in case of searching for too long
           socket.emit('partial-search-files', { files: [fileInfo] })
           fileIds.push(matchFileId)
         }
@@ -416,6 +443,9 @@ const getPublicFilesBinder = (socket) => {
 }
 
 const updateFileBinder = (socket) => {
+  /**
+   * Client ask to update file description, permission or index
+   */
   socket.on('update-file-desc-perm', async (request, cb) => {
     try {
       const actionStr = 'Client asks to update description, permission and index for file'
@@ -450,6 +480,7 @@ const updateFileBinder = (socket) => {
         desc = description.substring(0, ConfigManager.databaseLengthLimit)
       }
       await updateFileDescPermInDatabase(fileId, desc, permission)
+      // Insert file encrypted index
       if (CTw) await ABSEManeger.insertFileIndex(CTw, fileId)
       logSocketInfo(socket, 'Description, permission and index updated for file.', request)
       cb({})

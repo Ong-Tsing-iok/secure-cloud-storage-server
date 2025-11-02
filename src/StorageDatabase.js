@@ -1,3 +1,6 @@
+/**
+ * This file handles communication with the storage database.
+ */
 import { Pool } from 'pg'
 import ConfigManager from './ConfigManager.js'
 import { logger } from './Logger.js'

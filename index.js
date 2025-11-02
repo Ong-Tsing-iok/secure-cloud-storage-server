@@ -29,12 +29,14 @@ import './src/SecretShareDatabase.js'
 ftpServer.listen().then(() => {
   logger.info(`Ftp server listening on port ${ConfigManager.ftps.controlPort}`)
 })
-
+/**
+ * The following handles a command line interface for managing users and database queries.
+ */
 const controller = new AbortController()
 const stdin = process.stdin
 stdin.resume()
 
-// i don't want binary, do you?
+
 stdin.setEncoding('utf8')
 
 // on any data into stdin

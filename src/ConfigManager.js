@@ -1,3 +1,6 @@
+/**
+ * This file handles server configs
+ */
 import config from 'config'
 import { join, resolve } from 'path'
 import { existsSync, mkdirSync } from 'fs'
@@ -120,7 +123,7 @@ class ConfigManager {
       this.smtp.pass = config.get('smtp.pass')
       this.smtp.from = config.get('smtp.from')
 
-      // Settings
+      // Other settings
       this.settings.uploadExpireTimeMin = parseInt(config.get('settings.uploadExpireTimeMin'))
       this.settings.emailAuthExpireTimeMin = parseInt(config.get('settings.emailAuthExpireTimeMin'))
       this.settings.emailAuthLength = parseInt(config.get('settings.emailAuthLength'))

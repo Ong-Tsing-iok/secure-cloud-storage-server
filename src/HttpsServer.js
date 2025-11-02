@@ -1,3 +1,6 @@
+/**
+ * This file handles actual upload and download for HTTPS protocol.
+ */
 import { logger, logHttpsError, logHttpsInfo, logHttpsWarning } from './Logger.js'
 import { mkdir, unlink } from 'fs/promises'
 import multer from 'multer'
@@ -12,6 +15,7 @@ import { FileIdSchema, PublicKeySchema, SocketIDSchema } from './Validation.js'
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
     try {
+      // Store the uploaded file the user's upload directory
       const folderPath = resolve(ConfigManager.uploadDir, req.userId)
       await mkdir(folderPath, { recursive: true })
       cb(null, folderPath)
@@ -28,6 +32,7 @@ const storage = multer.diskStorage({
   }
 })
 const checkFileType = (req, file, cb) => {
+  // Fix original name encoding problem
   file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8')
 
   cb(null, true)
@@ -71,6 +76,13 @@ const auth = (req, res, next) => {
   }
 }
 
+/**
+ * Check if we can let the client upload file.
+ * @param {*} req 
+ * @param {*} res 
+ * @param {*} next 
+ * @returns 
+ */
 const checkUpload = async (req, res, next) => {
   try {
     const actionStr = 'Client asks to upload file'
@@ -103,6 +115,9 @@ const checkUpload = async (req, res, next) => {
   }
 }
 
+/**
+ * The path for upload
+ */
 app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res, next) => {
   try {
     if (req.file) {
@@ -134,6 +149,9 @@ app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res, n
   }
 })
 
+/**
+ * The path for download
+ */
 app.get('/download', auth, async (req, res, next) => {
   try {
     const actionStr = 'Client asks to download file'
@@ -164,6 +182,9 @@ app.get('/download', auth, async (req, res, next) => {
   }
 })
 
+/**
+ * The path for getting userId. Used by trusted authority.
+ */
 app.get('/userId', async (req, res, next) => {
   try {
     logHttpsInfo(req, 'UserId of pk is asked.')

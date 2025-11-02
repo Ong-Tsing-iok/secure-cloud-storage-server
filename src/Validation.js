@@ -1,3 +1,6 @@
+/**
+ * This file handles user input validation
+ */
 import { z } from 'zod/v4'
 import { isAddress } from 'ethers'
 

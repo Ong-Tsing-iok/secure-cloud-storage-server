@@ -1,3 +1,6 @@
+/**
+ * This file handles a map data structure where entries are removed after some time.
+ */
 import { EventEmitter } from 'events'
 
 /**

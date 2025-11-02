@@ -1,3 +1,6 @@
+/**
+ * This file handles user login information. Including current logged in users, faillure attempts.
+ */
 import sqlite from 'better-sqlite3'
 import { logger } from './Logger.js'
 import ConfigManager from './ConfigManager.js'
@@ -18,6 +21,7 @@ const createLoginTable = loginDb.prepare(
   timestamp INTEGER not null default CURRENT_TIMESTAMP
   )`
 )
+// Should convert to using uploadInfoMap in UploadVerifier.js
 const createUploadsTable = loginDb.prepare(
   `CREATE TABLE IF NOT EXISTS uploads (
   id TEXT PRIMARY KEY not null, 

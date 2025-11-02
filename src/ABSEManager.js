@@ -1,3 +1,6 @@
+/**
+ * This file handles operations for ABSE.
+ */
 import * as mcl from 'mcl-wasm'
 import { logger } from './Logger.js'
 import ConfigManager from './ConfigManager.js'
@@ -24,6 +27,10 @@ class ABSEManager {
     await mcl.init(mcl.BLS12_381)
     await this.getPP()
   }
+  /**
+   * Tries to get public parameters from trusted authority
+   * @returns The public parameters
+   */
   async getPP() {
     if (this.pp) return this.pp
     try {
@@ -47,12 +54,17 @@ class ABSEManager {
       for (let i = 0; i < pp.h_i.length; i++) {
         this.pp.h_i[i] = mcl.deserializeHexStrToG1(pp.h_i[i])
       }
-      return pp
+      return this.pp
     } catch (error) {
       logger.error(error)
       return null
     }
   }
+  /**
+   * Parse and deserialize the serialized TK
+   * @param {{TStar: string, T: Array<string>, sky: string, dPrime: number}} serializedTK
+   * @returns {{TStar: mcl.G2, T: Array<mcl.G2>, sky: mcl.G2, dPrime: number}} deserialized TK
+   */
   parseTK(serializedTK) {
     const TK = {
       TStar: mcl.deserializeHexStrToG2(serializedTK.TStar),
@@ -65,6 +77,10 @@ class ABSEManager {
     }
     return TK
   }
+  /**
+   * Generate search results `{fileId: string}` for the serialized TK
+   * @param {{TStar: string, T: Array<string>, sky: string, dPrime: number}} serializedTK
+   */
   async *Search(serializedTK) {
     try {
       const TK = this.parseTK(serializedTK)
@@ -91,6 +107,15 @@ class ABSEManager {
       // return
     }
   }
+  /**
+   * Check if the trapdoor (TK, dPrimeFr) matches the file index (ctStar, ct, ctw)
+   * @param {{TStar: mcl.G2, T: Array<mcl.G2>, sky: mcl.G2, dPrime: number}} TK
+   * @param {mcl.Fr} dPrimeFr
+   * @param {mcl.G1} ctStar
+   * @param {Array<mcl.G1>} ct
+   * @param {Array<mcl.GT>} ctw
+   * @returns Whether the file matches
+   */
   async _singleSearch(TK, dPrimeFr, ctStar, ct, ctw) {
     if (ctw.length < TK.dPrime) return false // Keyword to match is larger than keyword set
     const eCtStarSky = mcl.pairing(ctStar, TK.sky)
@@ -121,6 +146,12 @@ class ABSEManager {
     }
     return backtrack(0, 0, 0)
   }
+  /**
+   * Encrypt an index for all attribute and the tag array.
+   * Used to check if TK meets the tags
+   * @param {Array<string>} W the tag array
+   * @returns {Promise<{ ctStar: mcl.G1, ctw: Array<mcl.GT>, ct: Array<mcl.G1> }>}The encrypted index
+   */
   async EncForAllAttr(W) {
     const pp = await this.getPP()
     // Access policy vector x
@@ -129,7 +160,7 @@ class ABSEManager {
     let i
     for (i = 0; i < pp.U.length; i++) {
       const xi = new mcl.Fr()
-      // if (P.includes(pp.U[i])) { <-- Not needed for all attr to search 
+      // if (P.includes(pp.U[i])) { <-- Not needed for all attr to search
       //   xi.setByCSPRNG()
       //   sum = mcl.add(sum, xi)
       // }
@@ -160,6 +191,11 @@ class ABSEManager {
     // console.log(CTw);
     return CTw
   }
+  /**
+   * Insert the encrypted file index into database.
+   * @param {{ ctStar: string, ctw: Array<string>, ct: Array<string> }} CTw the encrypted serialized index
+   * @param {string} fileId 
+   */
   async insertFileIndex(CTw, fileId) {
     await this.deleteFileIndex(fileId)
     await insertCtStar(fileId, CTw.ctStar)
@@ -170,11 +206,21 @@ class ABSEManager {
       await insertCt(fileId, i, CTw.ct[i])
     }
   }
+  /**
+   * Delete file index of certain file from database.
+   * @param {string} fileId 
+   */
   async deleteFileIndex(fileId) {
     await deleteCtw(fileId)
     await deleteCt(fileId)
     await deleteCtStar(fileId)
   }
+  /**
+   * Check if the provided TK matches the provided tags.
+   * @param {{TStar: string, T: Array<string>, sky: string, dPrime: number}} serializedTK 
+   * @param {Array<string>} tags 
+   * @returns Whether matches or not
+   */
   async checkTKTags(serializedTK, tags) {
     // Encrypt a file with the tags and all attributes
     const CTw = await this.EncForAllAttr(tags)

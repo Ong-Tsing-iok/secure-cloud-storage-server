@@ -1,3 +1,6 @@
+/**
+ * This file handles client communications related to authentication.
+ */
 import {
   AddUserAndGetId,
   deleteUserById,
@@ -42,7 +45,9 @@ import { retrieveUserShares, storeUserShares } from './SecretShareDatabase.js'
 import { sendEmailAuth } from './SMTPManager.js'
 
 const authenticationBinder = (socket) => {
-  // Register event
+  /**
+   * Register event
+   */
   socket.on('register', async (request, cb) => {
     try {
       const actionStr = 'Client asks to register'
@@ -87,7 +92,9 @@ const authenticationBinder = (socket) => {
     }
   })
 
-  // Login event
+  /**
+   * Login event
+   */
   socket.on('login', async (request, cb) => {
     try {
       const actionStr = 'Client asks to login'
@@ -152,7 +159,9 @@ const authenticationBinder = (socket) => {
     }
   })
 
-  // Authentication response event for register and login
+  /**
+   * Authentication response event for register and login
+   */
   socket.on('auth-res', async (request, cb) => {
     try {
       const actionStr = 'Client responds to authentication'
@@ -202,6 +211,9 @@ const authenticationBinder = (socket) => {
     }
   })
 
+  /**
+   * Secret share event
+   */
   socket.on('secret-share', async (request, cb) => {
     try {
       const actionStr = 'Client asks to share secret'
@@ -223,13 +235,16 @@ const authenticationBinder = (socket) => {
 
       logSocketInfo(socket, 'Storing client secret share to databases.')
       await storeUserShares(socket.userId, shares)
-      cb({})
+      cb({}) // ok
     } catch (error) {
       logSocketError(socket, error)
       cb({ errorMsg: InternalServerErrorMsg })
     }
   })
 
+  /**
+   * Secret recover event
+   */
   socket.on('secret-recover', async (request, cb) => {
     try {
       const actionStr = 'Client asks to recover secret'
@@ -249,6 +264,7 @@ const authenticationBinder = (socket) => {
         cb({ errorMsg: EmailNotRegisteredErrorMsg })
         return
       }
+      // Ask and wait for email authentication
       socket.userId = userInfo.id
       socket.emailAuth = await createSendEmailAuth(email)
       socket.email = email
@@ -261,6 +277,9 @@ const authenticationBinder = (socket) => {
     }
   })
 
+  /**
+   * Email authentication event for register and secret recover
+   */
   socket.on('email-auth-res', async (request, cb) => {
     try {
       const actionStr = 'Client asks to respond to email auth'
@@ -320,7 +339,11 @@ const authenticationBinder = (socket) => {
   })
 }
 const authChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-
+/**
+ * Create and send an email authentication code to user's email
+ * @param {string} email 
+ * @returns The email authentication code
+ */
 async function createSendEmailAuth(email) {
   let emailAuth = ''
   for (let i = 0; i < ConfigManager.settings.emailAuthLength; i++) {
@@ -331,11 +354,16 @@ async function createSendEmailAuth(email) {
   return emailAuth
 }
 
+/**
+ * Add user to database, set status on blockchain, create folder
+ * @param {*} socket 
+ */
 async function registerProcess(socket) {
   // register
   let folderCreated = false
   let databaseAdded = false
   try {
+    // Add user to database
     const { id, info } = await AddUserAndGetId(
       socket.pk,
       socket.blockchainAddress,
@@ -350,6 +378,7 @@ async function registerProcess(socket) {
 
     logSocketInfo(socket, 'Creating folder for user.')
     try {
+      // Create upload folder for user.
       await mkdir(resolve(ConfigManager.uploadDir, id))
     } catch (error1) {
       if (error1.code !== 'EEXIST') {
@@ -358,6 +387,7 @@ async function registerProcess(socket) {
     }
     folderCreated = true
 
+    // Make client available to access blockchain
     await BlockchainManager.setClientStatus(socket.blockchainAddress, true)
 
     logSocketInfo(socket, 'User registered.', {
