@@ -5,7 +5,7 @@
 
 執行`npm install`。
 
-### 2. 私密性檔案設置
+### 2. 隱私性檔案設置
 1. 新增`/certs`資料夾，並在下面新增`tls.crt`, `tls.key`兩個檔案（可以參考[這裡](https://blog.miniasp.com/post/2019/02/25/Creating-Self-signed-Certificate-using-OpenSSL)）。
 4. 新增`/ssh`資料夾，並在下面新增`id_ed25519`, `id_ed25519.pub`兩個檔案（可以參考[這裡](https://hackmd.io/@CynthiaChuang/Generating-a-Ssh-Key-and-Adding-It-to-the-Github)）。
 3. 在`/config`資料夾下新增`local.yaml`。
