@@ -162,6 +162,8 @@ const parseFileRows = (rows) => {
  * @param {string} fileData.parentFolderId - The ID of the parent folder.
  * @param {number} fileData.size - The size of the file in bytes.
  * @param {string} fileData.description - The description of the file.
+ * @param {number} fileData.infoBlockNumber - The block of file info on blockchain.
+ * @param {number} fileData.verifyBlockNumber - The block of verification info on blockchain.
  * @returns {Promise<void>}
  */
 export const addFileToDatabase = async ({
@@ -173,7 +175,9 @@ export const addFileToDatabase = async ({
   spk,
   parentFolderId,
   size,
-  description
+  description,
+  infoBlockNumber,
+  verifyBlockNumber
 }) => {
   const params = [
     id,
@@ -185,12 +189,14 @@ export const addFileToDatabase = async ({
     parentFolderId,
     0, // permissions default
     size,
-    description || '' // Ensure description is a string
+    description || '', // Ensure description is a string
+    infoBlockNumber,
+    verifyBlockNumber,
   ]
   await pool.query(
     `
-        INSERT INTO files (id, name, ownerId, originOwnerId, cipher, spk, parentFolderId, permissions, size, description)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        INSERT INTO files (id, name, ownerId, originOwnerId, cipher, spk, parentFolderId, permissions, size, description, infoblocknumber, verifyblocknumber)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     `,
     params
   )

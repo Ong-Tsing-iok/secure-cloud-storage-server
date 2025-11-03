@@ -85,8 +85,9 @@ BlockchainManager.bindEventListener(
    * @param {*} fileHash 
    * @param {*} metadata 
    * @param {*} timestamp 
+   * @param {*} event
    */
-  async (fileId, uploader, fileHash, metadata, timestamp) => {
+  async (fileId, uploader, fileHash, metadata, timestamp, event) => {
     try {
       fileId = bigIntToUuid(fileId)
       logger.debug('Contract event FileUploaded emitted', {
@@ -108,8 +109,10 @@ BlockchainManager.bindEventListener(
           uploadInfoDeleted = true
           if (BigInt(value.hash) == BigInt(fileHash)) {
             const socketId = getSocketId(userId)?.socketId
+            const receipt = await BlockchainManager.setFileVerification(fileId, uploader, 'success')
+            value.uploadInfo.infoBlockNumber = event.log.blockNumber
+            value.uploadInfo.verifyBlockNumber = (await receipt.getBlock()).number
             await addFileToDatabase(value.uploadInfo)
-            await BlockchainManager.setFileVerification(fileId, uploader, 'success')
             if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId })
             logger.info('File uploaded and verified.', { fileId, userId })
           } else {

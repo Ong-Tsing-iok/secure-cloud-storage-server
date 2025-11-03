@@ -102,6 +102,7 @@ class BlockchainManager {
    * @param {string} fileId UUID of the file.
    * @param {string} fileOwnerAddr Blockchain address of the file owner.
    * @param {'success' | 'fail'} verificationInfo Verification information.
+   * @returns the transaction receipt
    * @throws Any error occurred.
    */
   async setFileVerification(fileId, fileOwnerAddr, verificationInfo) {
@@ -111,8 +112,8 @@ class BlockchainManager {
       fileOwnerAddr,
       verificationInfo
     )
-    await tx.wait()
     logger.info(`set verification for ${fileId}`)
+    return await tx.wait()
   }
 
   /**

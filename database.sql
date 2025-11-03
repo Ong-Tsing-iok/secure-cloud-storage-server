@@ -71,3 +71,5 @@ CREATE TABLE ctstar_table (
     ctstar TEXT not null,
     FOREIGN KEY (fileid) REFERENCES files(id) ON DELETE CASCADE
 );
+alter table files add column infoblocknumber integer default 0 not null;
+alter table files add column verifyblocknumber integer default 0 not null;
