@@ -307,7 +307,7 @@ const authenticationBinder = (socket) => {
         return
       }
 
-      if (emailAuth !== socket.emailAuth) {
+      if (emailAuth !== socket.emailAuth && ConfigManager.smtp.enabled) {
         logSocketWarning(socket, actionStr + ' but the response did not match.', {
           emailAuth,
           socketEmailAuth: socket.emailAuth

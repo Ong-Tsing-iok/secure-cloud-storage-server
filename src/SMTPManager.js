@@ -6,20 +6,24 @@ import ConfigManager from './ConfigManager.js'
 import { logger } from './Logger.js'
 
 // Create a transporter for SMTP
-const transporter = nodemailer.createTransport({
-  host: ConfigManager.smtp.host,
-  port: 587,
-  secure: false, // upgrade later with STARTTLS
-  auth: {
-    user: ConfigManager.smtp.user,
-    pass: ConfigManager.smtp.pass
-  }
-})
+let transporter
+if (ConfigManager.smtp.enabled) {
+  transporter = nodemailer.createTransport({
+    host: ConfigManager.smtp.host,
+    port: 587,
+    secure: false, // upgrade later with STARTTLS
+    auth: {
+      user: ConfigManager.smtp.user,
+      pass: ConfigManager.smtp.pass
+    }
+  })
 
-await transporter.verify()
-logger.info('SMTP Server is ready to take our messages')
+  await transporter.verify()
+  logger.info('SMTP Server is ready to take our messages')
+}
 
 export async function sendEmailAuth(email, auth) {
+  if (!ConfigManager.smtp.enabled) return
   const mailContext = {
     from: ConfigManager.smtp.from, // sender address
     to: email, // list of receivers

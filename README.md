@@ -16,7 +16,8 @@
       ssl:
         rejectUnauthorized: false
     blockchain:
-      enabled: false
+      jsonRpcUrl:
+      contractAddr:
     smtp:
       host:
       user:

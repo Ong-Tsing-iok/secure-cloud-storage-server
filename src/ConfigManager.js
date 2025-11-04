@@ -53,7 +53,8 @@ class ConfigManager {
     host: '',
     user: '',
     pass: '',
-    from: ''
+    from: '',
+    enabled: false
   }
   constructor() {
     try {
@@ -122,6 +123,7 @@ class ConfigManager {
       this.smtp.user = config.get('smtp.user')
       this.smtp.pass = config.get('smtp.pass')
       this.smtp.from = config.get('smtp.from')
+      this.smtp.enabled = config.get('smtp.enabled')
 
       // Other settings
       this.settings.uploadExpireTimeMin = parseInt(config.get('settings.uploadExpireTimeMin'))

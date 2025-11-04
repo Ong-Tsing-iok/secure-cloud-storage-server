@@ -70,3 +70,4 @@ smtp:
   user: user
   pass: pass
   from: user@example.mail
+  enabled: true
