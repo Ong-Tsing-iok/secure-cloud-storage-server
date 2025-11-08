@@ -25,7 +25,8 @@ const storage = multer.diskStorage({
     }
   },
   filename: (req, file, cb) => {
-    cb(null, req.headers.fileid)
+    if (req.path === '/uploadDb') cb(null, 'database.db')
+    else cb(null, req.headers.fileid)
   },
   limits: {
     fileSize: 8000000
@@ -78,10 +79,10 @@ const auth = (req, res, next) => {
 
 /**
  * Check if we can let the client upload file.
- * @param {*} req 
- * @param {*} res 
- * @param {*} next 
- * @returns 
+ * @param {*} req
+ * @param {*} res
+ * @param {*} next
+ * @returns
  */
 const checkUpload = async (req, res, next) => {
   try {
@@ -150,22 +151,6 @@ app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res, n
 })
 
 /**
- * The path for upload encrypted database
- */
-app.post('/uploadDb', auth, upload.single('file'), async (req, res, next) => {
-  try {
-    if (req.file) {
-      logHttpsInfo(req, 'Client uploaded encrypted database.', { filename: req.file.originalname })
-      res.send('File uploaded successfully.')
-    } else {
-      res.status(400).send('No file uploaded.')
-    }
-  } catch (error) {
-    next(error)
-  }
-})
-
-/**
  * The path for download
  */
 app.get('/download', auth, async (req, res, next) => {
@@ -193,6 +178,36 @@ app.get('/download', auth, async (req, res, next) => {
       logHttpsInfo(req, 'Client downloading file.')
       res.download(resolve(ConfigManager.uploadDir, req.userId, fileInfo.id), fileInfo.name)
     }
+  } catch (error) {
+    next(error)
+  }
+})
+
+/**
+ * The path for upload encrypted database
+ */
+app.post('/uploadDb', auth, upload.single('file'), async (req, res, next) => {
+  try {
+    if (req.file) {
+      logHttpsInfo(req, 'Client uploaded encrypted database.', { filename: req.file.originalname })
+      res.send('File uploaded successfully.')
+    } else {
+      res.status(400).send('No file uploaded.')
+    }
+  } catch (error) {
+    next(error)
+  }
+})
+
+/**
+ * The path for download encrypted database
+ */
+app.get('/downloadDb', auth, async (req, res, next) => {
+  try {
+    const actionStr = 'Client asks to download encrypted database'
+    logHttpsInfo(req, actionStr + '.')
+
+    res.download(resolve(ConfigManager.uploadDir, req.userId, 'database.db'))
   } catch (error) {
     next(error)
   }
