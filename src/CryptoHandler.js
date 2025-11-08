@@ -88,3 +88,4 @@ const CryptoHandler = {
   verifyGen
 }
 export default CryptoHandler
+console.log('CryptoHandler.js loaded.')

@@ -2,13 +2,12 @@
  * This file handles upload verification from blockchain.
  */
 import { randomUUID } from 'node:crypto'
-import { bigIntToUuid, BigIntToHex } from './Utils.js'
 import EvictingMap from './EvictingMap.js'
 import { logger } from './Logger.js'
 import { getSocketId } from './LoginDatabase.js'
 import { emitToSocket } from './SocketIO.js'
 import { addFileToDatabase, deleteFileOfOwnerId } from './StorageDatabase.js'
-import { calculateFileHash, getFilePath, InternalServerErrorMsg } from './Utils.js'
+import { calculateFileHash, getFilePath, InternalServerErrorMsg, bigIntToUuid, BigIntToHex } from './Utils.js'
 import BlockchainManager from './BlockchainManager.js'
 import { unlink } from 'node:fs/promises'
 import ConfigManager from './ConfigManager.js'
@@ -125,9 +124,9 @@ BlockchainManager.bindEventListener(
             await BlockchainManager.setFileVerification(fileId, uploader, 'fail')
             revertUpload(userId, fileId, 'File hashes do not meet.')
           }
-        } catch (error1) {
+        } catch (error) {
           if (uploadInfoDeleted) revertUpload(userId, fileId, InternalServerErrorMsg)
-          throw error1
+          throw error
         }
       } else {
         logger.warn(`Blockchain upload event did not find matching upload info.`, {
@@ -157,3 +156,4 @@ const revertUpload = async (userId, fileId, errorMsg) => {
     }
   }
 }
+console.log('UploadVerifier.js loaded.')

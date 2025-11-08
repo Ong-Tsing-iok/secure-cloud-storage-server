@@ -11,15 +11,13 @@ if (ConfigManager.smtp.enabled) {
   transporter = nodemailer.createTransport({
     host: ConfigManager.smtp.host,
     port: 587,
-    secure: false, // upgrade later with STARTTLS
+    secure: false,
+    requireTLS: true,
     auth: {
       user: ConfigManager.smtp.user,
       pass: ConfigManager.smtp.pass
     }
   })
-
-  await transporter.verify()
-  logger.info('SMTP Server is ready to take our messages')
 }
 
 export async function sendEmailAuth(email, auth) {
@@ -32,5 +30,9 @@ export async function sendEmailAuth(email, auth) {
     html: `<b>您的驗證碼是 ${auth}，請在${ConfigManager.settings.emailAuthExpireTimeMin}分鐘內輸入完畢</b>` // html body
   }
 
-  const info = await transporter.sendMail(mailContext)
+  await transporter.sendMail(mailContext)
 }
+await transporter?.verify()
+logger.info('SMTP Server is ready to take our messages')
+
+console.log('SMTPManager.js loaded.')

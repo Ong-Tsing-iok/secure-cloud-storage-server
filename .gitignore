@@ -145,3 +145,5 @@ server-config.yaml
 server-tls-secret.yaml
 wallet-secret.yaml
 contract-abi.yaml
+sonar-project.properties
+.vscode/

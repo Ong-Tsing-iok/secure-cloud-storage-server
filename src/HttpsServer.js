@@ -2,11 +2,11 @@
  * This file handles actual upload and download for HTTPS protocol.
  */
 import { logger, logHttpsError, logHttpsInfo, logHttpsWarning } from './Logger.js'
-import { mkdir, unlink } from 'fs/promises'
+import { mkdir, unlink } from 'node:fs/promises'
 import multer from 'multer'
 import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
 import { getFolderInfo, getFileInfo, getUserByKey } from './StorageDatabase.js'
-import { resolve } from 'path'
+import { resolve } from 'node:path'
 import ConfigManager from './ConfigManager.js'
 import { finishUpload } from './UploadVerifier.js'
 import { app } from './SocketIO.js'
@@ -247,3 +247,4 @@ app.use((err, req, res, next) => {
 })
 
 logger.info(`Https POST GET path set.`)
+console.log('HttpsServer.js loaded.')

@@ -15,14 +15,13 @@ import {
   insertCtStar,
   insertCtw
 } from './StorageDatabase.js'
-import assert from 'assert'
+import assert from 'node:assert'
 
 // This is used because we only have self-signed certificates.
 // Should be removed in real deployment environment
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
 class ABSEManager {
-  constructor() {}
   async init() {
     await mcl.init(mcl.BLS12_381)
     await this.getPP()
@@ -85,7 +84,7 @@ class ABSEManager {
     try {
       const TK = this.parseTK(serializedTK)
       assert(TK.dPrime > 0)
-      const result = new Array()
+      // const result = new Array()
       const dPrimeFr = new mcl.Fr()
       dPrimeFr.setInt(TK.dPrime)
       const files = await getCtStars()
@@ -187,14 +186,12 @@ class ABSEManager {
       ct[i] = mcl.add(mcl.mul(pp.h_i[i], t), mcl.mul(pp.g1, x[i]))
     }
     const CTw = { ctStar, ctw, ct }
-    // console.log(CTm);
-    // console.log(CTw);
     return CTw
   }
   /**
    * Insert the encrypted file index into database.
    * @param {{ ctStar: string, ctw: Array<string>, ct: Array<string> }} CTw the encrypted serialized index
-   * @param {string} fileId 
+   * @param {string} fileId
    */
   async insertFileIndex(CTw, fileId) {
     await this.deleteFileIndex(fileId)
@@ -208,7 +205,7 @@ class ABSEManager {
   }
   /**
    * Delete file index of certain file from database.
-   * @param {string} fileId 
+   * @param {string} fileId
    */
   async deleteFileIndex(fileId) {
     await deleteCtw(fileId)
@@ -217,8 +214,8 @@ class ABSEManager {
   }
   /**
    * Check if the provided TK matches the provided tags.
-   * @param {{TStar: string, T: Array<string>, sky: string, dPrime: number}} serializedTK 
-   * @param {Array<string>} tags 
+   * @param {{TStar: string, T: Array<string>, sky: string, dPrime: number}} serializedTK
+   * @param {Array<string>} tags
    * @returns Whether matches or not
    */
   async checkTKTags(serializedTK, tags) {
@@ -236,3 +233,4 @@ class ABSEManager {
 const abseManager = new ABSEManager()
 await abseManager.init()
 export default abseManager
+console.log('ABSEManager.js loaded.')

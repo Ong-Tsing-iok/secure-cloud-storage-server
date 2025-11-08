@@ -4,7 +4,7 @@
 import { Pool } from 'pg'
 import ConfigManager from './ConfigManager.js'
 import { logger } from './Logger.js'
-import { randomUUID } from 'crypto'
+import { randomUUID } from 'node:crypto'
 
 //--  Setup --//
 const pool = new Pool(ConfigManager.dbPoolConfig)
@@ -25,12 +25,6 @@ const pool = new Pool(ConfigManager.dbPoolConfig)
 pool.on('error', (err) => {
   logger.error(err)
 })
-// pool.on('release', (client) => {
-//   logger.info('Client released for query')
-// })
-// pool.on('remove', (client) => {
-//   logger.info('Client removed from pool')
-// })
 
 //-- Queries --//
 //- User
@@ -139,14 +133,14 @@ export const AddUserAndGetId = async (pk, blockchainAddress, name, email) => {
 //- File
 // Helper function
 const parseFileRows = (rows) => {
-  rows.forEach((element) => {
+  for (const element of rows) {
     element.ownerId = element.ownerid
     element.originOwnerId = element.originownerid
     element.parentFolderId = element.parentfolderid
     delete element.ownerid
     delete element.originownerid
     delete element.parentfolderid
-  })
+  }
   return rows
 }
 /**
@@ -191,7 +185,7 @@ export const addFileToDatabase = async ({
     size,
     description || '', // Ensure description is a string
     infoBlockNumber,
-    verifyBlockNumber,
+    verifyBlockNumber
   ]
   await pool.query(
     `
@@ -397,12 +391,12 @@ export const getPublicFilesNotOwnedByFileId = async (userId, fileId) => {
 //- Folder
 // Helper function
 const parseFolderRows = (rows) => {
-  rows.forEach((element) => {
+  for (const element of rows) {
     element.ownerId = element.ownerid
     element.parentFolderId = element.parentfolderid
     delete element.ownerid
     delete element.parentfolderid
-  })
+  }
   return rows
 }
 /**
@@ -509,7 +503,7 @@ export const getAllFoldersByParentFolderIdUserId = async (parentFolderId, userId
 //- Request
 // Helper function
 const parstRequestResponseRows = (rows) => {
-  rows.forEach((element) => {
+  for (const element of rows) {
     element.ownerId = element.ownerid
     element.originOwnerId = element.originownerid
     element.parentFolderId = element.parentfolderid
@@ -536,7 +530,7 @@ const parstRequestResponseRows = (rows) => {
     delete element.responsetime
     delete element.username
     delete element.useremail
-  })
+  }
   return rows
 }
 /**
@@ -755,4 +749,5 @@ process.on('SIGTERM', async () => {
   process.exit(0)
 })
 
-logger.info('Database pool initialized')
+// logger.info('Database pool initialized')
+console.log('StorageDatabase.js loaded.')

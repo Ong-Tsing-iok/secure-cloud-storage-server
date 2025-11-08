@@ -13,8 +13,8 @@ import { allFileBinder } from './FileManager.js'
 import authenticationBinder from './Authentication.js'
 import { requestBinder } from './RequestManager.js'
 import ConfigManager from './ConfigManager.js'
-import { createServer } from 'https'
-import { readFileSync } from 'fs'
+import { createServer } from 'node:https'
+import { readFileSync } from 'node:fs'
 
 const app = express()
 app.set('trust proxy', true)
@@ -73,3 +73,4 @@ const disconnectSocket = (socketId) => {
 
 // export default io
 export { emitToSocket, disconnectSocket, app }
+console.log('SocketIO.js loaded.')

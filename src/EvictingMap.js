@@ -1,7 +1,7 @@
 /**
  * This file handles a map data structure where entries are removed after some time.
  */
-import { EventEmitter } from 'events'
+import { EventEmitter } from 'node:events'
 
 /**
  * A Map-like data structure where entries are automatically removed after a specified Time To Live (TTL).
@@ -145,11 +145,11 @@ export default class EvictingMap extends Map {
   // to give you [key, {value, timerId}] pairs. If you want [key, value] pairs, you need to iterate and transform.
 
   // Example of overriding entries() to return just key, value:
-  *[Symbol.iterator]() {
-    for (const [key, value] of super.entries()) {
-      yield [key, value]
-    }
-  }
+  // *[Symbol.iterator]() {
+  //   for (const [key, value] of super.entries()) {
+  //     yield [key, value]
+  //   }
+  // }
 
   *entries() {
     for (const [key, value] of super.entries()) {
@@ -163,3 +163,4 @@ export default class EvictingMap extends Map {
     }
   }
 }
+console.log('EvictingMap.js loaded.')

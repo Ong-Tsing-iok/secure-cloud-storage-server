@@ -90,8 +90,8 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
             })
             .on('WRITE', (reqId, handle, offset, data) => {
               logger.debug('Sftp client WRITE.')
-              let fnum
-              if (handle.length !== 4 || !openFiles.has((fnum = handle.readUInt32BE(0)))) {
+              let fnum = handle.readUInt32BE(0)
+              if (handle.length !== 4 || !openFiles.has(fnum)) {
                 logSftpWarning(ip, userId, fileId, 'Client tried to write to non-opened file.')
                 return sftp.status(reqId, utils.sftp.STATUS_CODE.FAILURE)
               }
@@ -105,8 +105,8 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
             })
             .on('READ', (reqId, handle, offset, len) => {
               logger.debug('Sftp client READ.')
-              let fnum
-              if (handle.length !== 4 || !openFiles.has((fnum = handle.readUInt32BE(0)))) {
+              let fnum = handle.readUInt32BE(0)
+              if (handle.length !== 4 || !openFiles.has(fnum)) {
                 logSftpWarning(ip, userId, fileId, 'Client tried to read non-opened file.')
                 return sftp.status(reqId, utils.sftp.STATUS_CODE.FAILURE)
               }
@@ -124,8 +124,8 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
             })
             .on('CLOSE', (reqId, handle) => {
               logger.debug('Sftp client CLOSE.')
-              let fnum
-              if (handle.length !== 4 || !openFiles.has((fnum = handle.readUInt32BE(0)))) {
+              let fnum = handle.readUInt32BE(0)
+              if (handle.length !== 4 || !openFiles.has(fnum)) {
                 logSftpWarning(ip, userId, fileId, 'Client tried to close non-opened file.')
                 return sftp.status(reqId, utils.sftp.STATUS_CODE.FAILURE)
               }
@@ -160,3 +160,4 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
 }).listen(ConfigManager.sftpPort, ConfigManager.serverHost, function () {
   logger.info(`SFTP server listening on port ${this.address().port}`)
 })
+console.log('SftpServer.js loaded.')

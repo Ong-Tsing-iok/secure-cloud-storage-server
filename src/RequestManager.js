@@ -25,9 +25,9 @@ import {
 } from './StorageDatabase.js'
 import { getSocketId } from './LoginDatabase.js'
 import CryptoHandler from './CryptoHandler.js'
-import { randomUUID } from 'crypto'
-import { copyFile, unlink } from 'fs/promises'
-import { join } from 'path'
+import { randomUUID } from 'node:crypto'
+import { copyFile, unlink } from 'node:fs/promises'
+import { join } from 'node:path'
 import {
   logInvalidSchemaWarning,
   logSocketError,
@@ -256,11 +256,11 @@ const requestBinder = (socket) => {
       }
 
       const requests = await getAllRequestsResponsesFilesByOwner(socket.userId)
-      requests.forEach((request) => {
+      for (const request of requests) {
         if (request.agreed != null) {
           delete request.pk
         }
-      })
+      }
       // console.log({ files, folders })
       logSocketInfo(socket, 'Responding requested list to client.')
       cb({ requests: JSON.stringify(requests) })
@@ -273,12 +273,12 @@ const requestBinder = (socket) => {
 
 /**
  * Actually reencrypt the file
- * @param {*} rekey 
- * @param {*} fileInfo 
- * @param {*} requestInfo 
- * @param {*} authorizerInfo 
- * @param {*} requestorInfo 
- * @returns 
+ * @param {*} rekey
+ * @param {*} fileInfo
+ * @param {*} requestInfo
+ * @param {*} authorizerInfo
+ * @param {*} requestorInfo
+ * @returns
  */
 const reencryptFile = async (rekey, fileInfo, requestInfo, authorizerInfo, requestorInfo) => {
   // Reencrypt file
@@ -330,3 +330,4 @@ const reencryptFile = async (rekey, fileInfo, requestInfo, authorizerInfo, reque
 }
 
 export { requestBinder }
+console.log('RequestManager.js loaded.')

@@ -17,13 +17,11 @@ import {
   getAllFoldersByParentFolderIdUserId,
   moveFileToFolder,
   getAllFoldersByUserId,
-  getAllPublicFilesNotOwned,
   getFileInfoOfOwnerId,
   updateFileDescPermInDatabase,
   getPublicFilesNotOwnedByFileId
 } from './StorageDatabase.js'
-import { unlink } from 'fs/promises'
-import { randomUUID } from 'crypto'
+import { unlink } from 'node:fs/promises'
 import { insertUpload } from './LoginDatabase.js'
 import {
   checkFolderExistsForUser,
@@ -39,7 +37,6 @@ import {
   AddFolderRequestSchema,
   DeleteFileRequestSchema,
   DeleteFolderRequestSchema,
-  DownloadFileHashErrorRequestSchema,
   DownloadFileRequestSchema,
   GetFileListRequestSchema,
   MoveFileRequestSchema,
@@ -187,8 +184,8 @@ const deleteFileBinder = (socket) => {
       try {
         await deleteFile(fileId)
         await unlink(getFilePath(socket.userId, fileId))
-      } catch (error1) {
-        if (error1.code != 'ENOENT') throw error1
+      } catch (error) {
+        if (error.code != 'ENOENT') throw error
       }
       logSocketInfo(socket, 'File deleted.', request)
       cb({})
@@ -379,13 +376,13 @@ const getPublicFilesBinder = (socket) => {
   //   try {
   //     const actionStr = 'Client asks to get public files'
   //     logSocketInfo(socket, actionStr + '.')
-
+  //
   //     if (!checkLoggedIn(socket)) {
   //       logSocketWarning(socket, actionStr + ' but is not logged in.')
   //       cb({ errorMsg: NotLoggedInErrorMsg })
   //       return
   //     }
-
+  //
   //     const files = await getAllPublicFilesNotOwned(socket.userId)
   //     logSocketInfo(socket, 'Responding public files to client.')
   //     cb({ files: JSON.stringify(files) })
@@ -503,3 +500,4 @@ const allFileBinder = (socket) => {
 }
 
 export { allFileBinder }
+console.log('FileManager.js loaded.')

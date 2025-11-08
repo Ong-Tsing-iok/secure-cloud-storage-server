@@ -2,7 +2,7 @@
  * This file handles operations related to blockchain. Including initializing wallet, communicating with smart contract.
  */
 import { Contract, JsonRpcProvider, Wallet } from 'ethers'
-import { readFileSync, writeFileSync } from 'fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import ConfigManager from './ConfigManager.js'
 import { logger } from './Logger.js'
 import { bigIntToUuid } from './Utils.js'
@@ -23,7 +23,7 @@ export function uuidToBigInt(uuidString) {
   }
 
   // Remove hyphens and convert to BigInt
-  const hexString = uuidString.replace(/-/g, '')
+  const hexString = uuidString.replaceAll('-', '')
   return BigInt('0x' + hexString)
 }
 
@@ -186,7 +186,7 @@ class BlockchainManager {
     if (events.length == 0) {
       return null
     } else {
-      const eventArgs = events[events.length - 1].args
+      const eventArgs = events.at(1).args
       return {
         fileId: bigIntToUuid(eventArgs.fileId),
         fileOwnerAddr: String(eventArgs.fileOwner),
@@ -199,3 +199,4 @@ class BlockchainManager {
 }
 
 export default new BlockchainManager()
+console.log('BlockchainManager.js loaded.')

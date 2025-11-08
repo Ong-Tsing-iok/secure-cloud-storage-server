@@ -3,20 +3,12 @@
  */
 import winston, { format } from 'winston'
 import 'winston-daily-rotate-file'
-import config from 'config'
-import { Socket } from 'socket.io'
-
-// const timezoned = () => {
-//   return new Date().toLocaleString('zh-TW', {
-//     timeZone: 'Asia/Taipei'
-//   })
-// }
 
 export const logger = winston.createLogger({
-  level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info',
+  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   format: winston.format.combine(
     format.errors({ stack: true }),
-    format.timestamp(/*{ format: timezoned }*/),
+    format.timestamp(),
     format.json()
   ),
   // defaultMeta: { service: "user-service" },

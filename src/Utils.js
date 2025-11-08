@@ -1,8 +1,8 @@
-import { createReadStream } from 'fs'
-import crypto from 'crypto'
+import { createReadStream } from 'node:fs'
+import crypto from 'node:crypto'
 import { logger } from './Logger.js'
 import { getFolderInfoOfOwnerId, getUserById, userStatusType } from './StorageDatabase.js'
-import { resolve } from 'path'
+import { resolve } from 'node:path'
 import ConfigManager from './ConfigManager.js'
 const keyFormatRe = /^[a-zA-Z0-9+/=]+$/
 const emailFormatRe = /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/

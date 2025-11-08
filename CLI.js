@@ -4,8 +4,8 @@
 import BlockchainManager from './src/BlockchainManager.js'
 import { logger } from './src/Logger.js'
 import { input, select, confirm } from '@inquirer/prompts'
-import { rm } from 'fs/promises'
-import { join } from 'path'
+import { rm } from 'node:fs/promises'
+import { join } from 'node:path'
 import {
   deleteUserById,
   getAllFiles,
@@ -26,7 +26,6 @@ import { emailFormatRe, uuidFormatRe } from './src/Utils.js'
 const controller = new AbortController()
 const stdin = process.stdin
 stdin.resume()
-
 
 stdin.setEncoding('utf8')
 
@@ -70,7 +69,7 @@ const queryDatabase = async () => {
     message: '選擇要執行的指令',
     choices: [
       { name: '列出所有使用者', value: 'get-users' },
-    //   { name: '列出線上使用者', value: 'get-online-users' },
+      //   { name: '列出線上使用者', value: 'get-online-users' },
       { name: '列出使用者檔案', value: 'get-files-of-user' },
       // { name: '列出所有檔案', value: 'get-all-files' },
       { name: '列出使用者請求', value: 'get-requests' },
@@ -97,20 +96,20 @@ const queryDatabase = async () => {
         }
 
         break
-    //   case 'get-online-users':
-    //     {
-    //       const header = [
-    //         { value: 'userId', align: 'left' },
-    //         { value: 'socketId', align: 'left' },
-    //         { value: 'timestamp', alias: 'login time', align: 'left' }
-    //       ]
-    //       const users = getAllLoginUsers()
-    //       const p = new Table(header, users).render()
-    //       console.log(p)
-    //       success = true
-    //     }
+      //   case 'get-online-users':
+      //     {
+      //       const header = [
+      //         { value: 'userId', align: 'left' },
+      //         { value: 'socketId', align: 'left' },
+      //         { value: 'timestamp', alias: 'login time', align: 'left' }
+      //       ]
+      //       const users = getAllLoginUsers()
+      //       const p = new Table(header, users).render()
+      //       console.log(p)
+      //       success = true
+      //     }
 
-    //     break
+      //     break
       case 'get-files-of-user':
         {
           const userId = await getUserIdInput()
@@ -280,15 +279,9 @@ const manageAccounts = async () => {
     }
     switch (adminAction) {
       case 'stop-account':
-        {
-          await updateUserStatusById(userId, userStatusType.stopped)
-        //   const loginInfo = getSocketId(userId)
-        //   if (loginInfo) {
-        //     disconnectSocket(loginInfo.socketId)
-        //   }
-          console.log('停用成功')
-          success = true
-        }
+        await updateUserStatusById(userId, userStatusType.stopped)
+        console.log('停用成功')
+        success = true
         break
       case 'activate-account':
         await updateUserStatusById(userId, userStatusType.activate)

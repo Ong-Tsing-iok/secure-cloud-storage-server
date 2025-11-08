@@ -2,8 +2,8 @@
  * This file handles server configs
  */
 import config from 'config'
-import { join, resolve } from 'path'
-import { existsSync, mkdirSync } from 'fs'
+import { join, resolve } from 'node:path'
+import { existsSync, mkdirSync } from 'node:fs'
 import { logger } from './Logger.js'
 
 const getConfig = (key) => {
@@ -126,9 +126,9 @@ class ConfigManager {
       this.smtp.enabled = config.get('smtp.enabled')
 
       // Other settings
-      this.settings.uploadExpireTimeMin = parseInt(config.get('settings.uploadExpireTimeMin'))
-      this.settings.emailAuthExpireTimeMin = parseInt(config.get('settings.emailAuthExpireTimeMin'))
-      this.settings.emailAuthLength = parseInt(config.get('settings.emailAuthLength'))
+      this.settings.uploadExpireTimeMin = Number.parseInt(config.get('settings.uploadExpireTimeMin'))
+      this.settings.emailAuthExpireTimeMin = Number.parseInt(config.get('settings.emailAuthExpireTimeMin'))
+      this.settings.emailAuthLength = Number.parseInt(config.get('settings.emailAuthLength'))
     } catch (error) {
       logger.error(error)
     }
@@ -161,10 +161,10 @@ class ConfigManager {
     return getConfig('database.descMaxLength')
   }
   get loginAttemptsLimit() {
-    return parseInt(getConfig('loginAttempts.limit'))
+    return Number.parseInt(getConfig('loginAttempts.limit'))
   }
   get loginAttemptsTimeout() {
-    return parseFloat(getConfig('loginAttempts.timeout')) * 60 * 1000
+    return Number.parseFloat(getConfig('loginAttempts.timeout')) * 60 * 1000
   }
   get uploadExpireTimMiliSec() {
     return this.settings.uploadExpireTimeMin * 60 * 1000
@@ -172,3 +172,4 @@ class ConfigManager {
 }
 
 export default new ConfigManager()
+console.log('ConfigManager.js loaded.')

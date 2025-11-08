@@ -4,7 +4,6 @@
 import { Pool } from 'pg'
 import ConfigManager from './ConfigManager.js'
 import { logger } from './Logger.js'
-import { randomUUID } from 'crypto'
 
 //--  Setup --//
 const secretShareDbPools = []
@@ -72,4 +71,5 @@ export async function storeUserShares(userId, shares) {
 //   process.exit(0)
 // })
 
-logger.info('Secret Share database pools initialized')
+// logger.info('Secret Share database pools initialized')
+console.log('SecretShareDatabase.js loaded.')

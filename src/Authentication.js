@@ -40,9 +40,9 @@ import {
   SecretShareRequestSchema
 } from './Validation.js'
 import BlockchainManager from './BlockchainManager.js'
-import { request } from 'node:http'
 import { retrieveUserShares, storeUserShares } from './SecretShareDatabase.js'
 import { sendEmailAuth } from './SMTPManager.js'
+import { randomInt } from 'node:crypto'
 
 const authenticationBinder = (socket) => {
   /**
@@ -341,13 +341,13 @@ const authenticationBinder = (socket) => {
 const authChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 /**
  * Create and send an email authentication code to user's email
- * @param {string} email 
+ * @param {string} email
  * @returns The email authentication code
  */
 async function createSendEmailAuth(email) {
   let emailAuth = ''
   for (let i = 0; i < ConfigManager.settings.emailAuthLength; i++) {
-    emailAuth += authChars.charAt(Math.floor(Math.random() * authChars.length))
+    emailAuth += authChars.charAt(randomInt(authChars.length))
   }
   await sendEmailAuth(email, emailAuth)
 
@@ -356,12 +356,12 @@ async function createSendEmailAuth(email) {
 
 /**
  * Add user to database, set status on blockchain, create folder
- * @param {*} socket 
+ * @param {*} socket
  */
 async function registerProcess(socket) {
   // register
-  let folderCreated = false
-  let databaseAdded = false
+  let idToDeleteFolder = null
+  let idToRemoveDb = null
   try {
     // Add user to database
     const { id, info } = await AddUserAndGetId(
@@ -374,18 +374,18 @@ async function registerProcess(socket) {
       throw new Error('Failed to add user to database. Might be id collision.')
     }
     socket.userId = id
-    databaseAdded = true
+    idToRemoveDb = socket.userId
 
     logSocketInfo(socket, 'Creating folder for user.')
     try {
       // Create upload folder for user.
       await mkdir(resolve(ConfigManager.uploadDir, id))
-    } catch (error1) {
-      if (error1.code !== 'EEXIST') {
-        throw error1
+    } catch (error) {
+      if (error.code !== 'EEXIST') {
+        throw error
       }
     }
-    folderCreated = true
+    idToDeleteFolder = socket.userId
 
     // Make client available to access blockchain
     await BlockchainManager.setClientStatus(socket.blockchainAddress, true)
@@ -396,23 +396,24 @@ async function registerProcess(socket) {
       pk: socket.pk,
       blockchainAddress: socket.blockchainAddress
     })
-  } catch (error2) {
+  } catch (error) {
     // Error when registering
-    logSocketError(socket, error2, {
+    logSocketError(socket, error, {
       name: socket.name,
       email: socket.email,
       pk: socket.pk,
       blockchainAddress: socket.blockchainAddress
     }) // Did not re-throw because need to log extra information
     // Reverting register
-    if (socket.userId && databaseAdded) await deleteUserById(socket.userId)
+    if (idToRemoveDb) await deleteUserById(idToRemoveDb)
     try {
-      if (socket.userId && folderCreated)
-        await rmdir(resolve(ConfigManager.uploadDir, socket.userId))
-    } catch (error3) {
-      if (error3.code !== 'ENOENT') throw error3
+      if (idToDeleteFolder)
+        await rmdir(resolve(ConfigManager.uploadDir, idToDeleteFolder))
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error
     }
   }
 }
 
 export default authenticationBinder
+console.log('Authentication.js loaded.')

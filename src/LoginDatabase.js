@@ -9,7 +9,7 @@ const interval = 5 * 60 * 1000 // 5 minutes
 const failureExpireInterval = ConfigManager.loginAttemptsTimeout
 
 const loginDb = new sqlite(':memory:', {
-  verbose: process.env.NODE_ENV !== 'production' ? console.log : null
+  verbose: process.env.NODE_ENV === 'production' ? null : console.log
 })
 
 loginDb.pragma('journal_mode = WAL')
@@ -167,3 +167,4 @@ setInterval(() => {
 export { userDbLogin, checkUserLoggedIn, getSocketId, userDbLogout, insertUpload, getUpload }
 
 process.on('exit', () => loginDb.close())
+console.log('LoginDatabase.js loaded.')

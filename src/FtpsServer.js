@@ -2,9 +2,9 @@
  * This file handles actual upload and download with FTPS protocol
  */
 import { FtpSrv, FileSystem } from 'ftp-srv'
-import { readFileSync } from 'fs'
-import { stat, mkdir } from 'fs/promises'
-import path from 'path'
+import { readFileSync } from 'node:fs'
+import { stat, mkdir } from 'node:fs/promises'
+import path from 'node:path'
 import ConfigManager from './ConfigManager.js'
 import { logFtpsError, logFtpsInfo, logFtpsWarning, logger } from './Logger.js'
 import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
@@ -128,8 +128,8 @@ const connectionBinder = (data, uploadInfo, socketId) => {
         fileName: data.connection.originalFileName,
         userId: data.userId
       })
-    } catch (error1) {
-      logFtpsError(data, error1)
+    } catch (error) {
+      logFtpsError(data, error)
       emitToSocket(socketId, 'upload-file-res', { errorMsg: InternalServerErrorMsg })
     }
   })
@@ -137,3 +137,4 @@ const connectionBinder = (data, uploadInfo, socketId) => {
 
 logger.info('FTP server initialized.')
 export default ftpServer
+console.log('FtpsServer.js loaded.')
