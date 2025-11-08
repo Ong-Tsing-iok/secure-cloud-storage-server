@@ -1,7 +1,7 @@
 import { createReadStream } from 'fs'
 import crypto from 'crypto'
 import { logger } from './Logger.js'
-import { getFolderInfoOfOwnerId } from './StorageDatabase.js'
+import { getFolderInfoOfOwnerId, getUserById, userStatusType } from './StorageDatabase.js'
 import { resolve } from 'path'
 import ConfigManager from './ConfigManager.js'
 const keyFormatRe = /^[a-zA-Z0-9+/=]+$/
@@ -20,12 +20,19 @@ export const EmailAuthNotMatchErrorMsg = 'Email authentication code did not matc
 export const ShouldNotReachErrorMsg = 'Should not reach.'
 
 const checkLoggedIn = (socket) => {
-  // TODO: Would need additional for account status in database, in case manager stop the account
   if (!socket.authed) {
     logger.warn('Unauthorized attempt', { ip: socket.ip })
     // socket.emit('message', 'not logged in')
     return false
   }
+  // Check for account status in database, in case CLI stop the account
+  getUserById(socket.userId).then((userInfo) => {
+    if (userInfo.status !== userStatusType.activate) {
+      socket.emit(`Account is ${userInfo.status}`)
+      socket.disconnect(true)
+    }
+  })
+
   return true
 }
 
