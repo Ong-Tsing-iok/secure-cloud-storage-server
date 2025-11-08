@@ -150,6 +150,22 @@ app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res, n
 })
 
 /**
+ * The path for upload encrypted database
+ */
+app.post('/uploadDb', auth, upload.single('file'), async (req, res, next) => {
+  try {
+    if (req.file) {
+      logHttpsInfo(req, 'Client uploaded encrypted database.', { filename: req.file.originalname })
+      res.send('File uploaded successfully.')
+    } else {
+      res.status(400).send('No file uploaded.')
+    }
+  } catch (error) {
+    next(error)
+  }
+})
+
+/**
  * The path for download
  */
 app.get('/download', auth, async (req, res, next) => {
