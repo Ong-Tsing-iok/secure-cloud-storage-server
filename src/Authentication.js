@@ -326,7 +326,6 @@ const authenticationBinder = (socket) => {
       } else if (socket.askRegister) {
         delete socket.askRegister
         await registerProcess(socket)
-        socket.authed = true
         cb({ userId: socket.userId })
         return
       }
