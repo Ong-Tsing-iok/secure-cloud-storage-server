@@ -202,7 +202,9 @@ export const addFileToDatabase = async ({
  */
 export const updateFileBlockNumber = async ({ fileId, infoBlockNumber, verifyBlockNumber }) => {
   await pool.query(`UPDATE files SET infoblocknumber = $1, verifyblocknumber = $2 WHERE id = $3`, [
-    (infoBlockNumber, verifyBlockNumber, fileId)
+    infoBlockNumber,
+    verifyBlockNumber,
+    fileId
   ])
 }
 
