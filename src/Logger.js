@@ -2,15 +2,59 @@
  * This file handles logging to terminal. As the deployment position is in Kubenetes, logs are only written to terminal but not to files.
  */
 import winston, { format } from 'winston'
+import Transport from 'winston-transport'
 import 'winston-daily-rotate-file'
+import http from 'node:http'
+
+const SOCKET_PATH = '/tmp/log.sock'
+const url = `http://unix:${SOCKET_PATH}:/logs`
+
+const postToUnixSocket = (socketPath, path, data) => {
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        socketPath,
+        path,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(data)
+        }
+      },
+      (res) => {
+        res.on('data', () => {})
+        res.on('end', resolve)
+      }
+    )
+
+    req.on('error', reject)
+    req.write(data)
+    req.end()
+  })
+}
+
+class RemoteTransport extends Transport {
+  constructor(opts = {}) {
+    super(opts)
+    this.url = opts.url // e.g. http://unix:/tmp/log.sock:/logs
+  }
+
+  async log(info, callback) {
+    setImmediate(() => this.emit('logged', info))
+
+    try {
+      await postToUnixSocket(SOCKET_PATH, '/logs', JSON.stringify(info))
+    } catch (err) {
+      console.error('Failed to send remote log:', err.message)
+    }
+
+    callback()
+  }
+}
 
 export const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-  format: winston.format.combine(
-    format.errors({ stack: true }),
-    format.timestamp(),
-    format.json()
-  ),
+  format: winston.format.combine(format.errors({ stack: true }), format.timestamp(), format.json()),
   // defaultMeta: { service: "user-service" },
   transports: [
     //
@@ -28,7 +72,7 @@ export const logger = winston.createLogger({
     //   datePattern: 'YYYY-MM-DD',
     //   dirname: config.get('directories.logs')
     // }),
-    new winston.transports.Console({})
+    process.env.IS_CLI ? new RemoteTransport({ url }) : new winston.transports.Console({})
   ]
 })
 

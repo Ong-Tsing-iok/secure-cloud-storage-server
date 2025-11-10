@@ -218,7 +218,7 @@ app.get('/downloadDb', auth, async (req, res, next) => {
  */
 app.get('/userId', async (req, res, next) => {
   try {
-    logHttpsInfo(req, 'UserId of pk is asked.')
+    // logHttpsInfo(req, 'UserId of pk is asked.')
     const result = PublicKeySchema.safeParse(req.query.pk)
     if (!result.success) {
       logHttpsWarning(req, 'UserId of pk is asked but pk is invalid.', { issues: result.issues })

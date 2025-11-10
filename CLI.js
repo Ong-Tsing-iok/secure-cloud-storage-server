@@ -24,6 +24,12 @@ import ConfigManager from './src/ConfigManager.js'
 import { emailFormatRe, uuidFormatRe } from './src/Utils.js'
 import { deleteUserShares } from './src/SecretShareDatabase.js'
 
+if (!process.env.IS_CLI) {
+  console.log('Please export IS_CLI=1')
+  console.log('Process exiting')
+  process.exit(1)
+}
+
 const controller = new AbortController()
 const stdin = process.stdin
 stdin.resume()
