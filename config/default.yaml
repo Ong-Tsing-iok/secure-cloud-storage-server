@@ -71,3 +71,5 @@ smtp:
   pass: pass
   from: user@example.mail
   enabled: true
+  useMailerSend: false
+  apiKey: ''

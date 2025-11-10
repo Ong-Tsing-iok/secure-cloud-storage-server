@@ -200,7 +200,7 @@ const authenticationBinder = (socket) => {
         return
       } else if (socket.askRegister) {
         // Send email auth
-        socket.emailAuth = await createSendEmailAuth(socket.email)
+        socket.emailAuth = await createSendEmailAuth(socket.email, socket.name)
         cb({}) // Wait for email auth
         return
       }
@@ -266,7 +266,7 @@ const authenticationBinder = (socket) => {
       }
       // Ask and wait for email authentication
       socket.userId = userInfo.id
-      socket.emailAuth = await createSendEmailAuth(email)
+      socket.emailAuth = await createSendEmailAuth(email, userInfo.name)
       socket.email = email
       socket.askRecover = true
       socket.emailAuthStartTime = Date.now()
@@ -344,12 +344,12 @@ const authChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
  * @param {string} email
  * @returns The email authentication code
  */
-async function createSendEmailAuth(email) {
+async function createSendEmailAuth(email, name) {
   let emailAuth = ''
   for (let i = 0; i < ConfigManager.settings.emailAuthLength; i++) {
     emailAuth += authChars.charAt(randomInt(authChars.length))
   }
-  await sendEmailAuth(email, emailAuth)
+  await sendEmailAuth(email, name, emailAuth)
 
   return emailAuth
 }

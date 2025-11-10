@@ -54,7 +54,9 @@ class ConfigManager {
     user: '',
     pass: '',
     from: '',
-    enabled: false
+    enabled: false,
+    useMailerSend: false,
+    apiKey: ''
   }
   constructor() {
     try {
@@ -124,6 +126,8 @@ class ConfigManager {
       this.smtp.pass = config.get('smtp.pass')
       this.smtp.from = config.get('smtp.from')
       this.smtp.enabled = config.get('smtp.enabled')
+      this.smtp.useMailerSend = config.get('smtp.useMailerSend')
+      this.smtp.apiKey = config.get('smtp.apiKey')
 
       // Other settings
       this.settings.uploadExpireTimeMin = Number.parseInt(config.get('settings.uploadExpireTimeMin'))
