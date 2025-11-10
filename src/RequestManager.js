@@ -21,7 +21,8 @@ import {
   addResponse,
   getUserById,
   deleteFile,
-  deleteResponseById
+  deleteResponseById,
+  updateFileBlockNumber
 } from './StorageDatabase.js'
 import { getSocketId } from './LoginDatabase.js'
 import CryptoHandler from './CryptoHandler.js'
@@ -303,7 +304,9 @@ const reencryptFile = async (rekey, fileInfo, requestInfo, authorizerInfo, reque
       spk: newspk,
       parentFolderId: null, // null for root
       size: fileInfo.size,
-      description: fileInfo.description
+      description: fileInfo.description,
+      infoBlockNumber: 0,
+      verifyBlockNumber: 0
     })
     hasAddToDatabase = true
     // Copy the file from original owner to requester, as we only reencrypts its AES key
@@ -313,13 +316,19 @@ const reencryptFile = async (rekey, fileInfo, requestInfo, authorizerInfo, reque
 
     // Add new file information to blockchain
     const fileHash = await calculateFileHash(copiedFilePath)
-    await BlockchainManager.reencryptFile(
+    const receipt = await BlockchainManager.reencryptFile(
       newUUID,
       fileHash,
       JSON.stringify({ filename: fileInfo.name }),
       requestorInfo.address,
       authorizerInfo.address
     )
+    const blockNumber = (await receipt.getBlock()).number
+    await updateFileBlockNumber({
+      fileId: newUUID,
+      infoBlockNumber: blockNumber,
+      verifyBlockNumber: blockNumber
+    })
     return newUUID
   } catch (error) {
     // Revert reencrypt

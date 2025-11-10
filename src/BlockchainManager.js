@@ -145,6 +145,7 @@ class BlockchainManager {
    * @param {string} authorizerAddr Blockchain address of the authorizer.
    * @param {'success'} verificationInfo Verification information.
    * @param {'agreed'} authInfo Authorization information.
+   * @returns The transaction receipt
    * @throws Any error occurred.
    */
   async reencryptFile(
@@ -166,8 +167,8 @@ class BlockchainManager {
       verificationInfo,
       authInfo
     )
-    await tx.wait()
     logger.info(`Uploaded, verified and added record for reencrypted file ${fileId}.`)
+    return await tx.wait()
   }
 
   /**

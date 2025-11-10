@@ -129,9 +129,9 @@ BlockchainManager.bindEventListener(
           throw error
         }
       } else {
-        logger.warn(`Blockchain upload event did not find matching upload info.`, {
-          fileId
-        })
+        // logger.warn(`Blockchain upload event did not find matching upload info.`, {
+        //   fileId
+        // })
       }
     } catch (error) {
       logger.error(error, { fileId, uploader: BigIntToHex(uploader, 40) }) // ethernet address have length 40

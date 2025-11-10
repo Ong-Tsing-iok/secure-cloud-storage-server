@@ -197,6 +197,16 @@ export const addFileToDatabase = async ({
 }
 
 /**
+ *
+ * @param {{fileId: string, infoBlockNumber: number, verifyBlockNumber:number}} param0
+ */
+export const updateFileBlockNumber = async ({ fileId, infoBlockNumber, verifyBlockNumber }) => {
+  await pool.query(`UPDATE files SET infoblocknumber = $1, verifyblocknumber = $2 WHERE id = $3`, [
+    (infoBlockNumber, verifyBlockNumber, fileId)
+  ])
+}
+
+/**
  * Retrieves file information from the database based on the given UUID.
  *
  * @param {string} uuid - The UUID of the file.
