@@ -22,6 +22,7 @@ import {
 import Table from 'tty-table'
 import ConfigManager from './src/ConfigManager.js'
 import { emailFormatRe, uuidFormatRe } from './src/Utils.js'
+import { deleteUserShares } from './src/SecretShareDatabase.js'
 
 const controller = new AbortController()
 const stdin = process.stdin
@@ -199,6 +200,7 @@ const deleteAccount = async (userId) => {
   await BlockchainManager.setClientStatus(userInfo.address, false)
   await rm(join(ConfigManager.uploadDir, userId), { recursive: true, force: true })
   await deleteUserById(userId)
+  await deleteUserShares(userId)
   success = true
   console.log('刪除成功')
 

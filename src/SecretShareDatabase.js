@@ -38,6 +38,17 @@ export async function retrieveUserShares(userId) {
   return shares
 }
 
+export async function deleteUserShares(userId) {
+  for (const pool of secretShareDbPools) {
+    try {
+      await pool.query(`DELETE FROM secret_share WHERE userid = $1;`, [userId])
+    } catch (error) {
+      // Database could not correctly connect.
+      logger.error(error)
+    }
+  }
+}
+
 export async function storeUserShares(userId, shares) {
   let i = 0
   let j = 0
