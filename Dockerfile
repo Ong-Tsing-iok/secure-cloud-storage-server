@@ -1,4 +1,4 @@
-FROM node:22-alpine3.20
+FROM node:22-alpine
 RUN apk update && apk add --no-cache tzdata
 ENV TZ=Asia/Taipei
 # && apk add --no-cache openssl=3.3.2-r1 && apk add --no-cache vim && apk add --no-cache tcpdump
@@ -12,6 +12,9 @@ RUN npm install --production && mv node_modules ../ \
 COPY src ./src
 # COPY config ./config
 COPY index.js .
+COPY CLI.js .
+COPY manage.sh ./manage
+RUN chmod +x ./manage
 EXPOSE 3001
 EXPOSE 7002
 EXPOSE 7001
