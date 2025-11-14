@@ -7,10 +7,10 @@ import { stat, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import ConfigManager from './ConfigManager.js'
 import { logFtpsError, logFtpsInfo, logFtpsWarning, logger } from './Logger.js'
-import { checkUserLoggedIn } from './LoginDatabase.js'
 import { emitToSocket } from './SocketIO.js'
 import { finishUpload, hasUpload } from './UploadVerifier.js'
 import { InternalServerErrorMsg, NotLoggedInErrorMsg } from './Utils.js'
+import { getLoggedInUserIdOfSocket } from './UserLoginInfo.js'
 
 class CustomFileSystem extends FileSystem {
   constructor(connection, { root, cwd }, fileId) {
@@ -53,16 +53,16 @@ ftpServer.on('login', async (data, resolve, reject) => {
     let actionStr = 'Client tries to authenticate'
     logFtpsInfo(data, actionStr + '.', { socketId })
 
-    const userInfo = checkUserLoggedIn(socketId)
-    if (!userInfo) {
+    const userId = getLoggedInUserIdOfSocket(socketId)
+    if (!userId) {
       logFtpsWarning(data, actionStr + ' but is not logged in.')
       reject(new Error(NotLoggedInErrorMsg))
       return
     }
-    data.userId = userInfo.userId
+    data.userId = userId
     logFtpsInfo(data, 'Client is logged in.')
 
-    const rootPath = path.resolve(ConfigManager.uploadDir, userInfo.userId)
+    const rootPath = path.resolve(ConfigManager.uploadDir, userId.userId)
     await mkdir(rootPath, { recursive: true })
 
     if (fileId !== 'guest') {

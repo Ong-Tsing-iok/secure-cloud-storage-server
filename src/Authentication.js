@@ -8,7 +8,6 @@ import {
   getUserByKey,
   userStatusType
 } from './StorageDatabase.js'
-import { addFailure, getFailure, userDbLogin } from './LoginDatabase.js'
 import {
   InvalidArgumentErrorMsg,
   InternalServerErrorMsg,
@@ -43,6 +42,7 @@ import BlockchainManager from './BlockchainManager.js'
 import { retrieveUserShares, storeUserShares } from './SecretShareDatabase.js'
 import { sendEmailAuth } from './SMTPManager.js'
 import { randomInt } from 'node:crypto'
+import { checkLoginBlocked, userLoginFailure, userLogin, checkUserLoggedIn } from './UserLoginInfo.js'
 
 const authenticationBinder = (socket) => {
   /**
@@ -115,8 +115,8 @@ const authenticationBinder = (socket) => {
       }
 
       if (socket.askLogin) {
-        logSocketWarning(socket, actionStr + ' but already asked to logg in.', request)
-        cb({ errorMsg: 'Already asked to logg in.' })
+        logSocketWarning(socket, actionStr + ' but already asked to log in.', request)
+        cb({ errorMsg: 'Already asked to log in.' })
         return
       }
 
@@ -133,14 +133,19 @@ const authenticationBinder = (socket) => {
         return
       }
 
+      if (checkUserLoggedIn(socket.userId)) {
+        logSocketWarning(socket, actionStr + ' but is logged in from another client side.', request)
+        cb({ errorMsg: 'Already logged in from another client.' })
+        return
+      }
+
+
       // Check login attempts
-      const failureInfo = getFailure(userInfo.id)
-      if (failureInfo && failureInfo.count >= ConfigManager.loginAttemptsLimit) {
+      if (checkLoginBlocked(socket.userId)) {
         logSocketWarning(socket, actionStr + ' but failed too many login attempts.', {
-          failedLoginAttempts: failureInfo.count,
           ...request
         })
-        cb({ errorMsg: 'Too many login attempts.' })
+        cb({ errorMsg: 'Failed too many login attempts.' })
         return
       }
 
@@ -186,7 +191,7 @@ const authenticationBinder = (socket) => {
           ...request,
           randKey: socket.randKey
         })
-        if (socket.userId) addFailure(socket.userId)
+        if (socket.userId) userLoginFailure(socket.userId)
         cb({ errorMsg: 'Incorrect authentication key.' })
         return
       }
@@ -194,7 +199,7 @@ const authenticationBinder = (socket) => {
 
       if (socket.askLogin) {
         delete socket.askLogin
-        userDbLogin(socket.id, socket.userId)
+        userLogin(socket.userId, socket)
         socket.authed = true
         cb({ userInfo: { userId: socket.userId, name: socket.name, email: socket.email } })
         return
@@ -406,8 +411,7 @@ async function registerProcess(socket) {
     // Reverting register
     if (idToRemoveDb) await deleteUserById(idToRemoveDb)
     try {
-      if (idToDeleteFolder)
-        await rmdir(resolve(ConfigManager.uploadDir, idToDeleteFolder))
+      if (idToDeleteFolder) await rmdir(resolve(ConfigManager.uploadDir, idToDeleteFolder))
     } catch (error) {
       if (error.code !== 'ENOENT') throw error
     }

@@ -22,7 +22,6 @@ import {
   getPublicFilesNotOwnedByFileId
 } from './StorageDatabase.js'
 import { unlink } from 'node:fs/promises'
-import { insertUpload } from './LoginDatabase.js'
 import {
   checkFolderExistsForUser,
   checkLoggedIn,
@@ -131,8 +130,6 @@ const uploadFileBinder = (socket) => {
       }
       // Create random id as fileId
       const fileId = preUpload(cipher, spk, parentFolderId)
-      // Store with key and iv in database with expires time
-      insertUpload(fileId, cipher, spk, parentFolderId, Date.now() + uploadExpireTime)
       logSocketInfo(socket, 'Pre-upload information stored in upload database.', {
         parentFolderId: request.parentFolderId,
         fileId

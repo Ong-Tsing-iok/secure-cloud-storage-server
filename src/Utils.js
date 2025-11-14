@@ -1,6 +1,6 @@
 import { createReadStream } from 'node:fs'
 import crypto from 'node:crypto'
-import { logger } from './Logger.js'
+import { logSocketWarning } from './Logger.js'
 import { getFolderInfoOfOwnerId, getUserById, userStatusType } from './StorageDatabase.js'
 import { resolve } from 'node:path'
 import ConfigManager from './ConfigManager.js'
@@ -21,7 +21,7 @@ export const ShouldNotReachErrorMsg = 'Should not reach.'
 
 const checkLoggedIn = (socket) => {
   if (!socket.authed) {
-    logger.warn('Unauthorized attempt', { ip: socket.ip })
+    logSocketWarning(socket, 'Unauthorized attempt', { ip: socket.ip })
     // socket.emit('message', 'not logged in')
     return false
   }

@@ -24,7 +24,6 @@ import {
   deleteResponseById,
   updateFileBlockNumber
 } from './StorageDatabase.js'
-import { getSocketId } from './LoginDatabase.js'
 import CryptoHandler from './CryptoHandler.js'
 import { randomUUID } from 'node:crypto'
 import { copyFile, unlink } from 'node:fs/promises'
@@ -36,13 +35,13 @@ import {
   logSocketWarning
 } from './Logger.js'
 import ConfigManager from './ConfigManager.js'
-import { emitToSocket } from './SocketIO.js'
 import {
   DeleteRequestRequestSchema,
   ReqeustFileRequestSchema,
   RespondRequestRequestSchema
 } from './Validation.js'
 import BlockchainManager from './BlockchainManager.js'
+import { emitToOnlineUser } from './UserLoginInfo.js'
 
 // Reqeust related events
 const requestBinder = (socket) => {
@@ -104,10 +103,7 @@ const requestBinder = (socket) => {
       cb({})
 
       // Forward request to file owner
-      const ownerSocketIdObj = getSocketId(fileInfo.ownerId)
-      if (ownerSocketIdObj) {
-        emitToSocket(ownerSocketIdObj.socketId, 'new-request')
-      }
+      emitToOnlineUser(fileInfo.ownerId, 'new-request')
     } catch (error) {
       logSocketError(socket, error, request)
       cb({ errorMsg: InternalServerErrorMsg })
@@ -206,10 +202,7 @@ const requestBinder = (socket) => {
       logSocketInfo(socket, 'Request responded.', request)
       cb({})
       // Forward response to requesting client
-      const requesterSocketIdObj = getSocketId(requestInfo.requester)
-      if (requesterSocketIdObj) {
-        emitToSocket(requesterSocketIdObj.socketId, 'new-response')
-      }
+      emitToOnlineUser(requestInfo.requester, 'new-response')
     } catch (error) {
       logSocketError(socket, error, request)
       cb({ errorMsg: InternalServerErrorMsg })

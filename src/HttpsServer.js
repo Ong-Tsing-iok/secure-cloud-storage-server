@@ -4,13 +4,13 @@
 import { logger, logHttpsError, logHttpsInfo, logHttpsWarning } from './Logger.js'
 import { mkdir, unlink } from 'node:fs/promises'
 import multer from 'multer'
-import { checkUserLoggedIn } from './LoginDatabase.js'
 import { getFileInfo, getUserByKey } from './StorageDatabase.js'
 import { resolve } from 'node:path'
 import ConfigManager from './ConfigManager.js'
 import { finishUpload, hasUpload } from './UploadVerifier.js'
 import { app } from './SocketIO.js'
 import { FileIdSchema, PublicKeySchema, SocketIDSchema } from './Validation.js'
+import { getLoggedInUserIdOfSocket } from './UserLoginInfo.js'
 
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
@@ -61,16 +61,16 @@ const auth = (req, res, next) => {
       return
     }
 
-    const user = checkUserLoggedIn(req.headers.socketid)
+    const userId = getLoggedInUserIdOfSocket(req.headers.socketid)
     // logger.debug(`User with socket id ${req.headers.socketid} is authenticating`)
-    if (!user) {
+    if (!userId) {
       logHttpsWarning(req, 'Client is not logged in.')
       res.sendStatus(401)
       return
     }
 
     logHttpsInfo(req, 'Client is logged in.')
-    req.userId = user.userId
+    req.userId = userId
     next()
   } catch (error) {
     next(error)

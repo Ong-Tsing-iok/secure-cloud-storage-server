@@ -5,10 +5,10 @@ import ConfigManager from './ConfigManager.js'
 import { logger, logSftpError, logSftpInfo, logSftpWarning } from './Logger.js'
 import fs from 'node:fs'
 import pkg from 'ssh2'
-import { checkUserLoggedIn } from './LoginDatabase.js'
 import { FileIdSchema } from './Validation.js'
 import { finishUpload, hasUpload } from './UploadVerifier.js'
 import { getFilePath } from './Utils.js'
+import { getLoggedInUserIdOfSocket } from './UserLoginInfo.js'
 const { Server, utils } = pkg
 
 new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, info) => {
@@ -31,12 +31,11 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
       }
       fileId = result.data
 
-      const userInfo = checkUserLoggedIn(ctx.username)
-      if (!userInfo) {
+      userId = getLoggedInUserIdOfSocket(ctx.username)
+      if (!userId) {
         logSftpWarning(ip, userId, fileId, actionStr + ' but is not logged in.')
         return ctx.reject()
       }
-      userId = userInfo.userId
       // check login and fileId
       ctx.accept()
     })

@@ -4,13 +4,12 @@
 import { randomUUID } from 'node:crypto'
 import EvictingMap from './EvictingMap.js'
 import { logger } from './Logger.js'
-import { getSocketId } from './LoginDatabase.js'
-import { emitToSocket } from './SocketIO.js'
 import { addFileToDatabase, deleteFileOfOwnerId } from './StorageDatabase.js'
 import { calculateFileHash, getFilePath, InternalServerErrorMsg, bigIntToUuid, BigIntToHex } from './Utils.js'
 import BlockchainManager from './BlockchainManager.js'
 import { unlink } from 'node:fs/promises'
 import ConfigManager from './ConfigManager.js'
+import { emitToOnlineUser } from './UserLoginInfo.js'
 
 const uploadInfoMap = new EvictingMap(5 * 60 * 1000)
 
@@ -43,9 +42,8 @@ export const finishUpload = async (uploadInfo) => {
       uploadInfo.infoBlockNumber = 0
       uploadInfo.verifyBlockNumber = 0
       uploadInfoMap.delete(fileId)
-      const socketId = getSocketId(userId)?.socketId
       await addFileToDatabase(uploadInfo)
-      if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId })
+      emitToOnlineUser(userId, 'upload-file-res', { fileId })
       logger.info('File uploaded.', { fileId, userId })
       return
     }
@@ -106,12 +104,11 @@ BlockchainManager.bindEventListener(
           uploadInfoMap.delete(fileId)
           uploadInfoDeleted = true
           if (BigInt(value.hash) == BigInt(fileHash)) {
-            const socketId = getSocketId(userId)?.socketId
             const receipt = await BlockchainManager.setFileVerification(fileId, uploader, 'success')
             value.uploadInfo.infoBlockNumber = event.log.blockNumber
             value.uploadInfo.verifyBlockNumber = (await receipt.getBlock()).number
             await addFileToDatabase(value.uploadInfo)
-            if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId })
+            emitToOnlineUser(userId, 'upload-file-res', { fileId })
             logger.info('File uploaded and verified.', { fileId, userId })
           } else {
             logger.warn('File hashes do not meet', {
@@ -147,8 +144,7 @@ const revertUpload = async (userId, fileId, errorMsg) => {
     const filePath = getFilePath(userId, fileId)
     await unlink(filePath)
     // send message to client if online
-    const socketId = getSocketId(userId)?.socketId
-    if (socketId) emitToSocket(socketId, 'upload-file-res', { fileId, errorMsg })
+    emitToOnlineUser(userId, 'upload-file-res', { fileId, errorMsg })
   } catch (error) {
     if (error.code != 'ENOENT') {
       logger.error(error)

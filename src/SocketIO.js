@@ -6,8 +6,6 @@ import express from 'express'
 import { Server } from 'socket.io'
 // Logger
 import { logger, logSocketInfo } from './Logger.js'
-// Database
-import { userDbLogout } from './LoginDatabase.js'
 // File operation binders
 import { allFileBinder } from './FileManager.js'
 import authenticationBinder from './Authentication.js'
@@ -15,6 +13,7 @@ import { requestBinder } from './RequestManager.js'
 import ConfigManager from './ConfigManager.js'
 import { createServer } from 'node:https'
 import { readFileSync } from 'node:fs'
+import { userLogout } from './UserLoginInfo.js'
 
 const app = express()
 app.set('trust proxy', true)
@@ -54,9 +53,10 @@ io.on('connection', (socket) => {
   })
 
   socket.on('disconnect', () => {
-    logSocketInfo(socket, 'Client disconnected.', { event: undefined })
     // Maybe move to Authentication.js?
-    userDbLogout(socket.id)
+    userLogout(socket)
+
+    logSocketInfo(socket, 'Client disconnected.', { event: undefined })
   })
 
   authenticationBinder(socket)
