@@ -7,10 +7,9 @@ import { stat, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import ConfigManager from './ConfigManager.js'
 import { logFtpsError, logFtpsInfo, logFtpsWarning, logger } from './Logger.js'
-import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
-import { getFolderInfo } from './StorageDatabase.js'
+import { checkUserLoggedIn } from './LoginDatabase.js'
 import { emitToSocket } from './SocketIO.js'
-import { finishUpload } from './UploadVerifier.js'
+import { finishUpload, hasUpload } from './UploadVerifier.js'
 import { InternalServerErrorMsg, NotLoggedInErrorMsg } from './Utils.js'
 
 class CustomFileSystem extends FileSystem {
@@ -55,7 +54,6 @@ ftpServer.on('login', async (data, resolve, reject) => {
     logFtpsInfo(data, actionStr + '.', { socketId })
 
     const userInfo = checkUserLoggedIn(socketId)
-    let uploadInfo
     if (!userInfo) {
       logFtpsWarning(data, actionStr + ' but is not logged in.')
       reject(new Error(NotLoggedInErrorMsg))
@@ -72,19 +70,13 @@ ftpServer.on('login', async (data, resolve, reject) => {
       actionStr = 'Client tries to upload file'
       logFtpsInfo(data, actionStr + '.')
 
-      uploadInfo = getUpload(fileId)
-      if (uploadInfo === undefined) {
+      if (!hasUpload(fileId)) {
         logFtpsWarning(data, actionStr + ' but upload info does not exist.')
         reject(new Error('Upload info not found.'))
         return
       }
-      if (uploadInfo.parentFolderId && !(await getFolderInfo(uploadInfo.parentFolderId))) {
-        logFtpsWarning(data, actionStr + ' but parent folder does not exist.')
-        reject(new Error('Parent folder not found.'))
-        return
-      }
     }
-    connectionBinder(data, uploadInfo, socketId)
+    connectionBinder(data, socketId)
     resolve({
       root: rootPath,
       fs: new CustomFileSystem(connection, { root: rootPath, cwd: '/' }, fileId)
@@ -95,7 +87,7 @@ ftpServer.on('login', async (data, resolve, reject) => {
   }
 })
 
-const connectionBinder = (data, uploadInfo, socketId) => {
+const connectionBinder = (data, socketId) => {
   data.connection.on('RETR', (error, filePath) => {
     // Download file
     if (error) {
@@ -119,9 +111,6 @@ const connectionBinder = (data, uploadInfo, socketId) => {
         id: path.basename(fileName),
         userId: data.userId,
         originOwnerId: data.userId,
-        cipher: uploadInfo.cipher,
-        spk: uploadInfo.spk,
-        parentFolderId: uploadInfo.parentFolderId,
         size: fileSize
       })
       logFtpsInfo(data, 'Client uploaded file.', {

@@ -4,11 +4,11 @@
 import { logger, logHttpsError, logHttpsInfo, logHttpsWarning } from './Logger.js'
 import { mkdir, unlink } from 'node:fs/promises'
 import multer from 'multer'
-import { checkUserLoggedIn, getUpload } from './LoginDatabase.js'
-import { getFolderInfo, getFileInfo, getUserByKey } from './StorageDatabase.js'
+import { checkUserLoggedIn } from './LoginDatabase.js'
+import { getFileInfo, getUserByKey } from './StorageDatabase.js'
 import { resolve } from 'node:path'
 import ConfigManager from './ConfigManager.js'
-import { finishUpload } from './UploadVerifier.js'
+import { finishUpload, hasUpload } from './UploadVerifier.js'
 import { app } from './SocketIO.js'
 import { FileIdSchema, PublicKeySchema, SocketIDSchema } from './Validation.js'
 
@@ -95,21 +95,11 @@ const checkUpload = async (req, res, next) => {
       res.status(400).send('FileId is invalid.')
       return
     }
-    const uploadInfo = getUpload(req.headers.fileid)
-    if (!uploadInfo) {
+    if (!hasUpload(req.headers.fileid)) {
       logHttpsWarning(req, actionStr + ' but upload info does not exist.')
       res.status(400).send('Upload info not found.')
       return
     }
-    // check if path exists
-    if (uploadInfo.parentFolderId && !(await getFolderInfo(uploadInfo.parentFolderId))) {
-      logHttpsWarning(req, actionStr + 'but parent folder does not exist.', {
-        parentFolderId: uploadInfo.parentFolderId
-      })
-      res.status(400).send('Parent folder not found.')
-      return
-    }
-    req.uploadInfo = uploadInfo
     next()
   } catch (error) {
     next(error)
@@ -129,9 +119,6 @@ app.post('/upload', auth, checkUpload, upload.single('file'), async (req, res, n
         id: req.file.filename,
         userId: req.userId,
         originOwnerId: req.userId,
-        cipher: req.uploadInfo.cipher,
-        spk: req.uploadInfo.spk,
-        parentFolderId: req.uploadInfo.parentFolderId,
         size: req.file.size
       })
       res.send('File uploaded successfully.')

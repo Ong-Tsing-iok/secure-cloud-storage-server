@@ -30,9 +30,6 @@ export const preUpload = (cipher, spk, parentFolderId) => {
  * id,
  * userId,
  * originOwnerId,
- * cipher,
- * spk,
- * parentFolderId,
  * size
  * }} uploadInfo
  */
@@ -43,6 +40,8 @@ export const finishUpload = async (uploadInfo) => {
       const userId = uploadInfo.userId
       const fileId = uploadInfo.id
       uploadInfo = {...uploadInfo, ...uploadInfoMap.get(uploadInfo.id)}
+      uploadInfo.infoBlockNumber = 0
+      uploadInfo.verifyBlockNumber = 0
       uploadInfoMap.delete(fileId)
       const socketId = getSocketId(userId)?.socketId
       await addFileToDatabase(uploadInfo)
