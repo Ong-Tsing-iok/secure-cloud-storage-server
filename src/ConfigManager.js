@@ -39,6 +39,12 @@ class ConfigManager {
     }
   }
   directoryConfig = {}
+  login = {
+    idleTimeoutMin: 30,
+    failedAttemptLimit: 5,
+    failedRecordRefreshMin: 5,
+    failedBlockTimeMin: 15
+  }
   blockchain = {
     jsonRpcUrl: '',
     contractAddr: '',
@@ -117,6 +123,12 @@ class ConfigManager {
       )
       this.blockchain.enabled = config.get('blockchain.enabled')
 
+      // Login settings
+      this.login.idleTimeoutMin = config.get('login.idleTimeoutMin')
+      this.login.failedAttemptLimit = config.get('login.failedAttemptLimit')
+      this.login.failedRecordRefreshMin = config.get('login.failedRecordRefreshMin')
+      this.login.idleTimeofailedBlockTimeMinutMin = config.get('login.failedBlockTimeMin')
+
       // Trusted Authority
       this.trustedAuthority.url = config.get('trustedAuthority.url')
 
@@ -130,8 +142,12 @@ class ConfigManager {
       this.smtp.apiKey = config.get('smtp.apiKey')
 
       // Other settings
-      this.settings.uploadExpireTimeMin = Number.parseInt(config.get('settings.uploadExpireTimeMin'))
-      this.settings.emailAuthExpireTimeMin = Number.parseInt(config.get('settings.emailAuthExpireTimeMin'))
+      this.settings.uploadExpireTimeMin = Number.parseInt(
+        config.get('settings.uploadExpireTimeMin')
+      )
+      this.settings.emailAuthExpireTimeMin = Number.parseInt(
+        config.get('settings.emailAuthExpireTimeMin')
+      )
       this.settings.emailAuthLength = Number.parseInt(config.get('settings.emailAuthLength'))
     } catch (error) {
       logger.error(error)
@@ -163,15 +179,6 @@ class ConfigManager {
   }
   get databaseLengthLimit() {
     return getConfig('database.descMaxLength')
-  }
-  get loginAttemptsLimit() {
-    return Number.parseInt(getConfig('loginAttempts.limit'))
-  }
-  get loginAttemptsTimeout() {
-    return Number.parseFloat(getConfig('loginAttempts.timeout')) * 60 * 1000
-  }
-  get uploadExpireTimMiliSec() {
-    return this.settings.uploadExpireTimeMin * 60 * 1000
   }
 }
 

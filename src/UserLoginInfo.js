@@ -2,8 +2,7 @@ import ConfigManager from './ConfigManager.js'
 import EvictingMap from './EvictingMap.js'
 import { logSocketInfo, logSocketWarning } from './Logger.js'
 
-const CLIENT_IDLE_LIMIT_MIN = 30
-const loginMap = new EvictingMap(1 * 60 * 1000) // 30 minute for idle timeout
+const loginMap = new EvictingMap(ConfigManager.login.idleTimeoutMin * 60 * 1000) // For idle timeout
 const socketToUserIdMap = new Map()
 
 export function userLogin(userId, socket) {
@@ -42,18 +41,21 @@ export function emitToOnlineUser(userId, event, ...data) {
 
 // Idle timeout
 loginMap.onExpired((key, value) => {
-  logSocketInfo(value.socket, `Client Idle for ${CLIENT_IDLE_LIMIT_MIN} minutes. Disconnecting...`)
+  logSocketInfo(
+    value.socket,
+    `Client Idle for ${ConfigManager.login.idleTimeoutMin} minutes. Disconnecting...`
+  )
   userLogout(value.socket.id)
   value.socket.disconnect(true)
 })
 
-const loginFailureMap = new EvictingMap(5 * 60 * 1000) // 5 minute for failure record
-const loginBlockedMap = new EvictingMap(15 * 60 * 1000) // Block login for 15 minutes
+const loginFailureMap = new EvictingMap(ConfigManager.login.failedRecordRefreshMin * 60 * 1000) // 5 minute for failure record
+const loginBlockedMap = new EvictingMap(ConfigManager.login.failedBlockTimeMin * 60 * 1000) // Block login for 15 minutes
 
 export function userLoginFailure(userId) {
   if (loginFailureMap.has(userId)) {
     const failureTimes = loginFailureMap.get(userId) + 1
-    if (failureTimes >= ConfigManager.loginAttemptsLimit) {
+    if (failureTimes >= ConfigManager.login.failedAttemptLimit) {
       loginBlockedMap.set(userId, 0)
     }
     loginFailureMap.set(userId, failureTimes)

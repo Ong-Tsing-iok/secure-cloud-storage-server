@@ -50,9 +50,11 @@ database: # Database settings
     database: secret_share3
     password: null
     port: null
-loginAttempts:
-  limit: 5
-  timeout: 15 # In minutes
+login:
+  idleTimeoutMin: 30
+  failedAttemptLimit: 5
+  failedRecordRefreshMin: 5
+  failedBlockTimeMin: 15
 blockchain:
   jsonRpcUrl: ''
   contractAddr: ''
