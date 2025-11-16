@@ -11,7 +11,7 @@ export function userLogin(userId, socket) {
     logSocketWarning(socket, 'Multiple login for same account.')
     return false
   }
-  loginMap.set(userId, { socket, checkTime: 0 })
+  loginMap.set(userId, { socket, loginTime: Date.now() })
   socketToUserIdMap.set(socket.id, userId)
   return true
 }
@@ -37,6 +37,14 @@ export function emitToOnlineUser(userId, event, ...data) {
   if (loginMap.has(userId)) {
     loginMap.get(userId).socket.emit(event, ...data)
   }
+}
+
+export function getOnlineUsers() {
+  const info = []
+  for (const [key, value] of loginMap) {
+    info.push({ userId: key, socketId: value.socket.id, timestamp: value.loginTime })
+  }
+  return info
 }
 
 // Idle timeout

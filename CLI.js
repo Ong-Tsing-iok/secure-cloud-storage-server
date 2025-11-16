@@ -6,6 +6,7 @@ import { logger } from './src/Logger.js'
 import { input, select, confirm } from '@inquirer/prompts'
 import { rm } from 'node:fs/promises'
 import { join } from 'node:path'
+import http from 'node:http'
 import {
   deleteUserById,
   getAllFiles,
@@ -28,6 +29,38 @@ if (!process.env.IS_CLI) {
   console.log('Please export IS_CLI=1')
   console.log('Process exiting')
   process.exit(1)
+}
+
+const SOCKET_PATH = '/tmp/log.sock'
+
+async function getAllLoginUsers() {
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        socketPath: SOCKET_PATH,
+        path: '/online',
+        method: 'GET',
+        headers: {
+          Accept: 'application/json'
+        }
+      },
+      (res) => {
+        let data = ''
+        res.on('data', (chunk) => {
+          data += chunk
+        })
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(data))
+          } catch (error) {
+            reject(error)
+          }
+        })
+      }
+    )
+    req.on('error', (error) => reject(error))
+    req.end()
+  })
 }
 
 const controller = new AbortController()
@@ -76,7 +109,7 @@ const queryDatabase = async () => {
     message: '選擇要執行的指令',
     choices: [
       { name: '列出所有使用者', value: 'get-users' },
-      //   { name: '列出線上使用者', value: 'get-online-users' },
+      { name: '列出線上使用者', value: 'get-online-users' },
       { name: '列出使用者檔案', value: 'get-files-of-user' },
       // { name: '列出所有檔案', value: 'get-all-files' },
       { name: '列出使用者請求', value: 'get-requests' },
@@ -103,20 +136,27 @@ const queryDatabase = async () => {
         }
 
         break
-      //   case 'get-online-users':
-      //     {
-      //       const header = [
-      //         { value: 'userId', align: 'left' },
-      //         { value: 'socketId', align: 'left' },
-      //         { value: 'timestamp', alias: 'login time', align: 'left' }
-      //       ]
-      //       const users = getAllLoginUsers()
-      //       const p = new Table(header, users).render()
-      //       console.log(p)
-      //       success = true
-      //     }
+      case 'get-online-users':
+        {
+          const header = [
+            { value: 'userId', align: 'left' },
+            { value: 'socketId', align: 'left' },
+            {
+              value: 'timestamp',
+              alias: 'login time',
+              align: 'left',
+              formatter: function (value) {
+                return new Date(value).toString()
+              }
+            }
+          ]
+          const users = await getAllLoginUsers()
+          const p = new Table(header, users).render()
+          console.log(p)
+          success = true
+        }
 
-      //     break
+        break
       case 'get-files-of-user':
         {
           const userId = await getUserIdInput()
