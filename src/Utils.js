@@ -19,6 +19,57 @@ export const EmailAuthExpiredErrorMsg = 'Email authentication code is expired.'
 export const EmailAuthNotMatchErrorMsg = 'Email authentication code did not match.'
 export const ShouldNotReachErrorMsg = 'Should not reach.'
 
+// Risky MIME types (based on mimetype.io).
+export const riskyMimeTypes = [
+  // Executables / install packages
+  'application/x-msdownload', // .exe, .dll, .msi, .bat, .com (listed on mimetype.io)
+  'application/octet-stream', // generic binary (often used for executables / unknown)
+  'application/java-archive', // .jar
+  'application/x-debian-package', // .deb
+  'application/x-rpm', // .rpm
+  'application/vnd.android.package-archive', // .apk
+
+  // Script files
+  'text/javascript', // .js
+  'application/x-sh', // .sh
+  'application/x-shellscript', // .sh
+  'application/x-csh', // .csh
+  'application/x-tcl', // .tcl
+  'application/x-perl', // .pl
+  // note: some script types may be represented as text/plain for certain servers.
+
+  // Macro-capable / Office (macro-enabled) documents
+  'application/msword', // .doc (older Word)
+  'application/vnd.ms-word.document.macroenabled.12', // .docm
+  'application/vnd.ms-excel', // .xls, .xlt, ...
+  'application/vnd.ms-excel.sheet.macroenabled.12', // .xlsm
+  'application/vnd.ms-powerpoint', // .ppt, .pps, ...
+  'application/vnd.ms-powerpoint.presentation.macroenabled.12', // .pptm
+  'application/vnd.ms-excel.addin.macroenabled.12', // .xlam
+  'application/vnd.ms-powerpoint.addin.macroenabled.12', // .ppam
+
+  // Archives / containers (must be recursively inspected if allowed)
+  'application/zip',
+  'application/x-7z-compressed',
+  'application/x-rar-compressed',
+  'application/gzip',
+  'application/x-bzip2',
+  'application/x-tar',
+
+  // Disk / image / installer formats
+  'application/x-iso9660-image', // .iso
+
+  // Historically risky/active-content types
+  'application/x-shockwave-flash', // .swf (Flash)
+  'application/x-xpinstall', // .xpi (Firefox extensions)
+
+  // PDFs and other document types that can carry active content
+  'application/pdf',
+
+  // Active image formats (SVG can contain scripts)
+  'image/svg+xml'
+]
+
 const checkLoggedIn = (socket) => {
   if (!socket.authed) {
     logSocketWarning(socket, 'Unauthorized attempt', { ip: socket.ip })

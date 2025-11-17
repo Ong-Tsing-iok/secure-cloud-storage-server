@@ -11,6 +11,8 @@ import { finishUpload, hasUpload } from './UploadVerifier.js'
 import { app } from './SocketIO.js'
 import { FileIdSchema, PublicKeySchema, SocketIDSchema } from './Validation.js'
 import { getLoggedInUserIdOfSocket } from './UserLoginInfo.js'
+import { fileTypeFromFile } from 'file-type'
+import { getFilePath, riskyMimeTypes } from './Utils.js'
 
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
@@ -176,6 +178,16 @@ app.get('/download', auth, async (req, res, next) => {
 app.post('/uploadDb', auth, upload.single('file'), async (req, res, next) => {
   try {
     if (req.file) {
+      // check mime type
+      const filePath = getFilePath(req.userId, 'database.db')
+      const fileMime = await fileTypeFromFile(filePath)
+      if (fileMime && riskyMimeTypes.includes(fileMime.mime)) {
+        logHttpsWarning('Client upload a file with risky mime type for encrypted database', fileMime)
+        await unlink(filePath)
+        res.status(415).send('Risky mime type')
+        return
+      }
+      
       logHttpsInfo(req, 'Client uploaded encrypted database.', { filename: req.file.originalname })
       res.send('File uploaded successfully.')
     } else {

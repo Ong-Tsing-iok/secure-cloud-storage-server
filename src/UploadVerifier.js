@@ -5,11 +5,19 @@ import { randomUUID } from 'node:crypto'
 import EvictingMap from './EvictingMap.js'
 import { logger } from './Logger.js'
 import { addFileToDatabase, deleteFileOfOwnerId } from './StorageDatabase.js'
-import { calculateFileHash, getFilePath, InternalServerErrorMsg, bigIntToUuid, BigIntToHex } from './Utils.js'
+import {
+  calculateFileHash,
+  getFilePath,
+  InternalServerErrorMsg,
+  bigIntToUuid,
+  BigIntToHex,
+  riskyMimeTypes
+} from './Utils.js'
 import BlockchainManager from './BlockchainManager.js'
 import { unlink } from 'node:fs/promises'
 import ConfigManager from './ConfigManager.js'
 import { emitToOnlineUser } from './UserLoginInfo.js'
+import { fileTypeFromFile } from 'file-type'
 
 const uploadInfoMap = new EvictingMap(5 * 60 * 1000)
 
@@ -34,11 +42,19 @@ export const preUpload = (cipher, spk, parentFolderId) => {
  */
 export const finishUpload = async (uploadInfo) => {
   try {
+    const userId = uploadInfo.userId
+    const fileId = uploadInfo.id
+    // Check mime type
+    const fileMime = await fileTypeFromFile(getFilePath(userId, fileId))
+    if (fileMime && riskyMimeTypes.includes(fileMime.mime)) {
+      logger.warning('Client upload file with risky mime type.', { userId, ...fileMime })
+      await revertUpload(userId, fileId, 'Upload file is of risky mime type.')
+      return
+    }
     if (!ConfigManager.blockchain.enabled) {
       // Ignore blockchain and directly accept upload
-      const userId = uploadInfo.userId
-      const fileId = uploadInfo.id
-      uploadInfo = {...uploadInfo, ...uploadInfoMap.get(uploadInfo.id)}
+
+      uploadInfo = { ...uploadInfo, ...uploadInfoMap.get(uploadInfo.id) }
       uploadInfo.infoBlockNumber = 0
       uploadInfo.verifyBlockNumber = 0
       uploadInfoMap.delete(fileId)
@@ -47,7 +63,7 @@ export const finishUpload = async (uploadInfo) => {
       logger.info('File uploaded.', { fileId, userId })
       return
     }
-    
+
     const hash = await calculateFileHash(getFilePath(uploadInfo.userId, uploadInfo.id))
     uploadInfoMap.set(uploadInfo.id, {
       uploadInfo: { ...uploadInfo, ...uploadInfoMap.get(uploadInfo.id) },
@@ -76,11 +92,11 @@ BlockchainManager.bindEventListener(
   'FileUploaded',
   /**
    * Check if the information on blockchain is same as what recieved.
-   * @param {*} fileId 
-   * @param {*} uploader 
-   * @param {*} fileHash 
-   * @param {*} metadata 
-   * @param {*} timestamp 
+   * @param {*} fileId
+   * @param {*} uploader
+   * @param {*} fileHash
+   * @param {*} metadata
+   * @param {*} timestamp
    * @param {*} event
    */
   async (fileId, uploader, fileHash, metadata, timestamp, event) => {
