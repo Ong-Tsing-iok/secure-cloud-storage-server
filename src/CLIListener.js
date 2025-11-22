@@ -17,6 +17,7 @@ app.post('/logs', async (req, res) => {
   res.json({ status: 'ok' })
 })
 
+// /online endpoint to let CLI get online users
 app.get('/online', (req, res) => {
   res.json(getOnlineUsers())
 })

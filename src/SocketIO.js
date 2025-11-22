@@ -37,6 +37,7 @@ const io = new Server(server, {
   }
 })
 
+// Client connects
 io.on('connection', (socket) => {
   socket.ip = socket.handshake.address
   // May need to get address from header if server is behind a proxy

@@ -12,18 +12,22 @@ import { finishUpload, hasUpload } from './UploadVerifier.js'
 import { InternalServerErrorMsg, NotLoggedInErrorMsg } from './Utils.js'
 import { getLoggedInUserIdOfSocket } from './UserLoginInfo.js'
 
+/**
+ * Custom filesystem to write to file as name <fileid>
+ */
 class CustomFileSystem extends FileSystem {
   constructor(connection, { root, cwd }, fileId) {
     super(connection, { root, cwd })
     this.fileId = fileId
   }
-  // write to file as name 'fileId', and record the original name.
+  // write to file as name <fileId>, and record the original name.
   write(fileName, { append, start }) {
     this.connection.originalFileName = fileName
     return super.write(this.fileId, { append, start })
   }
 }
 
+// Create new FTPS server
 const ftpServer = new FtpSrv({
   url: `ftp://${ConfigManager.serverHost}:${ConfigManager.ftps.controlPort}`,
   pasv_url: `ftp://${ConfigManager.ftps.pasv_url}`,
@@ -88,8 +92,8 @@ ftpServer.on('login', async (data, resolve, reject) => {
 })
 
 const connectionBinder = (data, socketId) => {
+  // Download file
   data.connection.on('RETR', (error, filePath) => {
-    // Download file
     if (error) {
       logFtpsError(data, error, { fileId: path.basename(filePath) })
       return
@@ -97,8 +101,8 @@ const connectionBinder = (data, socketId) => {
     logFtpsInfo(data, 'Client downloaded file.', { fileId: path.basename(filePath) })
   })
 
+  // Upload file
   data.connection.on('STOR', async (error, fileName) => {
-    // Upload file
     try {
       if (error) {
         logFtpsError(data, error)

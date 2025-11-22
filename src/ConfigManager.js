@@ -64,6 +64,9 @@ class ConfigManager {
     useMailerSend: false,
     apiKey: ''
   }
+  /**
+   * Setup configs from config file.
+   */
   constructor() {
     try {
       this.directoryConfig = getConfig('directories')

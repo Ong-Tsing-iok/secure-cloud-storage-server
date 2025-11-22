@@ -19,8 +19,16 @@ import ConfigManager from './ConfigManager.js'
 import { emitToOnlineUser } from './UserLoginInfo.js'
 import { fileTypeFromFile } from 'file-type'
 
-const uploadInfoMap = new EvictingMap(5 * 60 * 1000)
+// Map for storing upload info
+const uploadInfoMap = new EvictingMap(ConfigManager.settings.uploadExpireTimeMin * 60 * 1000)
 
+/**
+ * Store upload related info before actually upload and generate the fileId.
+ * @param {string} cipher 
+ * @param {string} spk 
+ * @param {string} parentFolderId 
+ * @returns {string} fileId
+ */
 export const preUpload = (cipher, spk, parentFolderId) => {
   let fileId = randomUUID()
   while (uploadInfoMap.has(fileId)) {
@@ -76,12 +84,17 @@ export const finishUpload = async (uploadInfo) => {
   }
 }
 
+/**
+ * Check if certain fileId is in uploadInfoMap
+ * @param {string} fileId 
+ * @returns 
+ */
 export const hasUpload = (fileId) => {
   return uploadInfoMap.has(fileId)
 }
 
+// revert upload if blockhain information did not come in time
 uploadInfoMap.onExpired((key, value) => {
-  // revert upload if blockhain information did not come in time
   revertUpload(value.uploadInfo.userId, key, 'Did not get blockchain info in time.')
 })
 
@@ -151,6 +164,12 @@ BlockchainManager.bindEventListener(
   }
 )
 
+/**
+ * Revert the upload and notify user
+ * @param {string} userId 
+ * @param {string} fileId 
+ * @param {string} errorMsg 
+ */
 const revertUpload = async (userId, fileId, errorMsg) => {
   try {
     logger.info(`reverting upload.`, { userId, fileId, errorMsg })

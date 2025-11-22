@@ -52,15 +52,6 @@ const reencrypt = async (rekey, cipher, aSpk, bPk) => {
 }
 
 /**
- *
- * @returns {Promise<string>}
- */
-const messageGen = async () => {
-  const message = await pre_schema1_MessageGen()
-  return Buffer.from(message).toString('base64')
-}
-
-/**
  * Generate a random message and cipher for verification
  * @param {string} publicKey
  * @returns {Promise<{message: string, cipher: string, spk: string}>}
@@ -84,7 +75,6 @@ const verifyGen = async (publicKey) => {
 
 const CryptoHandler = {
   reencrypt,
-  messageGen,
   verifyGen
 }
 export default CryptoHandler

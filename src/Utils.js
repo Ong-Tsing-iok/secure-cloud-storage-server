@@ -70,6 +70,11 @@ export const riskyMimeTypes = [
   'image/svg+xml'
 ]
 
+/**
+ * Check socket login status
+ * @param {*} socket 
+ * @returns 
+ */
 const checkLoggedIn = (socket) => {
   if (!socket.authed) {
     logSocketWarning(socket, 'Unauthorized attempt', { ip: socket.ip })
@@ -87,6 +92,12 @@ const checkLoggedIn = (socket) => {
   return true
 }
 
+/**
+ * Check if certain folder id exist for certain user
+ * @param {string} folderId 
+ * @param {string} userId 
+ * @returns 
+ */
 const checkFolderExistsForUser = async (folderId, userId) => {
   if (!folderId) {
     return true
@@ -94,10 +105,22 @@ const checkFolderExistsForUser = async (folderId, userId) => {
   return await getFolderInfoOfOwnerId(folderId, userId)
 }
 
+/**
+ * Get file path for certain user and fileId
+ * @param {string} userId 
+ * @param {string} fileId 
+ * @returns {string}
+ */
 const getFilePath = (userId, fileId) => {
   return resolve(ConfigManager.uploadDir, userId, fileId)
 }
 
+/**
+ * Calcluate file hash from file path
+ * @param {string} filePath 
+ * @param {string} algorithm default sha256
+ * @returns {string} File hash
+ */
 const calculateFileHash = async (filePath, algorithm = 'sha256') => {
   const hash = crypto.createHash(algorithm)
   const stream = createReadStream(filePath)

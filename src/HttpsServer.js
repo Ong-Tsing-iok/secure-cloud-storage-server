@@ -14,6 +14,7 @@ import { getLoggedInUserIdOfSocket } from './UserLoginInfo.js'
 import { fileTypeFromFile } from 'file-type'
 import { getFilePath, riskyMimeTypes } from './Utils.js'
 
+// prepare user directory and stored filename
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
     try {
@@ -34,8 +35,8 @@ const storage = multer.diskStorage({
     fileSize: 8000000
   }
 })
+// Fix original name encoding problem
 const checkFileType = (req, file, cb) => {
-  // Fix original name encoding problem
   file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8')
 
   cb(null, true)

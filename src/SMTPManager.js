@@ -12,12 +12,14 @@ let mailerSend
 let sentFrom
 if (ConfigManager.smtp.enabled) {
   if (ConfigManager.smtp.useMailerSend) {
+    // Use mailsend API
     mailerSend = new MailerSend({
       apiKey: ConfigManager.smtp.apiKey
     })
     sentFrom = new Sender(ConfigManager.smtp.from, 'Cloud Server')
     logger.info('SMTP Server is ready to take our messages')
   } else {
+    // Use nodemailer API
     transporter = nodemailer.createTransport({
       host: ConfigManager.smtp.host,
       port: 587,
@@ -28,6 +30,7 @@ if (ConfigManager.smtp.enabled) {
         pass: ConfigManager.smtp.pass
       }
     })
+    // Verify connection
     transporter.verify((error, success) => {
       if (error) logger.error(error)
       else logger.info('SMTP Server is ready to take our messages')
@@ -35,6 +38,13 @@ if (ConfigManager.smtp.enabled) {
   }
 }
 
+/**
+ * Send the email authentication code to certain email with certain name.
+ * @param {string} email 
+ * @param {string} name 
+ * @param {string} auth 
+ * @returns 
+ */
 export async function sendEmailAuth(email, name, auth) {
   if (!ConfigManager.smtp.enabled) return
   if (ConfigManager.smtp.useMailerSend) {

@@ -46,8 +46,6 @@ import {
 import { preUpload } from './UploadVerifier.js'
 import ABSEManeger from './ABSEManager.js'
 
-const uploadExpireTime = ConfigManager.settings.uploadExpireTimeMin * 60 * 1000
-
 // Download file related events
 const downloadFileBinder = (socket) => {
   /**
@@ -366,28 +364,6 @@ const moveFileBinder = (socket) => {
 }
 
 const getPublicFilesBinder = (socket) => {
-  /**
-   * Client ask to get public files. Should not be called anymore.
-   */
-  // socket.on('get-public-files', async (cb) => {
-  //   try {
-  //     const actionStr = 'Client asks to get public files'
-  //     logSocketInfo(socket, actionStr + '.')
-  //
-  //     if (!checkLoggedIn(socket)) {
-  //       logSocketWarning(socket, actionStr + ' but is not logged in.')
-  //       cb({ errorMsg: NotLoggedInErrorMsg })
-  //       return
-  //     }
-  //
-  //     const files = await getAllPublicFilesNotOwned(socket.userId)
-  //     logSocketInfo(socket, 'Responding public files to client.')
-  //     cb({ files: JSON.stringify(files) })
-  //   } catch (error) {
-  //     logSocketError(socket, error)
-  //     cb({ errorMsg: InternalServerErrorMsg })
-  //   }
-  // })
   /**
    * Client asks to search files
    */

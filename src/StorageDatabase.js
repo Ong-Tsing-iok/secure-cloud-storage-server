@@ -197,8 +197,8 @@ export const addFileToDatabase = async ({
 }
 
 /**
- *
- * @param {{fileId: string, infoBlockNumber: number, verifyBlockNumber:number}} param0
+ * Update file block numbers
+ * @param {{fileId: string, infoBlockNumber: number, verifyBlockNumber:number}} blockInfo
  */
 export const updateFileBlockNumber = async ({ fileId, infoBlockNumber, verifyBlockNumber }) => {
   await pool.query(`UPDATE files SET infoblocknumber = $1, verifyblocknumber = $2 WHERE id = $3`, [
@@ -388,6 +388,12 @@ export const getAllPublicFilesNotOwned = async (userId) => {
   return parseFileRows(result.rows)
 }
 
+/**
+ * get public file's info which is not owned by user
+ * @param {string} userId 
+ * @param {string} fileId 
+ * @returns 
+ */
 export const getPublicFilesNotOwnedByFileId = async (userId, fileId) => {
   const result = await pool.query(
     `SELECT * FROM files WHERE id = $1 AND permissions = 1 AND ownerId != $2`,
@@ -401,7 +407,7 @@ export const getPublicFilesNotOwnedByFileId = async (userId, fileId) => {
 }
 
 //- Folder
-// Helper function
+// Use camel cases
 const parseFolderRows = (rows) => {
   for (const element of rows) {
     element.ownerId = element.ownerid
@@ -513,7 +519,7 @@ export const getAllFoldersByParentFolderIdUserId = async (parentFolderId, userId
 }
 
 //- Request
-// Helper function
+// Use camel cases
 const parstRequestResponseRows = (rows) => {
   for (const element of rows) {
     element.ownerId = element.ownerid
@@ -705,6 +711,7 @@ export const deleteRequestOfRequester = async (requestId, requester) => {
 }
 
 //-- ABSE related --//
+// Insert encrypted index information to database
 export const insertCtw = async (fileId, j, ctw) => {
   return await pool.query(`INSERT INTO ctw_table (fileid, j, ctw) VALUES ($1, $2, $3)`, [
     fileId,
@@ -712,6 +719,7 @@ export const insertCtw = async (fileId, j, ctw) => {
     ctw
   ])
 }
+// Insert encrypted index information to database
 export const insertCt = async (fileId, i, ct) => {
   return await pool.query(`INSERT INTO ct_table (fileid, i, ct) VALUES ($1, $2, $3)`, [
     fileId,
@@ -719,29 +727,36 @@ export const insertCt = async (fileId, i, ct) => {
     ct
   ])
 }
+// Insert encrypted index information to database
 export const insertCtStar = async (fileId, ctstar) => {
   return await pool.query(`INSERT INTO ctstar_table (fileid, ctstar) VALUES ($1, $2)`, [
     fileId,
     ctstar
   ])
 }
+// Get encrypted index information to database
 export const getCtws = async (fileId) => {
   return (await pool.query(`SELECT * FROM ctw_table WHERE fileid = $1 ORDER BY j ASC`, [fileId]))
     .rows
 }
+// Get encrypted index information to database
 export const getCts = async (fileId) => {
   return (await pool.query(`SELECT * FROM ct_table WHERE fileid = $1 ORDER BY i ASC`, [fileId]))
     .rows
 }
+// Get encrypted index information to database
 export const getCtStars = async () => {
   return (await pool.query(`SELECT * FROM ctstar_table`)).rows
 }
+// Delete encrypted index information to database
 export const deleteCtw = async (fileId) => {
   return await pool.query(`DELETE FROM ctw_table WHERE fileid = $1`, [fileId])
 }
+// Delete encrypted index information to database
 export const deleteCt = async (fileId) => {
   return await pool.query(`DELETE FROM ct_table WHERE fileid = $1`, [fileId])
 }
+// Delete encrypted index information to database
 export const deleteCtStar = async (fileId) => {
   return await pool.query(`DELETE FROM ctstar_table WHERE fileid = $1`, [fileId])
 }

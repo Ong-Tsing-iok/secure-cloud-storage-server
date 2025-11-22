@@ -1,3 +1,4 @@
+-- This file describes the scheme for server database.
 CREATE TABLE users (
     id TEXT PRIMARY KEY NOT NULL,
     pk TEXT NOT NULL,

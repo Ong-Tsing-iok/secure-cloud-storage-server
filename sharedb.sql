@@ -1,3 +1,4 @@
+-- This file describes the scheme for share key databases.
 CREATE TABLE secret_share (
     userid TEXT NOT NULL PRIMARY KEY,
     share TEXT NOT NULL,

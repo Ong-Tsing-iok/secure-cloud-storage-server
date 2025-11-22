@@ -11,6 +11,7 @@ import { getFilePath } from './Utils.js'
 import { getLoggedInUserIdOfSocket } from './UserLoginInfo.js'
 const { Server, utils } = pkg
 
+// Create a new SFTP server
 new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, info) => {
   const ip = info.ip
   logger.info('Sftp Client connected.')
@@ -51,6 +52,7 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
           let openedFileName
           sftp
             .on('OPEN', (reqId, filename, flags, attrs) => {
+              // Opens the file to write/read
               logger.debug('Sftp client OPEN.')
               isWrite = flags & utils.sftp.OPEN_MODE.WRITE
               if (isWrite) logSftpInfo(ip, userId, fileId, 'Client tries to write file.')
@@ -67,6 +69,7 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
                 return sftp.status(reqId, utils.sftp.STATUS_CODE.OP_UNSUPPORTED)
               }
 
+              // Check if have asked to upload
               if (isWrite && !hasUpload(fileId)) {
                 logSftpWarning(
                   ip,
@@ -76,6 +79,7 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
                 )
               }
               openedFileName = filename
+              // Actually open the file and store the file descriptor 
               fs.open(getFilePath(userId, fileId), utils.sftp.flagsToString(flags), (err, fd) => {
                 if (err) {
                   logSftpError(ip, userId, fileId, err)
@@ -88,6 +92,7 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
               })
             })
             .on('WRITE', (reqId, handle, offset, data) => {
+              // Writing file content to the opened file.
               logger.debug('Sftp client WRITE.')
               let fnum = handle.readUInt32BE(0)
               if (handle.length !== 4 || !openFiles.has(fnum)) {
@@ -103,6 +108,7 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
               })
             })
             .on('READ', (reqId, handle, offset, len) => {
+              // Reading file content from the opened file
               logger.debug('Sftp client READ.')
               let fnum = handle.readUInt32BE(0)
               if (handle.length !== 4 || !openFiles.has(fnum)) {
@@ -122,6 +128,7 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
               })
             })
             .on('CLOSE', (reqId, handle) => {
+              // Closing the opened file
               logger.debug('Sftp client CLOSE.')
               let fnum = handle.readUInt32BE(0)
               if (handle.length !== 4 || !openFiles.has(fnum)) {
@@ -136,6 +143,7 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
                 }
                 sftp.status(reqId, utils.sftp.STATUS_CODE.OK)
                 if (isWrite) {
+                  // Finish upload if is write
                   const fileSize = fs.statSync(getFilePath(userId, fileId)).size
                   finishUpload({
                     name: openedFileName,

@@ -3,12 +3,18 @@
  */
 import winston, { format } from 'winston'
 import Transport from 'winston-transport'
-import 'winston-daily-rotate-file'
 import http from 'node:http'
 
 const SOCKET_PATH = '/tmp/log.sock'
 const url = `http://unix:${SOCKET_PATH}:/logs`
 
+/**
+ * Send data from CLI to main process via unix socket.
+ * @param {string} socketPath
+ * @param {string} path
+ * @param {string} data
+ * @returns
+ */
 const postToUnixSocket = (socketPath, path, data) => {
   return new Promise((resolve, reject) => {
     const req = http.request(
@@ -33,6 +39,9 @@ const postToUnixSocket = (socketPath, path, data) => {
   })
 }
 
+/**
+ * Custom transport to log from CLI to main server process.
+ */
 class RemoteTransport extends Transport {
   constructor(opts = {}) {
     super(opts)
@@ -52,42 +61,14 @@ class RemoteTransport extends Transport {
   }
 }
 
+// create logger with format and transport
 export const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   format: winston.format.combine(format.errors({ stack: true }), format.timestamp(), format.json()),
-  // defaultMeta: { service: "user-service" },
   transports: [
-    //
-    // - Write all logs with importance level of `error` or less to `error.log`
-    // - Write all logs with importance level of `info` or less to `combined.log`
-    //
-    // new winston.transports.DailyRotateFile({
-    //   filename: '%DATE%-error.log',
-    //   datePattern: 'YYYY-MM-DD',
-    //   dirname: config.get('directories.logs'),
-    //   level: 'error'
-    // }),
-    // new winston.transports.DailyRotateFile({
-    //   filename: '%DATE%-combined.log',
-    //   datePattern: 'YYYY-MM-DD',
-    //   dirname: config.get('directories.logs')
-    // }),
     process.env.IS_CLI ? new RemoteTransport({ url }) : new winston.transports.Console({})
   ]
 })
-
-//
-// If we're not in production then log to the `console` with the format:
-// `${info.level}: ${info.message} JSON.stringify({ ...rest }) `
-//
-// if (process.env.NODE_ENV !== 'production') {
-//   logger.add(
-//     new winston.transports.Console({
-//       format: winston.format.simple(),
-//       level: 'debug'
-//     })
-//   )
-// }
 
 logger.info('Logging initialized.')
 

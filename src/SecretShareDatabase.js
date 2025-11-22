@@ -19,6 +19,11 @@ for (const secretShareDbConfig of ConfigManager.secretShareDbConfigs) {
   }
 }
 
+/**
+ * Get user's shared secrets from secret share databases
+ * @param {string} userId 
+ * @returns {Promise<Array<string>} secret shares
+ */
 export async function retrieveUserShares(userId) {
   const shares = []
   for (const pool of secretShareDbPools) {
@@ -38,6 +43,10 @@ export async function retrieveUserShares(userId) {
   return shares
 }
 
+/**
+ * Delete user's shared secrets from secret share databases.
+ * @param {string} userId 
+ */
 export async function deleteUserShares(userId) {
   for (const pool of secretShareDbPools) {
     try {
@@ -49,6 +58,11 @@ export async function deleteUserShares(userId) {
   }
 }
 
+/**
+ * Store user's shared secrets to secret share databases.
+ * @param {string} userId 
+ * @param {Array<string>} shares 
+ */
 export async function storeUserShares(userId, shares) {
   let i = 0
   let j = 0
