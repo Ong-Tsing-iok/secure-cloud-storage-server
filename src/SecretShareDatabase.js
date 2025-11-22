@@ -6,7 +6,7 @@ import ConfigManager from './ConfigManager.js'
 import { logger } from './Logger.js'
 
 //--  Setup --//
-const secretShareDbPools = []
+export const secretShareDbPools = []
 for (const secretShareDbConfig of ConfigManager.secretShareDbConfigs) {
   try {
     const pool = new Pool(secretShareDbConfig)
@@ -81,7 +81,7 @@ export async function storeUserShares(userId, shares) {
   }
 }
 
-//-- Tear down --// Should be called with StorageDatabase.js
+//-- Tear down --// Moved to ShutdownHandler.js
 // process.on('SIGINT', async () => {
 //   logger.info('SIGINT signal received: Closing PostgreSQL pool...')
 //   await pool.end()
@@ -97,4 +97,4 @@ export async function storeUserShares(userId, shares) {
 // })
 
 // logger.info('Secret Share database pools initialized')
-console.log('SecretShareDatabase.js loaded.')
+console.debug('SecretShareDatabase.js loaded.')

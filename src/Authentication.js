@@ -419,4 +419,4 @@ async function registerProcess(socket) {
 }
 
 export default authenticationBinder
-console.log('Authentication.js loaded.')
+console.debug('Authentication.js loaded.')

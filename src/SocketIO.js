@@ -74,4 +74,4 @@ const disconnectSocket = (socketId) => {
 
 // export default io
 export { emitToSocket, disconnectSocket, app }
-console.log('SocketIO.js loaded.')
+console.debug('SocketIO.js loaded.')

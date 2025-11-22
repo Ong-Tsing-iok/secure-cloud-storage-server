@@ -200,4 +200,4 @@ class BlockchainManager {
 }
 
 export default new BlockchainManager()
-console.log('BlockchainManager.js loaded.')
+console.debug('BlockchainManager.js loaded.')

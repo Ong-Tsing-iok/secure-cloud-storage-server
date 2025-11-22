@@ -332,4 +332,4 @@ const reencryptFile = async (rekey, fileInfo, requestInfo, authorizerInfo, reque
 }
 
 export { requestBinder }
-console.log('RequestManager.js loaded.')
+console.debug('RequestManager.js loaded.')

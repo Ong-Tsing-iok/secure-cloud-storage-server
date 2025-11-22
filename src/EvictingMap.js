@@ -163,4 +163,4 @@ export default class EvictingMap extends Map {
     }
   }
 }
-console.log('EvictingMap.js loaded.')
+console.debug('EvictingMap.js loaded.')

@@ -186,4 +186,4 @@ const revertUpload = async (userId, fileId, errorMsg) => {
     }
   }
 }
-console.log('UploadVerifier.js loaded.')
+console.debug('UploadVerifier.js loaded.')

@@ -7,7 +7,7 @@ import { logger } from './Logger.js'
 import { randomUUID } from 'node:crypto'
 
 //--  Setup --//
-const pool = new Pool(ConfigManager.dbPoolConfig)
+export const pool = new Pool(ConfigManager.dbPoolConfig)
 
 //- New client connected to database
 // pool.on('connect', (client) => {
@@ -761,20 +761,20 @@ export const deleteCtStar = async (fileId) => {
   return await pool.query(`DELETE FROM ctstar_table WHERE fileid = $1`, [fileId])
 }
 
-//-- Tear down --//
-process.on('SIGINT', async () => {
-  logger.info('SIGINT signal received: Closing PostgreSQL pool...')
-  await pool.end()
-  logger.info('PostgreSQL pool closed. Exiting process.')
-  process.exit(0)
-})
+//-- Tear down --// Moved to ShutdownHandler.js
+// process.on('SIGINT', async () => {
+//   logger.info('SIGINT signal received: Closing PostgreSQL pool...')
+//   await pool.end()
+//   logger.info('PostgreSQL pool closed. Exiting process.')
+//   process.exit(0)
+// })
 
-process.on('SIGTERM', async () => {
-  logger.info('SIGTERM signal received: Closing PostgreSQL pool...')
-  await pool.end()
-  logger.info('PostgreSQL pool closed. Exiting process.')
-  process.exit(0)
-})
+// process.on('SIGTERM', async () => {
+//   logger.info('SIGTERM signal received: Closing PostgreSQL pool...')
+//   await pool.end()
+//   logger.info('PostgreSQL pool closed. Exiting process.')
+//   process.exit(0)
+// })
 
 // logger.info('Database pool initialized')
-console.log('StorageDatabase.js loaded.')
+console.debug('StorageDatabase.js loaded.')

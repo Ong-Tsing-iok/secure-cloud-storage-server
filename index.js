@@ -6,6 +6,7 @@ import './src/HttpsServer.js'
 import './src/SftpServer.js'
 import './src/SecretShareDatabase.js'
 import './src/CLIListener.js'
+import './src/ShutdownHandler.js'
 
 await ftpServer.listen()
 logger.info(`Ftp server listening on port ${ConfigManager.ftps.controlPort}`)

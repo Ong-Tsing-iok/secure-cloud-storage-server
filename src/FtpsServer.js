@@ -130,4 +130,4 @@ const connectionBinder = (data, socketId) => {
 
 logger.info('FTP server initialized.')
 export default ftpServer
-console.log('FtpsServer.js loaded.')
+console.debug('FtpsServer.js loaded.')

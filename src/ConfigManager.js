@@ -186,4 +186,4 @@ class ConfigManager {
 }
 
 export default new ConfigManager()
-console.log('ConfigManager.js loaded.')
+console.debug('ConfigManager.js loaded.')

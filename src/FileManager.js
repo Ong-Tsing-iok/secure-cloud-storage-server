@@ -473,4 +473,4 @@ const allFileBinder = (socket) => {
 }
 
 export { allFileBinder }
-console.log('FileManager.js loaded.')
+console.debug('FileManager.js loaded.')

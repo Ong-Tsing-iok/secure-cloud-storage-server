@@ -27,5 +27,5 @@ const server = http.createServer(app)
 
 server.listen(SOCKET_PATH, () => {
   fs.chmodSync(SOCKET_PATH, 0o600) // owner-only access
-  console.log(`Log server listening on ${SOCKET_PATH}`)
+  logger.info(`Log server listening on ${SOCKET_PATH}`)
 })

@@ -71,4 +71,4 @@ export async function sendEmailAuth(email, name, auth) {
   }
 }
 
-console.log('SMTPManager.js loaded.')
+console.debug('SMTPManager.js loaded.')

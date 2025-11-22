@@ -24,10 +24,12 @@ import Table from 'tty-table'
 import ConfigManager from './src/ConfigManager.js'
 import { emailFormatRe, uuidFormatRe } from './src/Utils.js'
 import { deleteUserShares } from './src/SecretShareDatabase.js'
+import {gracefullyShutdown} from './src/ShutdownHandler.js'
 
 if (!process.env.IS_CLI) {
   console.log('Please export IS_CLI=1')
   console.log('Process exiting')
+  await gracefullyShutdown()
   process.exit(1)
 }
 
@@ -70,9 +72,10 @@ stdin.resume()
 stdin.setEncoding('utf8')
 
 // on any data into stdin
-stdin.on('data', function (key) {
+stdin.on('data', async function (key) {
   // ctrl-c ( end of text )
   if (key == '\u0003') {
+    await gracefullyShutdown()
     process.exit()
   }
   if (key == '\u001b') {
@@ -370,6 +373,7 @@ while (true) {
         await manageAccounts()
         break
       case 'exit':
+        await gracefullyShutdown()
         process.exit(0)
         break
     }

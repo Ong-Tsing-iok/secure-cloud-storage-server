@@ -167,4 +167,4 @@ new Server({ hostKeys: [fs.readFileSync(ConfigManager.sshKeyPath)] }, (client, i
 }).listen(ConfigManager.sftpPort, ConfigManager.serverHost, function () {
   logger.info(`SFTP server listening on port ${this.address().port}`)
 })
-console.log('SftpServer.js loaded.')
+console.debug('SftpServer.js loaded.')
