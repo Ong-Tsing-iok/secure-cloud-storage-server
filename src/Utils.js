@@ -119,7 +119,7 @@ const getFilePath = (userId, fileId) => {
  * Calcluate file hash from file path
  * @param {string} filePath 
  * @param {string} algorithm default sha256
- * @returns {string} File hash
+ * @returns {Promise<string>} File hash
  */
 const calculateFileHash = async (filePath, algorithm = 'sha256') => {
   const hash = crypto.createHash(algorithm)
