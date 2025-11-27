@@ -101,12 +101,12 @@ describe('UploadVerifier', () => {
     // For testing, we'll map a specific BigInt back to our UUID string.
     // For the actual BigInt value, we can use a fixed BigInt and map it.
     if (uuidString === mockUploadInfo.id) {
-      return BigInt('0x' + uuidString.replace(/-/g, '')) // Simplified hex conversion for testing
+      return BigInt('0x' + uuidString.replaceAll('-', '')) // Simplified hex conversion for testing
     }
     return BigInt(0) // Default or throw error for unknown UUIDs
   }
 
-  const mockBlockchainFileIdBigInt = BigInt('0x' + mockUploadInfo.id.replace(/-/g, ''))
+  const mockBlockchainFileIdBigInt = BigInt('0x' + mockUploadInfo.id.replaceAll('-', ''))
   const mockUploaderAddressBigInt = BigInt(mockUploaderAddress)
 
   beforeAll(() => {

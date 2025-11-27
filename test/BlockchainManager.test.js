@@ -449,7 +449,7 @@ describe('BlockchainManager', () => {
       // This is crucial because `bigIntToUuid` has validation.
       const generateBigIntForUuid = (uuidString) => {
         // Strip hyphens and convert to BigInt
-        return BigInt('0x' + uuidString.replace(/-/g, ''))
+        return BigInt('0x' + uuidString.replaceAll('-', ''))
       }
 
       test('should return null if no FileUploaded events are found', async () => {
