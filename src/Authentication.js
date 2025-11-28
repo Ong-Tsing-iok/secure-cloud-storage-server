@@ -51,7 +51,7 @@ const authenticationBinder = (socket) => {
   socket.on('register', async (request, cb) => {
     try {
       const actionStr = 'Client asks to register'
-      logSocketInfo(socket, actionStr + '.', request)
+      logSocketInfo(socket, actionStr + '.', {...request, name: undefined, email: undefined})
 
       const result = RegisterRequestSchema.safeParse(request)
       if (!result.success) {
@@ -170,7 +170,7 @@ const authenticationBinder = (socket) => {
   socket.on('auth-res', async (request, cb) => {
     try {
       const actionStr = 'Client responds to authentication'
-      logSocketInfo(socket, actionStr + '.', request)
+      logSocketInfo(socket, actionStr + '.', {...request, decryptedValue: undefined})
 
       const result = AuthResRequestSchema.safeParse(request)
       if (!result.success) {
@@ -253,7 +253,7 @@ const authenticationBinder = (socket) => {
   socket.on('secret-recover', async (request, cb) => {
     try {
       const actionStr = 'Client asks to recover secret'
-      logSocketInfo(socket, actionStr + '.', request)
+      logSocketInfo(socket, actionStr + '.', {...request, email: undefined})
 
       const result = SecretRecoverRequestSchema.safeParse(request)
       if (!result.success) {

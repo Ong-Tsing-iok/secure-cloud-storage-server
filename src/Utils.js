@@ -1,9 +1,10 @@
 import { createReadStream } from 'node:fs'
-import crypto from 'node:crypto'
 import { logSocketWarning } from './Logger.js'
 import { getFolderInfoOfOwnerId, getUserById, userStatusType } from './StorageDatabase.js'
 import { resolve } from 'node:path'
+import crypto, { subtle } from 'node:crypto'
 import ConfigManager from './ConfigManager.js'
+
 const keyFormatRe = /^[a-zA-Z0-9+/=]+$/
 const emailFormatRe = /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/
 const uuidFormatRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
@@ -72,8 +73,8 @@ export const riskyMimeTypes = [
 
 /**
  * Check socket login status
- * @param {*} socket 
- * @returns 
+ * @param {*} socket
+ * @returns
  */
 const checkLoggedIn = (socket) => {
   if (!socket.authed) {
@@ -94,9 +95,9 @@ const checkLoggedIn = (socket) => {
 
 /**
  * Check if certain folder id exist for certain user
- * @param {string} folderId 
- * @param {string} userId 
- * @returns 
+ * @param {string} folderId
+ * @param {string} userId
+ * @returns
  */
 const checkFolderExistsForUser = async (folderId, userId) => {
   if (!folderId) {
@@ -107,8 +108,8 @@ const checkFolderExistsForUser = async (folderId, userId) => {
 
 /**
  * Get file path for certain user and fileId
- * @param {string} userId 
- * @param {string} fileId 
+ * @param {string} userId
+ * @param {string} fileId
  * @returns {string}
  */
 const getFilePath = (userId, fileId) => {
@@ -117,7 +118,7 @@ const getFilePath = (userId, fileId) => {
 
 /**
  * Calcluate file hash from file path
- * @param {string} filePath 
+ * @param {string} filePath
  * @param {string} algorithm default sha256
  * @returns {Promise<string>} File hash
  */
@@ -174,6 +175,60 @@ export function bigIntToUuid(uuidBigInt) {
     hexString.substring(16, 20),
     hexString.substring(20, 32)
   ].join('-')
+}
+
+/**
+ * Derive AES key and iv from the provided base buffer.
+ * @param {ArrayBufferLike} baseMaterial The base buffer for derivation.
+ * @returns The derive AES key and iv.
+ */
+export async function deriveAESKeyIvFromBuffer(baseMaterial) {
+  const baseKey = await subtle.importKey('raw', baseMaterial, 'HKDF', false, ['deriveBits'])
+  const derivedBits = await subtle.deriveBits(
+    {
+      name: 'HKDF',
+      hash: 'sha-256',
+      info: new Uint8Array(),
+      salt: new Uint8Array()
+    },
+    baseKey,
+    48 * 8
+  )
+  const key = derivedBits.slice(0, 32)
+  const iv = derivedBits.slice(32, 48)
+  return { key, iv }
+}
+
+/**
+ * Encrypts text with AES
+ * @param {string} text
+ * @param {Buffer} key
+ * @param {Buffer} iv
+ * @returns
+ */
+export async function encryptWithAES(text, key, iv) {
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)
+  let encrypted = cipher.update(text, 'utf-8', 'base64')
+  encrypted += cipher.final('base64')
+  encrypted += ':'
+  encrypted += cipher.getAuthTag().toString('base64')
+  return encrypted
+}
+
+/**
+ * Decrypts encrypted text with AES
+ * @param {text} encryptedText
+ * @param {Buffer} key
+ * @param {Buffer} iv
+ * @returns
+ */
+export async function decryptWithAES(encryptedText, key, iv) {
+  const parts = encryptedText.split(':')
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv)
+  decipher.setAuthTag(Buffer.from(parts[1], 'base64'))
+  let decrypted = decipher.update(parts[0], 'base64', 'utf-8')
+  decrypted += decipher.final('utf-8')
+  return decrypted
 }
 
 export {

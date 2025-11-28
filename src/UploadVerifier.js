@@ -98,7 +98,7 @@ export const hasUpload = (fileId) => {
 
 // revert upload if blockhain information did not come in time
 uploadInfoMap.onExpired((key, value) => {
-  revertUpload(value.uploadInfo.userId, key, 'Did not get blockchain info in time.')
+  revertUpload(value.uploadInfo?.userId, key, 'Did not get blockchain info in time.')
 })
 
 /**

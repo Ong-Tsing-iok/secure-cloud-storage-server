@@ -5,9 +5,15 @@ import { Pool } from 'pg'
 import ConfigManager from './ConfigManager.js'
 import { logger } from './Logger.js'
 import { randomUUID } from 'node:crypto'
+import { decryptWithAES, deriveAESKeyIvFromBuffer, encryptWithAES } from './Utils.js'
+import { readFileSync } from 'node:fs'
 
 //--  Setup --//
 export const pool = new Pool(ConfigManager.dbPoolConfig)
+
+// AES key and iv to encrypt user name and email
+const material = Buffer.from(readFileSync(ConfigManager.blockchain.walletKeyPath))
+const { key, iv } = await deriveAESKeyIvFromBuffer(material)
 
 //- New client connected to database
 // pool.on('connect', (client) => {
@@ -28,6 +34,14 @@ pool.on('error', (err) => {
 
 //-- Queries --//
 //- User
+// Helper function
+const parseUserRows = async (rows) => {
+  for (const element of rows) {
+    element.name = element.name ? await decryptWithAES(element.name, key, iv) : undefined
+    element.email = element.email ? await decryptWithAES(element.email, key, iv) : undefined
+  }
+  return rows
+}
 /**
  * @typedef {object} User
  * @property {string} id - The user's UUID.
@@ -52,7 +66,8 @@ export const userStatusType = Object.freeze({
  */
 export const getUserByKey = async (pk) => {
   const res = await pool.query('SELECT * FROM users WHERE pk = $1', [pk])
-  return res.rows[0]
+  const parsedRows = await parseUserRows(res.rows)
+  return parsedRows[0]
 }
 
 /**
@@ -62,12 +77,14 @@ export const getUserByKey = async (pk) => {
  */
 export const getUserById = async (id) => {
   const res = await pool.query('SELECT * FROM users WHERE id = $1', [id])
-  return res.rows[0]
+  const parsedRows = await parseUserRows(res.rows)
+  return parsedRows[0]
 }
 
 export const getUserByEmail = async (email) => {
   const res = await pool.query('SELECT * FROM users WHERE email = $1', [email])
-  return res.rows[0]
+  const parsedRows = await parseUserRows(res.rows)
+  return parsedRows[0]
 }
 
 /**
@@ -76,7 +93,8 @@ export const getUserByEmail = async (email) => {
  */
 export const getAllUsers = async () => {
   const res = await pool.query('SELECT * FROM users')
-  return res.rows
+  const parsedRows = await parseUserRows(res.rows)
+  return parsedRows
 }
 
 /**
@@ -101,7 +119,13 @@ export const updateUserStatusById = async (id, status) => {
  * @returns {Promise<import('pg').QueryResult>} A promise that resolves to the query result.
  */
 export const updateUserInfoById = async (id, name, email) => {
-  return await pool.query('UPDATE users SET name = $1, email = $2 WHERE id = $3', [name, email, id])
+  const encryptedName = await encryptWithAES(name, key, iv)
+  const encryptedEmail = await encryptWithAES(email, key, iv)
+  return await pool.query('UPDATE users SET name = $1, email = $2 WHERE id = $3', [
+    encryptedName,
+    encryptedEmail,
+    id
+  ])
 }
 
 /**
@@ -123,9 +147,11 @@ export const deleteUserById = async (id) => {
  */
 export const AddUserAndGetId = async (pk, blockchainAddress, name, email) => {
   const id = randomUUID().toString()
+  const encryptedName = await encryptWithAES(name, key, iv)
+  const encryptedEmail = await encryptWithAES(email, key, iv)
   const info = await pool.query(
     'INSERT INTO users (id, pk, address, name, email, status) VALUES ($1, $2, $3, $4, $5, $6)',
-    [id, pk, blockchainAddress, name, email, userStatusType.activate]
+    [id, pk, blockchainAddress, encryptedName, encryptedEmail, userStatusType.activate]
   )
   return { id, info }
 }
@@ -390,9 +416,9 @@ export const getAllPublicFilesNotOwned = async (userId) => {
 
 /**
  * get public file's info which is not owned by user
- * @param {string} userId 
- * @param {string} fileId 
- * @returns 
+ * @param {string} userId
+ * @param {string} fileId
+ * @returns
  */
 export const getPublicFilesNotOwnedByFileId = async (userId, fileId) => {
   const result = await pool.query(
@@ -520,7 +546,7 @@ export const getAllFoldersByParentFolderIdUserId = async (parentFolderId, userId
 
 //- Request
 // Use camel cases
-const parstRequestResponseRows = (rows) => {
+const parseRequestResponseRows = async (rows) => {
   for (const element of rows) {
     element.ownerId = element.ownerid
     element.originOwnerId = element.originownerid
@@ -534,7 +560,11 @@ const parstRequestResponseRows = (rows) => {
     element.responseDescription = element.responsedescription
     element.responseTime = element.responsetime
     element.userName = element.username
+      ? await decryptWithAES(element.username, key, iv)
+      : undefined
     element.userEmail = element.useremail
+      ? await decryptWithAES(element.useremail, key, iv)
+      : undefined
     delete element.ownerid
     delete element.originownerid
     delete element.parentfolderid
@@ -622,7 +652,8 @@ export const getAllRequestsResponsesFilesByOwner = async (userId) => {
          JOIN users as owners ON files.ownerId = owners.id JOIN users as requesters ON requests.requester = requesters.id WHERE files.ownerId = $1`,
     [userId]
   )
-  return parstRequestResponseRows(result.rows)
+  const parsedRows = await parseRequestResponseRows(result.rows)
+  return parsedRows
 }
 
 /**
@@ -639,7 +670,8 @@ export const getAllRequestsResponsesByRequester = async (userId) => {
          FROM requests LEFT JOIN responses ON responses.requestId = requests.id JOIN users ON requests.requester = users.id WHERE requests.requester = $1`,
     [userId]
   )
-  return parstRequestResponseRows(result.rows)
+  const parsedRows = await parseRequestResponseRows(result.rows)
+  return parsedRows
 }
 
 /**
@@ -655,7 +687,8 @@ export const getRequestNotRespondedByIdOfFileOwner = async (requestId, ownerId) 
          WHERE requests.id = $1 AND files.ownerId = $2 AND responses.agreed IS NULL`,
     [requestId, ownerId]
   )
-  return parstRequestResponseRows(result.rows)[0]
+  const parsedRows = await parseRequestResponseRows(result.rows)
+  return parsedRows[0]
 }
 
 /**
@@ -671,7 +704,8 @@ export const getRequesterPkFileId = async (requestId) => {
          WHERE requests.id = $1`,
     [requestId]
   )
-  return parstRequestResponseRows(result.rows)[0]
+  const parsedRows = await parseRequestResponseRows(result.rows)
+  return parsedRows[0]
 }
 
 /**
@@ -682,7 +716,8 @@ export const getRequesterPkFileId = async (requestId) => {
  */
 export const getRequestById = async (requestId) => {
   const result = await pool.query('SELECT * FROM requests WHERE id = $1', [requestId])
-  return parstRequestResponseRows(result.rows)[0]
+  const parsedRows = await parseRequestResponseRows(result.rows)
+  return parsedRows[0]
 }
 
 /**
