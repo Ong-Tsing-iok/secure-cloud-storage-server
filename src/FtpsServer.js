@@ -36,7 +36,8 @@ const ftpServer = new FtpSrv({
   blacklist: ['MKD', 'DELE', 'RNFR', 'RNTO', 'RMD'],
   tls: {
     key: readFileSync(ConfigManager.serverKeyPath),
-    cert: readFileSync(ConfigManager.serverCertPath)
+    cert: readFileSync(ConfigManager.serverCertPath),
+    minVersion: 'TLSv1.2'
   }
 })
 

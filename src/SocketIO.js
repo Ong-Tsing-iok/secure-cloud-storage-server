@@ -22,9 +22,9 @@ logger.info(`Express app created.`)
 const options = {
   key: readFileSync(ConfigManager.serverKeyPath),
   cert: readFileSync(ConfigManager.serverCertPath),
-  maxHttpBufferSize: 1e8 // 100 MB, may need to increase
+  maxHttpBufferSize: 1e8, // 100 MB
+  minVersion: 'TLSv1.2'
 }
-//? Redirect http to https?
 const server = createServer(options, app)
 
 server.listen(ConfigManager.httpsPort, () => {
