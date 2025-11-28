@@ -58,6 +58,7 @@ export const finishUpload = async (uploadInfo) => {
     console.log(fileMime)
     if (fileMime && riskyMimeTypes.includes(fileMime.mime)) {
       logger.warn('Client upload file with risky mime type.', { userId, ...fileMime })
+      uploadInfoMap.delete(fileId)
       await revertUpload(userId, fileId, 'Upload file is of risky mime type.')
       return
     }
