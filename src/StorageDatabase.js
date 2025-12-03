@@ -82,7 +82,8 @@ export const getUserById = async (id) => {
 }
 
 export const getUserByEmail = async (email) => {
-  const res = await pool.query('SELECT * FROM users WHERE email = $1', [email])
+  const encryptedEmail = await encryptWithAES(email, key, iv)
+  const res = await pool.query('SELECT * FROM users WHERE email = $1', [encryptedEmail])
   const parsedRows = await parseUserRows(res.rows)
   return parsedRows[0]
 }
